@@ -18,6 +18,8 @@
 
   const authToken = () => window.scenerySupabase?.session?.access_token || readSession()?.access_token || '';
 
+  const doFetch = (...args) => (typeof window !== 'undefined' && window.fetch ? window.fetch(...args) : (typeof globalThis !== 'undefined' && globalThis.fetch ? globalThis.fetch(...args) : fetch(...args)));
+
   const restRequest = async (path, options = {}) => {
     const headers = {
       'apikey': config.anonKey,
@@ -27,7 +29,7 @@
     const token = authToken();
     if (token) headers.Authorization = 'Bearer ' + token;
 
-    const response = await fetch(apiRoot + path, { ...options, headers });
+    const response = await doFetch(apiRoot + path, { ...options, headers });
     const body = await response.text();
     let data = null;
     try { data = body ? JSON.parse(body) : null; } catch { data = body; }
@@ -58,7 +60,7 @@
         return { data: { user: res.data }, error: null };
       },
       signInWithPassword: async ({ email, password }) => {
-        const res = await fetch(`${apiRoot}/auth/v1/token?grant_type=password`, {
+        const res = await doFetch(`${apiRoot}/auth/v1/token?grant_type=password`, {
           method: 'POST',
           headers: { 'apikey': config.anonKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
