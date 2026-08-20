@@ -55,7 +55,7 @@
         return;
       }
       try { localStorage.setItem('scenery-last-login-email', email); } catch {}
-      try { localStorage.setItem('scenery-supabase-session', JSON.stringify(body)); } catch {}
+      try { sessionStorage.setItem('scenery-supabase-session', JSON.stringify(body)); } catch {}
       window.scenerySupabase = window.scenerySupabase || {};
       window.scenerySupabase.enabled = true;
       window.scenerySupabase.mode = 'supabase-auth-rest';

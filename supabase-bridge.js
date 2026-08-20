@@ -7,16 +7,16 @@
   const hasConfig = Boolean(config.url && config.anonKey);
   const apiRoot = String(config.url || '').replace(/\/$/, '');
 
+  // Enforce fresh login on every reload / new window
   const readSession = () => {
     try {
-      return JSON.parse(localStorage.getItem('scenery-supabase-session') || 'null');
+      return JSON.parse(sessionStorage.getItem('scenery-supabase-session') || 'null');
     } catch {
       return null;
     }
   };
 
-  const persistedSession = readSession();
-  const authToken = () => window.scenerySupabase?.session?.access_token || persistedSession?.access_token || '';
+  const authToken = () => window.scenerySupabase?.session?.access_token || '';
 
   const restRequest = async (path, options = {}) => {
     const headers = {
@@ -139,7 +139,7 @@
     enabled: hasConfig,
     client,
     mode: client ? 'supabase-rest' : 'local',
-    session: persistedSession
+    session: null
   };
 
   const notify = (message, type = 'info') => {
@@ -506,6 +506,10 @@
         notify(`เข้าสู่ระบบ Supabase ไม่สำเร็จ: ${result.error.message}`, 'error');
         return;
       }
+      if (result.data?.session) {
+        window.scenerySupabase.session = result.data.session;
+        try { sessionStorage.setItem('scenery-supabase-session', JSON.stringify(result.data.session)); } catch {}
+      }
       const passwordInput = document.querySelector('#password');
       if (passwordInput) passwordInput.value = '';
       document.querySelector('#login-screen')?.classList.add('is-hidden');
@@ -538,34 +542,19 @@
     const loginScreen = document.querySelector('#login-screen');
     const appScreen = document.querySelector('#app-screen');
 
-    if (!client) {
-      window.scenerySupabase.mode = 'local';
-      return;
+    // Force login screen every time the page is loaded/reloaded
+    try { localStorage.removeItem('scenery-supabase-session'); } catch {}
+    try { sessionStorage.removeItem('scenery-supabase-session'); } catch {}
+    if (window.scenerySupabase) {
+      window.scenerySupabase.session = null;
+      window.scenerySupabase.user = null;
     }
 
-    // Check if valid session exists
-    const session = await client.auth.getSession();
-    if (session.data?.session?.access_token) {
-      const user = await currentUser();
-      if (user?.id) {
-        loginScreen?.classList.add('is-hidden');
-        appScreen?.classList.remove('is-hidden');
-        await hydrate();
-      } else {
-        // Clear expired/invalid session and show login screen
-        try { localStorage.removeItem('scenery-supabase-session'); } catch {}
-        if (window.scenerySupabase) {
-          window.scenerySupabase.session = null;
-          window.scenerySupabase.user = null;
-        }
-        loginScreen?.classList.remove('is-hidden');
-        appScreen?.classList.add('is-hidden');
-      }
-    } else {
-      // Show login screen by default
-      loginScreen?.classList.remove('is-hidden');
-      appScreen?.classList.add('is-hidden');
-    }
+    loginScreen?.classList.remove('is-hidden');
+    appScreen?.classList.add('is-hidden');
+
+    const passwordInput = document.querySelector('#password');
+    if (passwordInput) passwordInput.value = '';
 
     installRealtime();
   });
