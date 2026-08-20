@@ -547,15 +547,8 @@ function installInvoiceDraftActions(){
 }
 document.addEventListener('DOMContentLoaded',installInvoiceDraftActions);
 
-function installInvoiceVillaCodeField(){
-  const villa=$('#villa'),villaLabel=villa?.closest('label');
-  if(!villaLabel||$('#villa-code'))return;
-  const label=document.createElement('label');label.textContent='รหัส Villa / Room';
-  const input=document.createElement('input');input.id='villa-code';input.type='text';input.placeholder='เช่น A — Rainy S';input.setAttribute('list','invoice-villa-code-options');input.autocomplete='off';
-  const list=document.createElement('datalist');list.id='invoice-villa-code-options';list.innerHTML=(typeof CLOSE_ROUND_VILLA_CODES==='undefined'?[]:CLOSE_ROUND_VILLA_CODES).map(item=>`<option value="${esc(item.value)}"></option>`).join('');label.append(input,list);villaLabel.insertAdjacentElement('afterend',label);
-}
-document.addEventListener('DOMContentLoaded',installInvoiceVillaCodeField);
 function normalizeInvoiceVillaOptions(){
+  $('#villa-code')?.closest('label')?.remove();
   const select=$('#villa');if(!select)return;
   const numberedVillas=[
     '02 Pangola','03 Hamata','04 Barbados','05 Merino','06 Corriedale',
@@ -565,10 +558,6 @@ function normalizeInvoiceVillaOptions(){
     numberedVillas.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
 }
 document.addEventListener('DOMContentLoaded',normalizeInvoiceVillaOptions);
-document.addEventListener('DOMContentLoaded',()=>{
-  const button=$('#save-draft');if(button&&!button.dataset.villaCodeSync){button.dataset.villaCodeSync='true';button.addEventListener('click',()=>{const drafts=loadInvoiceDrafts();if(drafts[0]){drafts[0].fields['villa-code']=$('#villa-code')?.value||'';try{localStorage.setItem('scenery-invoice-drafts',JSON.stringify(drafts))}catch{}}})}
-  document.addEventListener('click',event=>{if(event.target.closest('#reset-invoice'))setTimeout(()=>{if($('#villa-code'))$('#villa-code').value=''},0)});
-});
 
 function normalizeReceptionLabels(){
   document.querySelectorAll('.topbar-context strong').forEach(element=>{element.textContent='RECEPTION'});
