@@ -166,14 +166,37 @@
   async function load() {
     try {
       const response = await fetch(`invoice-source.txt?v=${Date.now()}`, { cache: 'no-store' });
-      if (!response.ok) throw new Error('invoice source unavailable');
-      const data = parseSource(await response.text());
-      mergeCustom(data);
-      window.INVOICE_SOURCE_DATA = data;
-      applyForm(data);
-    } catch (error) {
-      console.error('Invoice source data could not be loaded', error);
-      if (typeof showToast === 'function') showToast('โหลดข้อมูลสร้างใบแจ้งหนี้ไม่สำเร็จ', 'error');
+      if (response.ok) {
+        const text = await response.text();
+        const data = parseSource(text);
+        mergeCustom(data);
+        window.INVOICE_SOURCE_DATA = data;
+        applyForm(data);
+        return;
+      }
+    } catch (e) {}
+
+    // Graceful fallback from window.DATA or custom items
+    try {
+      const custom = readCustom();
+      const fallbackData = { accommodation: [], addon: [] };
+      if (window.DATA?.villas) {
+        fallbackData.accommodation.push({
+          category: 'Villa / Room',
+          items: window.DATA.villas.map(v => ({ name: v.name, rate: v.rate || 0, category: 'Accommodation' }))
+        });
+      }
+      if (window.DATA?.items) {
+        fallbackData.addon.push({
+          category: 'สินค้าและบริการ',
+          items: window.DATA.items.map(i => ({ name: i.name, rate: i.rate || 0, category: i.category || 'General' }))
+        });
+      }
+      mergeCustom(fallbackData);
+      window.INVOICE_SOURCE_DATA = fallbackData;
+      applyForm(fallbackData);
+    } catch (err) {
+      console.warn('Invoice form initialized with default controls');
     }
   }
 
