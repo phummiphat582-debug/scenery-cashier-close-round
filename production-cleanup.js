@@ -84,12 +84,33 @@
     if (progressStatus) progressStatus.textContent = 'ยังไม่มีข้อมูล';
     const shift = document.querySelector('#view-dashboard .shift-panel');
     if (shift) {
+      const active = window.cashDrawerStore?.activeShift;
       const status = shift.querySelector('.status-chip');
-      if (status) status.innerHTML = 'ยังไม่มีการเปิดกะ';
       const values = shift.querySelectorAll('.shift-details strong');
-      ['ยังไม่มีข้อมูล', '-', '฿0.00', '฿0.00'].forEach((value, index) => {
-        if (values[index]) values[index].textContent = value;
-      });
+      if (active) {
+        if (status) {
+          status.className = 'status-chip success';
+          status.innerHTML = '<i></i> กะเปิดอยู่';
+        }
+        const expected = typeof window.cashDrawerV2Expected === 'function' ? window.cashDrawerV2Expected(active) : Number(active.openingCash || 0);
+        const shiftValues = [
+          active.code || 'กะปัจจุบัน',
+          active.openedBy || 'ผู้รับผิดชอบ',
+          money(active.openingCash || 0),
+          money(expected)
+        ];
+        shiftValues.forEach((value, index) => {
+          if (values[index]) values[index].textContent = value;
+        });
+      } else {
+        if (status) {
+          status.className = 'status-chip neutral';
+          status.innerHTML = 'ยังไม่เปิดกะ';
+        }
+        ['ยังไม่มีข้อมูล', '-', '฿0.00', '฿0.00'].forEach((value, index) => {
+          if (values[index]) values[index].textContent = value;
+        });
+      }
     }
     const updated = document.querySelector('#last-updated');
     if (updated) updated.textContent = `ข้อมูลล่าสุดเมื่อ: ${new Date().toLocaleString('th-TH')}`;
