@@ -4,7 +4,13 @@
   const state = () => window.sceneryAppState || {};
   const money = value => {
     const number = Number(value || 0);
-    return `${number < 0 ? '-' : ''}฿${Math.abs(number).toLocaleString('th-TH', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    const magnitude = Math.abs(number);
+    const hasDecimals = Math.abs(number % 1) >= 0.005;
+    const formatted = magnitude.toLocaleString('th-TH', {
+      minimumFractionDigits: hasDecimals ? 2 : 0,
+      maximumFractionDigits: 2
+    });
+    return `${number < 0 ? '-' : ''}฿${formatted}`;
   };
 
   function replaceDemoText(root = document.body) {
