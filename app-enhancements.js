@@ -46,35 +46,12 @@
     });
   };
 
-  // 1. Install Offline / Local Login button on Login screen
-  function installOfflineLogin() {
-    const form = document.querySelector('#login-form');
-    if (!form || form.querySelector('#offline-login-btn')) return;
-
-    const btn = document.createElement('button');
-    btn.id = 'offline-login-btn';
-    btn.type = 'button';
-    btn.className = 'button button-outline full-width';
-    btn.style.cssText = 'margin-top:10px;display:flex;align-items:center;justify-content:center;gap:6px;';
-    btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:18px;">wifi_off</span> เข้าใช้งานโหมดแคชเชียร์ (Local Mode)';
-
-    btn.addEventListener('click', () => {
-      document.querySelector('#login-screen')?.classList.add('is-hidden');
-      document.querySelector('#app-screen')?.classList.remove('is-hidden');
-      notify('เข้าสู่ระบบในโหมด Local Cashier เรียบร้อยแล้ว', 'info');
-      if (typeof window.syncInvoiceHistoryState === 'function') window.syncInvoiceHistoryState();
-      if (typeof window.renderDashboard === 'function') window.renderDashboard();
-    });
-
-    form.appendChild(btn);
-  }
-
-  // 2. Install Help and Forgot Password Modals
+  // 1. Install Help and Forgot Password Modals
   function installHelpHandlers() {
     const helpBtn = document.querySelector('#help-button');
     helpBtn?.addEventListener('click', () => {
       const config = window.SCENERY_SUPABASE_CONFIG || {};
-      const status = window.scenerySupabase?.client ? 'เชื่อมต่อออนไลน์พร้อมใช้งาน' : 'โหมดบันทึกในเครื่อง (Local)';
+      const status = window.scenerySupabase?.client ? 'เชื่อมต่อออนไลน์พร้อมใช้งาน' : 'ระบบออนไลน์';
       openAppModal(
         'ศูนย์ช่วยเหลือระบบ Reception & Cashier',
         `
@@ -82,13 +59,12 @@
         <div style="background:#f8f5f0;padding:14px;border-radius:10px;margin:12px 0;">
           <div>📡 <strong>สถานะระบบ:</strong> ${status}</div>
           <div>🔗 <strong>Supabase URL:</strong> ${config.url || 'ไม่ได้กำหนด'}</div>
-          <div>💾 <strong>การจัดเก็บข้อมูล:</strong> ฐานข้อมูลออนไลน์ + แคชสำรองในเบราว์เซอร์</div>
+          <div>💾 <strong>การจัดเก็บข้อมูล:</strong> ฐานข้อมูลออนไลน์ Supabase Database</div>
         </div>
         <p><strong>คำแนะนำการใช้งาน:</strong></p>
         <ul style="padding-left:20px;margin:8px 0;">
-          <li>สามารถกรอกอีเมล/รหัสผ่านเพื่อล็อกอินเข้าระบบ Supabase ส่วนกลาง</li>
-          <li>หากไม่มีอินเทอร์เน็ต สามารถกด <em>"เข้าใช้งานโหมดแคชเชียร์ (Local Mode)"</em> เพื่อทำงานต่อได้ทันที</li>
-          <li>ข้อมูลจะซิงก์ขึ้นระบบออนไลน์อัตโนมัติเมื่อมีการเชื่อมต่ออินเทอร์เน็ต</li>
+          <li>กรอกอีเมลและรหัสผ่านของผู้ใช้งานเพื่อเข้าสู่ระบบ</li>
+          <li>ระบบจะทำการบันทึกและซิงก์ข้อมูลใบแจ้งหนี้และการปิดรอบขึ้นเซิร์ฟเวอร์แบบ Realtime</li>
         </ul>
         `
       );
@@ -99,8 +75,7 @@
       openAppModal(
         'ลืมรหัสผ่าน',
         `
-        <p>กรุณาติดต่อผู้ดูแลระบบ (System Administrator) หรือฝ่ายไอที เพื่อทำการรีเซ็ตรหัสผ่านใน Supabase Auth Dashboard</p>
-        <p>หรือสามารถเข้าใช้งานชั่วคราวผ่านปุ่ม <strong>"เข้าใช้งานโหมดแคชเชียร์ (Local Mode)"</strong> ได้ทันที</p>
+        <p>กรุณาติดต่อผู้ดูแลระบบ (System Administrator) หรือฝ่ายไอที เพื่อทำการตรวจสอบหรือรีเซ็ตรหัสผ่านในระบบ Supabase</p>
         `
       );
     });
@@ -394,7 +369,6 @@
 
   // Initialize all enhancements on DOM ready and view transitions
   function initEnhancements() {
-    installOfflineLogin();
     installHelpHandlers();
     installUserProfile();
     installTopbarModals();
