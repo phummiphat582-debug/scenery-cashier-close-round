@@ -557,17 +557,12 @@ function installInvoiceVillaCodeField(){
 document.addEventListener('DOMContentLoaded',installInvoiceVillaCodeField);
 function normalizeInvoiceVillaOptions(){
   const select=$('#villa');if(!select)return;
-  const seen=new Set();
-  [...select.options].forEach(option=>{
-    if(!option.value){
-      option.textContent='เลือก Villa / Room (ไม่ระบุก็ได้)';
-      return;
-    }
-    const match=DATA.villas.find(v=>v.reference===option.value||v.name===option.value||option.value.startsWith(v.name));
-    const cleanName=match?match.name:option.value.split(/[\?\·\–\-]/)[0].trim();
-    option.value=cleanName;option.textContent=cleanName;
-    if(seen.has(cleanName))option.remove();else seen.add(cleanName);
-  });
+  const numberedVillas=[
+    '02 Pangola','03 Hamata','04 Barbados','05 Merino','06 Corriedale',
+    '07 Katahdin','08 Mulato','010 Napier','011 Setaria','012 Alfalfa','013 Rapunzel'
+  ];
+  select.innerHTML='<option value="">เลือก Villa / Room (ไม่ระบุก็ได้)</option>'+
+    numberedVillas.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
 }
 document.addEventListener('DOMContentLoaded',normalizeInvoiceVillaOptions);
 document.addEventListener('DOMContentLoaded',()=>{
@@ -1827,7 +1822,8 @@ document.addEventListener('DOMContentLoaded',installCashDrawerV2);
 function buildInvoiceWorkspace(){
   const view=$('#view-invoice');
   if(!view)return;
-  const villaMarkup=[...new Map(villaOptions.filter(v=>v?.name).map(v=>[v.name,v])).values()].map(v=>`<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
+  const numberedVillas=['02 Pangola','03 Hamata','04 Barbados','05 Merino','06 Corriedale','07 Katahdin','08 Mulato','010 Napier','011 Setaria','012 Alfalfa','013 Rapunzel'];
+  const villaMarkup=numberedVillas.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
   const categoryOptions=items=>[...new Set(items.map(item=>cleanEnglishText(item.category)).filter(Boolean))].map(category=>`<option value="${esc(category)}">${esc(category)}</option>`).join('');
   const aOptions=accommodationItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
   const bOptions=addonItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
