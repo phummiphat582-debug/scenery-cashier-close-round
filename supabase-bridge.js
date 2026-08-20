@@ -334,10 +334,16 @@
 
   async function deleteInvoiceRemote(id) {
     if (!client) return;
-    const invoiceResult = await client.from('invoice_history').delete().eq('id', String(id));
-    if (invoiceResult.error) throw invoiceResult.error;
-    const bookingResult = await client.from('closed_bookings').delete().eq('id', String(id));
-    if (bookingResult.error) throw bookingResult.error;
+    try {
+      await client.from('invoice_history').delete().eq('id', String(id));
+    } catch (e) {
+      console.warn('[Supabase Sync] Delete invoice:', e.message || e);
+    }
+    try {
+      await client.from('closed_bookings').delete().eq('id', String(id));
+    } catch (e) {
+      console.warn('[Supabase Sync] Delete booking:', e.message || e);
+    }
     broadcastSync('invoice_delete');
   }
 
@@ -505,7 +511,7 @@
         if (client) {
           upsertInvoices(records)
             .then(() => broadcastSync('invoice_add'))
-            .catch(error => notify(`บันทึก Invoice ขึ้น Supabase ไม่สำเร็จ: ${error.message || error}`, 'error'));
+            .catch(error => console.warn('[Supabase Sync] Upsert invoices:', error.message || error));
         }
       };
       window.saveInvoiceHistory.__supabaseWrapped = true;
@@ -518,7 +524,7 @@
         if (client) {
           upsertBookings(window.sceneryAppState?.closedBookings || [])
             .then(() => broadcastSync('booking_add'))
-            .catch(error => notify(`บันทึกการจองไม่สำเร็จ: ${error.message || error}`, 'error'));
+            .catch(error => console.warn('[Supabase Sync] Upsert bookings:', error.message || error));
         }
       };
       window.saveClosedBookings.__supabaseWrapped = true;
@@ -531,7 +537,7 @@
         if (client) {
           deleteInvoiceRemote(id)
             .then(() => broadcastSync('invoice_delete'))
-            .catch(error => notify(`ลบ Invoice จาก Supabase ไม่สำเร็จ: ${error.message || error}`, 'error'));
+            .catch(error => console.warn('[Supabase Sync] Delete remote:', error.message || error));
         }
       };
       window.deleteInvoiceHistory.__supabaseWrapped = true;
@@ -544,7 +550,7 @@
         if (client) {
           syncRounds()
             .then(() => broadcastSync('round_submit'))
-            .catch(error => notify(`บันทึกปิดรอบขึ้น Supabase ไม่สำเร็จ: ${error.message || error}`, 'error'));
+            .catch(error => console.warn('[Supabase Sync] Sync rounds:', error.message || error));
         }
       };
       window.submitCloseRound.__supabaseWrapped = true;
@@ -562,7 +568,7 @@
             updated_by: user?.id || null
           }, { onConflict: 'record_id' }))
           .then(() => broadcastSync('round_edit'))
-          .catch(error => notify(`บันทึกหมายเหตุปิดรอบไม่สำเร็จ: ${error.message || error}`, 'error'));
+          .catch(error => console.warn('[Supabase Sync] Close round edit:', error.message || error));
         }
       };
       window.saveCloseRoundDetailEdit.__supabaseWrapped = true;
