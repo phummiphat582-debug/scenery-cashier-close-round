@@ -271,8 +271,8 @@ function installFinalInvoiceRules(){
   };
 
   lineRow=function(line,index){
-    const gross=lineAmount(line),discount=clampDiscount(line,gross),net=Math.max(0,gross-discount);
-    return `<tr><td>${esc(line.category)}</td><td>${esc(line.name)}</td><td class="align-center"><div class="qty-control"><button type="button" data-line-index="${index}" data-qty="-1">−</button><strong>${line.qty}</strong><button type="button" data-line-index="${index}" data-qty="1">+</button></div></td><td class="align-right"><input class="line-rate" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.rate||0)}" aria-label="Rate ${esc(line.name)}"></td><td class="align-right"><div class="line-deposit-fields"><input class="line-deposit" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.deposit||0)}" aria-label="Deposit ${esc(line.name)}"><select class="line-deposit-method" data-line-index="${index}" aria-label="ช่องทาง Deposit ${esc(line.name)}">${paymentMethodOptions(line.depositMethod)}</select></div></td><td><input class="line-discount" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.discountAmount||0)}" placeholder="ยอดเงิน" aria-label="ส่วนลดเป็นยอดเงิน ${esc(line.name)}"></td><td class="align-right strong-number"><span>${money(net)}</span>${discount?`<small class="line-gross">ก่อนหัก ${money(gross)}</small>`:''}</td><td class="align-right"><button class="icon-button remove-form-line" type="button" data-line-index="${index}" aria-label="ลบรายการ"><span class="material-symbols-outlined">close</span></button></td></tr>`;
+    const gross=lineAmount(line),discount=clampDiscount(line,gross),deposit=Math.max(0,Number(line.deposit||0)),net=Math.max(0,gross-discount-deposit);
+    return `<tr><td>${esc(line.category)}</td><td>${esc(line.name)}</td><td class="align-center"><div class="qty-control"><button type="button" data-line-index="${index}" data-qty="-1">−</button><strong>${line.qty}</strong><button type="button" data-line-index="${index}" data-qty="1">+</button></div></td><td class="align-right"><input class="line-rate" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.rate||0)}" aria-label="Rate ${esc(line.name)}"></td><td class="align-right"><div class="line-deposit-fields"><input class="line-deposit" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.deposit||0)}" aria-label="Deposit ${esc(line.name)}"><select class="line-deposit-method" data-line-index="${index}" aria-label="ช่องทาง Deposit ${esc(line.name)}">${paymentMethodOptions(line.depositMethod)}</select></div></td><td><input class="line-discount" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.discountAmount||0)}" placeholder="ยอดเงิน" aria-label="ส่วนลดเป็นยอดเงิน ${esc(line.name)}"></td><td class="align-right strong-number"><span>${money(net)}</span>${(discount||deposit)?`<small class="line-gross">เต็ม ${money(gross)}${discount?` · ลด -${money(discount)}`:''}${deposit?` · มัดจำ -${money(deposit)}`:''}</small>`:''}</td><td class="align-right"><button class="icon-button remove-form-line" type="button" data-line-index="${index}" aria-label="ลบรายการ"><span class="material-symbols-outlined">close</span></button></td></tr>`;
   };
 
   previewItemRows=function(snapshot){
@@ -430,9 +430,67 @@ function installFinalInvoiceRules(){
     freshResetButton.addEventListener('click',()=>resetInvoice());
   }
 
+  function updateLineRowVisual(index){
+    const line=state.invoiceLines[index];
+    if(!line)return;
+    const gross=lineAmount(line);
+    const discount=clampDiscount(line,gross);
+    const deposit=Math.max(0,Number(line.deposit||0));
+    const net=Math.max(0,gross-discount-deposit);
+    const inputEl=document.querySelector(`[data-line-index="${index}"]`);
+    const row=inputEl?.closest('tr');
+    if(row){
+      const cell=row.querySelector('.strong-number');
+      if(cell){
+        cell.innerHTML=`<span>${money(net)}</span>${(discount||deposit)?`<small class="line-gross">เต็ม ${money(gross)}${discount?` · ลด -${money(discount)}`:''}${deposit?` · มัดจำ -${money(deposit)}`:''}</small>`:''}`;
+      }
+    }
+  }
+
   document.addEventListener('input',event=>{
-    if(event.target.matches('.line-discount')){const line=state.invoiceLines[Number(event.target.dataset.lineIndex)];if(line){line.discountAmount=Math.max(0,Number(event.target.value||0));line.discountRate=0;calculateInvoice()}}
-    if(event.target.matches('.whole-bill-pending-amount,.whole-bill-pending-note')){if(event.target.matches('.whole-bill-pending-amount'))state.pendingCollectionTotal=Math.max(0,Number(event.target.value||0));else state.pendingCollectionNote=event.target.value;calculateInvoice()}
+    if(event.target.matches('.line-rate')){
+      const idx=Number(event.target.dataset.lineIndex);
+      const line=state.invoiceLines[idx];
+      if(line){
+        line.rate=Math.max(0,Number(event.target.value||0));
+        updateLineRowVisual(idx);
+        calculateInvoice();
+      }
+    }
+    if(event.target.matches('.line-deposit')){
+      const idx=Number(event.target.dataset.lineIndex);
+      const line=state.invoiceLines[idx];
+      if(line){
+        line.deposit=Math.max(0,Number(event.target.value||0));
+        updateLineRowVisual(idx);
+        calculateInvoice();
+      }
+    }
+    if(event.target.matches('.line-discount')){
+      const idx=Number(event.target.dataset.lineIndex);
+      const line=state.invoiceLines[idx];
+      if(line){
+        line.discountAmount=Math.max(0,Number(event.target.value||0));
+        line.discountRate=0;
+        updateLineRowVisual(idx);
+        calculateInvoice();
+      }
+    }
+    if(event.target.matches('.whole-bill-pending-amount,.whole-bill-pending-note')){
+      if(event.target.matches('.whole-bill-pending-amount'))state.pendingCollectionTotal=Math.max(0,Number(event.target.value||0));
+      else state.pendingCollectionNote=event.target.value;
+      calculateInvoice();
+    }
+  });
+
+  document.addEventListener('change',event=>{
+    if(event.target.matches('.line-deposit-method')){
+      const line=state.invoiceLines[Number(event.target.dataset.lineIndex)];
+      if(line){
+        line.depositMethod=event.target.value;
+        calculateInvoice();
+      }
+    }
   });
 
   renderPendingFormRows();renderPendingCollectionRows();renderFormLines();renderInvoicePreview();calculateInvoice();
@@ -585,12 +643,6 @@ function editInvoiceHistory(id){
   showToast(`แก้ไขประวัติ ${id} แล้ว`);
 }
 function deleteInvoiceHistory(id){
-  const email=String($('#history-delete-email')?.value||'').trim();
-  if(!email||!email.includes('@')){
-    showToast('กรุณากรอกอีเมลผู้ลบรายการให้ถูกต้อง','error');
-    $('#history-delete-email')?.focus();
-    return;
-  }
   const records=loadInvoiceHistory();
   const current=records.find(record=>record.id===id);
   if(!current)return;
@@ -600,13 +652,15 @@ function deleteInvoiceHistory(id){
   saveClosedBookings();
   $('#modal-root').innerHTML='';
   syncInvoiceHistoryState();
-  recordAudit('ลบ Invoice','Invoice',id,current,null,{reason:`ลบจากประวัติใบแจ้งหนี้ โดย ${email}`,deletedBy:email});
-  showToast(`ลบประวัติ ${id} สำเร็จ โดย ${email}`);
+  const actor=localStorage.getItem('scenery-last-login-email')||'Cashier';
+  recordAudit('ลบ Invoice','Invoice',id,current,null,{reason:'ลบจากประวัติใบแจ้งหนี้',deletedBy:actor});
+  showToast(`ลบประวัติ ${id} สำเร็จแล้ว`);
+  if(typeof renderCloseRound==='function')renderCloseRound();
 }
 function requestDeleteInvoiceHistory(id){
   const record=loadInvoiceHistory().find(item=>item.id===id);
   if(!record)return;
-  openModal(`ยืนยันลบประวัติ ${id}`,`<div class="history-delete-form"><p>ต้องการลบใบแจ้งหนี้ของ <strong>${esc(record.customer||'-')}</strong> (${esc(id)}) ออกจากประวัติใช่หรือไม่?</p><p class="muted">เพื่อความปลอดภัยและการตรวจสอบ กรุณากรอกอีเมลผู้มีอำนาจลบรายการ</p><label class="drawer-field"><span>อีเมลผู้ลบรายการ <b class="required-note">*</b></span><input id="history-delete-email" type="email" placeholder="กรอกอีเมล (เช่น admin@thescenery.co)" required autofocus autocomplete="email"></label></div>`,`<button class="button button-outline" data-close-modal>ยกเลิก</button><button class="button button-danger" data-history-delete-confirm="${esc(id)}"><span class="material-symbols-outlined">delete</span>ยืนยันลบ</button>`);
+  openModal(`ยืนยันลบประวัติ ${id}`,`<div class="history-delete-form"><p>ต้องการลบใบแจ้งหนี้ของ <strong>${esc(record.customer||'-')}</strong> (${esc(id)}) ออกจากประวัติใช่หรือไม่?</p><p class="muted">เมื่อกดยืนยัน รายการนี้จะถูกลบออกจากประวัติและตารางปิดรอบทันที</p></div>`,`<button class="button button-outline" data-close-modal>ยกเลิก</button><button class="button button-danger" data-history-delete-confirm="${esc(id)}"><span class="material-symbols-outlined">delete</span>ยืนยันลบ</button>`);
 }
 function exportInvoiceHistoryCsv(){
   const rows=historyRowsForToday();
