@@ -91,24 +91,26 @@
     profileBtn.title = 'คลิกเพื่อดูข้อมูลผู้ใช้ หรือออกจากระบบ';
 
     profileBtn.addEventListener('click', () => {
-      const email = localStorage.getItem('scenery-last-login-email') || 'somchai@thescenery.co';
+      const email = localStorage.getItem('scenery-last-login-email') || window.scenerySupabase?.user?.email || 'ผู้ใช้งาน';
+      const initial = (email.split('@')[0] || email).slice(0, 2).toUpperCase();
       const isSupabase = Boolean(window.scenerySupabase?.session?.access_token);
-      const modeText = isSupabase ? 'เชื่อมต่อ Supabase ออนไลน์ (Online)' : 'โหมดแคชเชียร์ท้องถิ่น (Local / Offline)';
+      const modeText = isSupabase ? 'เชื่อมต่อ Supabase ออนไลน์ (Online)' : 'โหมดแคชเชียร์ออนไลน์ (Live Sync)';
 
       openAppModal(
         'บัญชีผู้ใช้งาน',
         `
         <div style="display:flex;align-items:center;gap:16px;margin-bottom:16px;">
-          <div style="width:52px;height:52px;border-radius:50%;background:#8a5d32;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;">SR</div>
+          <div style="width:52px;height:52px;border-radius:50%;background:#8a5d32;color:#fff;display:flex;align-items:center;justify-content:center;font-weight:700;font-size:18px;">${initial}</div>
           <div>
-            <h4 style="margin:0;font-size:16px;">Somchai R.</h4>
+            <h4 style="margin:0;font-size:16px;">${email}</h4>
             <span style="color:#777;font-size:13px;">${email}</span>
-            <div><span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;background:#e8f4ec;color:#2e7d32;font-weight:600;margin-top:4px;">SENIOR CASHIER</span></div>
+            <div><span style="display:inline-block;padding:2px 8px;border-radius:20px;font-size:12px;background:#e8f4ec;color:#2e7d32;font-weight:600;margin-top:4px;">ONLINE CASHIER / RECEPTION</span></div>
           </div>
         </div>
         <div style="background:#f8f5f0;padding:12px;border-radius:8px;font-size:13px;margin-bottom:16px;">
           <div><strong>สถานะ:</strong> ${modeText}</div>
           <div><strong>จุดขาย:</strong> Front Desk - Zone A (RECEPTION)</div>
+          <div><strong>อีเมลที่ใช้งาน:</strong> ${email}</div>
         </div>
         <div style="display:flex;flex-direction:column;gap:10px;">
           <button type="button" class="button button-outline full-width" id="btn-manual-sync" style="display:flex;align-items:center;justify-content:center;gap:6px;">

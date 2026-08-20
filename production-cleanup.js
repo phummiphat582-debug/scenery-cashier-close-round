@@ -33,14 +33,45 @@
   }
 
   function setProfile(user) {
-    const email = user?.email || '';
-    const label = email ? email.split('@')[0] : 'ผู้ใช้งาน';
+    const email = user?.email || localStorage.getItem('scenery-last-login-email') || '';
     const name = document.querySelector('.profile-text strong');
     const role = document.querySelector('.profile-text small');
     const avatar = document.querySelector('.profile-button .avatar');
-    if (name) name.textContent = label;
-    if (role) role.textContent = email ? 'SUPABASE USER' : 'ยังไม่ได้เข้าสู่ระบบ';
-    if (avatar) avatar.textContent = email ? label.slice(0, 2).toUpperCase() : 'U';
+    if (name) name.textContent = email || 'ผู้ใช้งาน';
+    if (role) role.textContent = email ? 'ONLINE USER' : 'ยังไม่ได้เข้าสู่ระบบ';
+    if (avatar) avatar.textContent = email ? (email.split('@')[0] || email).slice(0, 2).toUpperCase() : 'U';
+
+    renderUsersView(email);
+  }
+
+  function renderUsersView(email) {
+    const currentEmail = email || localStorage.getItem('scenery-last-login-email') || '';
+    const tbody = document.querySelector('#view-users tbody');
+    if (tbody && currentEmail) {
+      const initial = (currentEmail.split('@')[0] || currentEmail).slice(0, 2).toUpperCase();
+      tbody.innerHTML = `
+        <tr>
+          <td>
+            <div class="user-cell">
+              <span class="avatar small">${initial}</span>
+              <div>
+                <strong>${currentEmail}</strong>
+                <small>${currentEmail}</small>
+              </div>
+            </div>
+          </td>
+          <td><span class="role-chip supervisor">Authorized Staff</span></td>
+          <td>Front Desk - Zone A</td>
+          <td>กำลังใช้งาน (Online)</td>
+          <td><span class="status-chip success"><i></i> Active</span></td>
+          <td></td>
+        </tr>
+      `;
+      const quality = document.querySelector('#view-users .data-quality');
+      if (quality) quality.innerHTML = `<span class="online-dot"></span>ผู้ใช้งานออนไลน์: ${currentEmail}`;
+      const tableWrap = document.querySelector('#view-users .table-wrap table');
+      if (tableWrap) tableWrap.classList.remove('empty-table');
+    }
   }
 
   function emptyRow(colspan, icon, title, note = '') {
@@ -117,15 +148,11 @@
   }
 
   function removeOtherPrototypeRows() {
-    document.querySelectorAll('#view-users tbody').forEach(element => {
-      element.innerHTML = '<tr><td colspan="10"><div class="empty-state"><span class="material-symbols-outlined">group</span><p>ยังไม่มีข้อมูลผู้ใช้งาน</p><small>ข้อมูลจริงจะแสดงเมื่อมีการใช้งานระบบ</small></div></td></tr>';
-    });
+    renderUsersView();
     document.querySelectorAll('#view-audit .audit-list').forEach(element => {
       element.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">fact_check</span><p>ยังไม่มีรายการตรวจสอบ</p><small>Audit Log จริงจะแสดงเมื่อมีการทำรายการ</small></div>';
     });
     if (typeof window.renderAuditLog === 'function') window.renderAuditLog();
-    document.querySelectorAll('#view-users .data-quality').forEach(element => { element.textContent = 'ยังไม่มีข้อมูลผู้ใช้งาน'; });
-    document.querySelectorAll('#view-users .table-wrap').forEach(element => { element.querySelector('table')?.classList.add('empty-table'); });
   }
 
   function boot() {
