@@ -18,7 +18,11 @@
 
   const authToken = () => window.scenerySupabase?.session?.access_token || readSession()?.access_token || '';
 
-  const doFetch = (...args) => (typeof window !== 'undefined' && window.fetch ? window.fetch(...args) : (typeof globalThis !== 'undefined' && globalThis.fetch ? globalThis.fetch(...args) : fetch(...args)));
+  const doFetch = (...args) => {
+    const fn = (typeof window !== 'undefined' && window.fetch) || (typeof globalThis !== 'undefined' && globalThis.fetch) || (typeof fetch === 'function' ? fetch : null);
+    if (fn) return fn(...args);
+    return Promise.resolve({ ok: false, status: 0, text: async () => '', json: async () => ({}) });
+  };
 
   const restRequest = async (path, options = {}) => {
     const headers = {
