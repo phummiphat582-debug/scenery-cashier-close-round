@@ -2578,31 +2578,57 @@ function fallbackCopyText(text, successCallback) {
 }
 
 function openCloseRoundNotesModal() {
-  const cardsHtml = CLOSE_ROUND_TEXT_TEMPLATES.map((item, idx) => `
-    <div class="close-round-note-card" style="background:#ffffff;border:1px solid #e3d3c4;border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
-      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+  const cardsHtml = CLOSE_ROUND_TEXT_TEMPLATES.map((item, idx) => {
+    const lineCount = (item.text.match(/\n/g) || []).length + 2;
+    return `
+    <div class="close-round-note-card" style="background:#ffffff;border:1px solid #e3d3c4;border-radius:12px;padding:14px 16px;margin-bottom:16px;box-shadow:0 2px 6px rgba(0,0,0,0.04);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px;gap:8px;flex-wrap:wrap;">
         <div style="display:flex;align-items:center;gap:6px;">
-          <strong style="font-size:14px;color:#3d2211;">${esc(item.title)}</strong>
+          <strong style="font-size:14.5px;color:#3d2211;">${esc(item.title)}</strong>
           <span style="font-size:11px;background:#f4ebe1;color:#7a4b2a;padding:2px 8px;border-radius:12px;border:1px solid #dfcfbe;font-weight:600;">${esc(item.badge)}</span>
         </div>
-        <button type="button" class="button button-primary action-small" data-copy-note-index="${idx}" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:5px 12px;border-radius:6px;">
-          <span class="material-symbols-outlined" style="font-size:16px;">content_copy</span>
-          <span>คัดลอกข้อความ</span>
-        </button>
+        <div style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;">
+          <button type="button" class="button button-outline action-small" data-copy-selection-index="${idx}" title="ลากคลุมเฉพาะคำที่ต้องการในช่อง แล้วกดปุ่มนี้เพื่อคัดลอก" style="display:inline-flex;align-items:center;gap:4px;font-size:11.5px;cursor:pointer;padding:4px 10px;border-radius:6px;">
+            <span class="material-symbols-outlined" style="font-size:15px;">content_cut</span>
+            <span>คัดลอกเฉพาะคำที่เลือก</span>
+          </button>
+          <button type="button" class="button button-primary action-small" data-copy-note-index="${idx}" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:5px 12px;border-radius:6px;">
+            <span class="material-symbols-outlined" style="font-size:16px;">content_copy</span>
+            <span>คัดลอกทั้งหัวข้อ</span>
+          </button>
+          <button type="button" class="button button-soft action-small" data-reset-note-index="${idx}" title="คืนค่าข้อความเริ่มต้น" style="display:inline-flex;align-items:center;gap:3px;font-size:11.5px;cursor:pointer;padding:4px 8px;border-radius:6px;color:#8a5433;">
+            <span class="material-symbols-outlined" style="font-size:15px;">restart_alt</span>
+          </button>
+        </div>
       </div>
-      <pre style="margin:0;padding:10px 12px;background:#faf6f2;border:1px solid #ebdccb;border-radius:6px;font-size:12.5px;line-height:1.5;color:#2c1e14;font-family:Consolas,Monaco,'Courier New',Courier,monospace;white-space:pre-wrap;word-break:break-word;user-select:all;">${esc(item.text)}</pre>
+      <div style="position:relative;">
+        <textarea id="note-textarea-${idx}" rows="${Math.min(14, Math.max(5, lineCount))}" style="width:100%;box-sizing:border-box;margin:0;padding:10px 12px;background:#faf6f2;border:1px solid #ebdccb;border-radius:8px;font-size:13px;line-height:1.6;color:#2c1e14;font-family:Consolas,Monaco,'Courier New',Courier,monospace;resize:vertical;outline:none;user-select:text !important;-webkit-user-select:text !important;" placeholder="แก้ไขข้อความหรือระบุยอดเงินที่นี่...">${esc(item.text)}</textarea>
+      </div>
+      <div style="margin-top:4px;display:flex;justify-content:space-between;align-items:center;">
+        <small style="color:#8c786a;font-size:11px;">💡 สามารถพิมพ์แก้ตัวเลข หรือลากเมาส์คลุมเฉพาะคำที่ต้องการแล้วกดคัดลอกได้</small>
+      </div>
     </div>
-  `).join('');
+  `;
+  }).join('');
 
   const modalBody = `
-    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
-      <p style="margin:0;font-size:13px;color:#6b584a;">กดปุ่ม <strong>"คัดลอกข้อความ"</strong> ในแต่ละหัวข้อเพื่อนำไปวางในหมายเหตุปิดรอบได้ทันที</p>
-      <button type="button" class="button button-outline action-small" id="btn-copy-all-notes" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:5px 12px;">
-        <span class="material-symbols-outlined" style="font-size:16px;">library_add_check</span>
-        <span>คัดลอกทั้งหมดทุกหัวข้อ</span>
-      </button>
+    <div style="margin-bottom:14px;background:#fdf9f5;padding:12px 14px;border-radius:10px;border:1px solid #f0e2d5;display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;">
+      <div>
+        <p style="margin:0;font-size:13px;color:#5a3820;font-weight:600;">เลือกวิธีคัดลอกได้ตามสะดวก:</p>
+        <small style="color:#786555;display:block;margin-top:2px;">• <strong>คัดลอกทั้งหมด</strong> หรือ <strong>คัดลอกทั้งหัวข้อ</strong> หรือ <strong>ลากคลุมเฉพาะคำ/บรรทัดที่ต้องการ</strong> แล้วกดคัดลอกได้เลย</small>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap;">
+        <button type="button" class="button button-outline action-small" id="btn-copy-selected-any" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:6px 12px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">content_cut</span>
+          <span>คัดลอกคำที่ไฮไลต์</span>
+        </button>
+        <button type="button" class="button button-primary action-small" id="btn-copy-all-notes" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:6px 14px;background:linear-gradient(135deg,#8a5433 0%,#6b3f21 100%);">
+          <span class="material-symbols-outlined" style="font-size:16px;">library_add_check</span>
+          <span>คัดลอกทั้งหมดทุกหัวข้อ</span>
+        </button>
+      </div>
     </div>
-    <div style="max-height:65vh;overflow-y:auto;padding-right:4px;">
+    <div style="max-height:68vh;overflow-y:auto;padding-right:4px;">
       ${cardsHtml}
     </div>
   `;
@@ -2616,12 +2642,16 @@ function openCloseRoundNotesModal() {
   const root = $('#modal-root');
   if (!root) return;
 
+  // 1. Copy entire topic (with current textarea edits)
   root.querySelectorAll('[data-copy-note-index]').forEach(btn => {
     btn.addEventListener('click', () => {
       const idx = Number(btn.dataset.copyNoteIndex);
       const template = CLOSE_ROUND_TEXT_TEMPLATES[idx];
-      if (!template) return;
-      copyTextToClipboard(template.text, () => {
+      const ta = root.querySelector(`#note-textarea-${idx}`);
+      const textToCopy = ta ? ta.value : template?.text;
+      if (!textToCopy) return;
+
+      copyTextToClipboard(textToCopy, () => {
         const originalText = btn.innerHTML;
         btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">check</span><span>คัดลอกแล้ว!</span>';
         btn.style.background = '#2e7d32';
@@ -2633,15 +2663,94 @@ function openCloseRoundNotesModal() {
           btn.style.borderColor = '';
           btn.style.color = '';
         }, 2000);
-        showToast(`คัดลอก "${template.title}" เรียบร้อยแล้ว`);
+        showToast(`คัดลอก "${template?.title || 'ข้อความ'}" เรียบร้อยแล้ว`);
       });
     });
   });
 
+  // 2. Copy selected words/lines inside specific textarea
+  root.querySelectorAll('[data-copy-selection-index]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.copySelectionIndex);
+      const ta = root.querySelector(`#note-textarea-${idx}`);
+      let selectedText = '';
+      if (ta && typeof ta.selectionStart === 'number' && typeof ta.selectionEnd === 'number' && ta.selectionStart !== ta.selectionEnd) {
+        selectedText = ta.value.substring(ta.selectionStart, ta.selectionEnd).trim();
+      }
+      if (!selectedText) {
+        const globalSel = window.getSelection() ? window.getSelection().toString().trim() : '';
+        if (globalSel) selectedText = globalSel;
+      }
+
+      if (!selectedText) {
+        showToast('กรุณาลากเมาส์คลุมคำที่ต้องการคัดลอกในกล่องข้อความก่อนครับ', 'warning');
+        return;
+      }
+
+      copyTextToClipboard(selectedText, () => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:15px;">check</span><span>คัดลอกคำแล้ว!</span>';
+        btn.style.borderColor = '#2e7d32';
+        btn.style.color = '#2e7d32';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.borderColor = '';
+          btn.style.color = '';
+        }, 2000);
+        showToast(`คัดลอกคำที่เลือก (${selectedText.length > 20 ? selectedText.slice(0, 20) + '...' : selectedText}) เรียบร้อยแล้ว`);
+      });
+    });
+  });
+
+  // 3. Reset textarea to original template
+  root.querySelectorAll('[data-reset-note-index]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.resetNoteIndex);
+      const template = CLOSE_ROUND_TEXT_TEMPLATES[idx];
+      const ta = root.querySelector(`#note-textarea-${idx}`);
+      if (ta && template) {
+        ta.value = template.text;
+        showToast(`คืนค่าข้อความ "${template.title}" เป็นค่าเริ่มต้นแล้ว`);
+      }
+    });
+  });
+
+  // 4. Copy all topics combined
   root.querySelector('#btn-copy-all-notes')?.addEventListener('click', () => {
-    const allText = CLOSE_ROUND_TEXT_TEMPLATES.map(t => `${t.title}\n${t.text}`).join('\n\n========================================\n\n');
+    const allText = CLOSE_ROUND_TEXT_TEMPLATES.map((t, idx) => {
+      const ta = root.querySelector(`#note-textarea-${idx}`);
+      const val = ta ? ta.value : t.text;
+      return `${t.title}\n${val}`;
+    }).join('\n\n========================================\n\n');
+
     copyTextToClipboard(allText, () => {
       showToast('คัดลอกข้อความทุกหัวข้อเรียบร้อยแล้ว');
+    });
+  });
+
+  // 5. Copy highlighted selection anywhere in modal
+  root.querySelector('#btn-copy-selected-any')?.addEventListener('click', () => {
+    let selectedText = '';
+    const activeEl = document.activeElement;
+    if (activeEl && (activeEl.tagName === 'TEXTAREA' || activeEl.tagName === 'INPUT')) {
+      const s = activeEl.selectionStart;
+      const e = activeEl.selectionEnd;
+      if (typeof s === 'number' && typeof e === 'number' && s !== e) {
+        selectedText = activeEl.value.substring(s, e).trim();
+      }
+    }
+    if (!selectedText) {
+      const sel = window.getSelection();
+      if (sel) selectedText = sel.toString().trim();
+    }
+
+    if (!selectedText) {
+      showToast('กรุณาลากเมาส์คลุมคำที่ต้องการคัดลอกก่อนครับ', 'warning');
+      return;
+    }
+
+    copyTextToClipboard(selectedText, () => {
+      showToast(`คัดลอกคำที่ไฮไลต์ (${selectedText.length > 25 ? selectedText.slice(0, 25) + '...' : selectedText}) แล้ว`);
     });
   });
 }
