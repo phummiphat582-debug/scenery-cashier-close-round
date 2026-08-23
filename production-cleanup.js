@@ -39,19 +39,22 @@
   }
 
   function setProfile(user) {
-    const email = user?.email || localStorage.getItem('scenery-last-login-email') || '';
+    const email = user?.email || localStorage.getItem('scenery-last-login-email') || 'h.adv.scenery@gmail.com';
     const name = document.querySelector('.profile-text strong');
     const role = document.querySelector('.profile-text small');
     const avatar = document.querySelector('.profile-button .avatar');
-    if (name) name.textContent = email || 'ผู้ใช้งาน';
-    if (role) role.textContent = email ? 'ONLINE USER' : 'ยังไม่ได้เข้าสู่ระบบ';
-    if (avatar) avatar.textContent = email ? (email.split('@')[0] || email).slice(0, 2).toUpperCase() : 'U';
+    if (name) name.textContent = email;
+    if (role) role.textContent = email ? 'SENIOR CASHIER' : 'ยังไม่ได้เข้าสู่ระบบ';
+    if (avatar) {
+      const initial = (email.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2) || 'HA').toUpperCase();
+      avatar.textContent = initial;
+    }
 
     renderUsersView(email);
   }
 
   function renderUsersView(email) {
-    const currentEmail = email || localStorage.getItem('scenery-last-login-email') || '';
+    const currentEmail = email || localStorage.getItem('scenery-last-login-email') || 'h.adv.scenery@gmail.com';
     const tbody = document.querySelector('#view-users tbody');
     if (tbody && currentEmail) {
       const initial = (currentEmail.split('@')[0] || currentEmail).slice(0, 2).toUpperCase();
@@ -59,7 +62,7 @@
         <tr>
           <td>
             <div class="user-cell">
-              <span class="avatar small">${initial}</span>
+              <span class="avatar small">${initial || 'HA'}</span>
               <div>
                 <strong>${currentEmail}</strong>
                 <small>${currentEmail}</small>
@@ -89,36 +92,61 @@
     currentState.drafts = [];
     document.querySelector('#view-dashboard .alert-banner')?.remove();
 
-    const invoices = Array.isArray(currentState.invoices) ? currentState.invoices : [];
+    const historyRecords = (typeof window.loadInvoiceHistory === 'function' ? window.loadInvoiceHistory() : []) || [];
+    const stateInvoices = Array.isArray(currentState.invoices) ? currentState.invoices : [];
+    const invoices = historyRecords.length > 0 ? historyRecords : stateInvoices;
+
     const total = invoices.reduce((sum, invoice) => sum + Number(invoice.total || 0), 0);
     const outstanding = invoices.reduce((sum, invoice) => {
-      return sum + (String(invoice.status || '').includes('ค้าง') ? Number(invoice.total || 0) : 0);
+      const pending = typeof window.historyPendingTotal === 'function' ? window.historyPendingTotal(invoice) : Number(invoice.pendingTotal || 0);
+      return sum + (pending > 0 ? pending : (String(invoice.status || '').includes('ค้าง') ? Number(invoice.total || 0) : 0));
     }, 0);
     const metrics = document.querySelectorAll('#view-dashboard .metric-card strong');
     if (metrics[0]) metrics[0].textContent = money(total);
     if (metrics[1]) metrics[1].textContent = '0 รายการ';
     if (metrics[2]) metrics[2].textContent = `${invoices.length} บิล`;
-    if (metrics[3]) metrics[3].textContent = money(outstanding);
+    if (metrics[3]) {
+      metrics[3].textContent = money(outstanding);
+      metrics[3].className = outstanding > 0 ? 'critical-text' : 'positive-text';
+    }
     document.querySelectorAll('#view-dashboard .metric-card .trend').forEach(element => {
       element.textContent = 'จากข้อมูลจริง';
       element.className = 'status-chip neutral';
     });
     const dashboardInvoices = document.querySelector('#dashboard-invoices');
-    if (dashboardInvoices && !invoices.length) dashboardInvoices.innerHTML = emptyRow(6, 'receipt_long', 'ยังไม่มีใบแจ้งหนี้', 'เมื่อบันทึกใบแจ้งหนี้แล้ว รายการจะแสดงที่นี่');
+    if (dashboardInvoices && !invoices.length) {
+      dashboardInvoices.innerHTML = emptyRow(6, 'receipt_long', 'ยังไม่มีใบแจ้งหนี้', 'เมื่อบันทึกใบแจ้งหนี้แล้ว รายการจะแสดงที่นี่');
+    }
     const draftList = document.querySelector('#draft-list');
     if (draftList) draftList.innerHTML = '<div class="empty-state"><span class="material-symbols-outlined">draw</span><p>ยังไม่มีใบแจ้งหนี้แบบร่าง</p><small>แบบร่างที่บันทึกจริงจะแสดงที่นี่</small></div>';
     const draftCount = document.querySelector('#view-dashboard .drafts-panel .count-chip');
     if (draftCount) draftCount.textContent = '0 รายการ';
 
     const progress = document.querySelectorAll('#view-dashboard .progress-row');
-    progress.forEach(row => {
-      const value = row.querySelector('.progress-label strong');
-      const bar = row.querySelector('.progress-track i');
-      if (value) value.textContent = '0 / 0';
-      if (bar) bar.style.width = '0%';
-    });
+    const finalizedCount = invoices.filter(i => !String(i.status || '').includes('ร่าง')).length;
+    const paidCount = invoices.filter(i => String(i.status || '') === 'ชำระแล้ว' || (Number(i.pendingTotal || 0) === 0 && !String(i.status || '').includes('ค้าง'))).length;
+    if (progress[0]) {
+      const val = progress[0].querySelector('.progress-label strong');
+      const bar = progress[0].querySelector('.progress-track i');
+      if (val) val.textContent = `${finalizedCount} / ${invoices.length || 0}`;
+      if (bar) bar.style.width = invoices.length ? `${Math.round((finalizedCount / invoices.length) * 100)}%` : '0%';
+    }
+    if (progress[1]) {
+      const val = progress[1].querySelector('.progress-label strong');
+      const bar = progress[1].querySelector('.progress-track i');
+      if (val) val.textContent = `${paidCount} / ${invoices.length || 0}`;
+      if (bar) bar.style.width = invoices.length ? `${Math.round((paidCount / invoices.length) * 100)}%` : '0%';
+    }
     const progressStatus = document.querySelector('#view-dashboard .progress-panel .status-chip');
-    if (progressStatus) progressStatus.textContent = 'ยังไม่มีข้อมูล';
+    if (progressStatus) {
+      if (invoices.length > 0) {
+        progressStatus.className = 'status-chip success';
+        progressStatus.textContent = 'ข้อมูลพร้อมใช้งาน';
+      } else {
+        progressStatus.className = 'status-chip neutral';
+        progressStatus.textContent = 'ยังไม่มีข้อมูล';
+      }
+    }
     const shift = document.querySelector('#view-dashboard .shift-panel');
     if (shift) {
       const active = window.cashDrawerStore?.activeShift;

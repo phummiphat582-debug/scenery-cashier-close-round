@@ -15,7 +15,7 @@
       rate = numberFrom(price[1]);
       name = name.slice(0, price.index).trim();
     }
-    name = name.replace(/\s+เด้ง$/, '').trim();
+    name = name.replace(/\s*(?:เด้งราคา|เพิ่มราคา|เด้ง)\s*$/i, '').trim();
     return name ? { name, rate } : null;
   }
 
@@ -84,8 +84,27 @@
   function applyForm(data) {
     const villa = document.querySelector('#villa');
     if (villa) {
-      const names = data.accommodation.flatMap(group => group.items.map(item => item.name.replace(/\s+Villa$/i, '').trim()));
-      villa.innerHTML = `<option value="">เลือก Villa / Room</option>${[...new Set(names)].map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+      const numberedVillas = [
+        '02 Pangola', '03 Hamata', '04 Barbados', '05 Merino', '06 Corriedale',
+        '07 Katahdin', '08 Mulato', '010 Napier', '011 Setaria', '012 Alfalfa', '013 Rapunzel'
+      ];
+      villa.innerHTML = `<option value="">เลือก Villa / Room (ไม่ระบุก็ได้)</option>${numberedVillas.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+    }
+    const villaCode = document.querySelector('#villa-code');
+    if (villaCode) {
+      const codeOptions = [
+        'A — Rainy S', 'B — Rainy S', 'E1 — [โชว์]', 'E2 — [โชว์+สปาคกิ้งไวน์]',
+        'G1 — [Defender]', 'G2 จอง — [Range Rover]', 'G3 เจ้าของ — [Range Rover]',
+        'G5 — [08+Test Drive]', 'G6 — [08+Test Drive]'
+      ];
+      let dl = document.querySelector('#invoice-villa-code-options');
+      if (!dl) {
+        dl = document.createElement('datalist');
+        dl.id = 'invoice-villa-code-options';
+        villaCode.insertAdjacentElement('afterend', dl);
+      }
+      dl.innerHTML = codeOptions.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
+      villaCode.setAttribute('list', 'invoice-villa-code-options');
     }
 
     const configs = [

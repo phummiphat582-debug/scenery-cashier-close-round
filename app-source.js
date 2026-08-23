@@ -1,7 +1,11 @@
 const DATA=window.DATA_MASTER||{villas:[],accommodationItems:[],addonItems:[]};
 const villaOptions=DATA.villas;
+const CLOSE_ROUND_SOURCE_VILLAS=[
+  '02 Pangola','03 Hamata','04 Barbados','05 Merino','06 Corriedale','07 Katahdin',
+  '08 Mulato','010 Napier','011 Setaria','012 Alfalfa','013 Rapunzel'
+];
 const villaBathTypes={'02 Pangola':'Jacuzzi','03 Hamata':'Jacuzzi','04 Barbados':'Jacuzzi_Deluxe','05 Merino':'BathTub','06 Corriedale':'BathTub','06 Corredale':'BathTub','07 Katahdin':'BathTub_Deluxe','08 Mulato':'Jacuzzi','010 Napier':'Jacuzzi','011 Setaria':'Jacuzzi','012 Alfalfa':'Jacuzzi','013 Rapunzel':'Villa'};
-function cleanEnglishText(value){return String(value??'').replace(/\bBath\b/g,'Baht').replace(/\bFlaver\b/g,'Flavor').replace(/\bGrand ma\b/g,'Grandma').replace(/Food_Beverage/g,'Food & Beverage').replace(/Afternoon_Tea/g,'Afternoon Tea').replace(/Extra_Bed/g,'Extra Bed').replace(/BathTub_Deluxe/g,'Bathtub Deluxe').replace(/BathTub/g,'Bathtub').replace(/Jacuzzi_Deluxe/g,'Jacuzzi Deluxe').replace(/\s*\?\s*/g,' - ')}
+function cleanEnglishText(value){return String(value??'').replace(/\bBath\b/g,'Baht').replace(/\bFlaver\b/g,'Flavor').replace(/\bGrand ma\b/g,'Grandma').replace(/Food_Beverage/g,'Food & Beverage').replace(/Afternoon_Tea/g,'Afternoon Tea').replace(/Extra_Bed/g,'Extra Bed').replace(/BathTub_Deluxe/g,'Bathtub Deluxe').replace(/BathTub/g,'Bathtub').replace(/Jacuzzi_Deluxe/g,'Jacuzzi Deluxe').replace(/\s*(?:เด้งราคา|เพิ่มราคา)\b/g,'').replace(/\s*\?\s*/g,' - ')}
 const accommodationItems=[...DATA.accommodationItems.map(item=>{const villaName=Object.keys(villaBathTypes).find(name=>item.name.startsWith(`${name} `)||String(item.villa||'').startsWith(`${name} `));const normalized={...item,name:cleanEnglishText(item.name),category:cleanEnglishText(item.category)};return villaName?{...normalized,label:`${villaName} ${cleanEnglishText(villaBathTypes[villaName])}`,name:`${villaName} ${cleanEnglishText(villaBathTypes[villaName])}`,category:cleanEnglishText(villaBathTypes[villaName]),villa:villaName}:normalized}),{name:'E-Voucher Dinner 800 Baht (22)',category:'Package',rate:800},{name:'E-Voucher Dinner 1200 Baht (22)',category:'Package',rate:1200}].filter((item,index,items)=>items.findIndex(other=>other.name===item.name)===index);
 const addonItems=[...DATA.addonItems.map(item=>({...item,name:cleanEnglishText(item.name),category:cleanEnglishText(item.category)})),{name:'E-Voucher Dinner 800 Baht (22)',category:'Food & Beverage',rate:800},{name:'E-Voucher Dinner 1200 Baht (22)',category:'Food & Beverage',rate:1200}].filter((item,index,items)=>items.findIndex(other=>other.name===item.name)===index);
 const paymentMethods=['เงินสด','โอน','บัตรเครดิต','คิวอาโค้ต','2C2P'];
@@ -12,12 +16,77 @@ window.money=money;
 function loadClosedBookings(){try{return JSON.parse(localStorage.getItem('scenery-closed-bookings')||'[]')}catch{return[]}}
 function saveClosedBookings(){try{localStorage.setItem('scenery-closed-bookings',JSON.stringify(state.closedBookings))}catch{}}
 function showToast(message,type='success'){const region=$('#toast-region');if(!region)return;const toast=document.createElement('div');toast.className=`toast ${type}`;toast.innerHTML=`<span class="material-symbols-outlined">${type==='error'?'error':'check_circle'}</span><span>${esc(message)}</span>`;region.appendChild(toast);setTimeout(()=>toast.classList.add('show'),10);setTimeout(()=>{toast.classList.remove('show');setTimeout(()=>toast.remove(),250)},3200)}
-function setView(view){state.currentView=view;$$('.view').forEach(s=>s.classList.toggle('active',s.id===`view-${view}`));$$('.nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===view));$('#sidebar')?.classList.remove('open');if(view==='master')renderBookingRecords();if(view==='close-round'&&typeof renderCloseRound==='function')renderCloseRound();if(view==='drawer'&&typeof cashDrawerV2Render==='function')cashDrawerV2Render()}
+function setView(view){state.currentView=view;$$('.view').forEach(s=>s.classList.toggle('active',s.id===`view-${view}`));$$('.nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===view));$('#sidebar')?.classList.remove('open');if(view==='dashboard'&&typeof renderDashboard==='function')renderDashboard();if(view==='master')renderBookingRecords();if(view==='close-round'&&typeof renderCloseRound==='function')renderCloseRound();if(view==='drawer'&&typeof cashDrawerV2Render==='function')cashDrawerV2Render();if(view==='history'){if(typeof renderInvoiceHistoryAllRecords==='function')renderInvoiceHistoryAllRecords();else if(typeof renderHistory==='function')renderHistory();}}
 function setInvoicePage(page){state.invoicePage=page;$$('.invoice-page').forEach(s=>s.classList.toggle('active',s.dataset.invoicePage===page));$$('.invoice-page-tab').forEach(b=>b.classList.toggle('active',b.dataset.invoicePage===page));if(page==='preview')renderInvoicePreview()}
-function renderDashboard(){const d=$('#dashboard-invoices');if(d)d.innerHTML=state.invoices.slice(0,4).map(i=>`<tr><td>${esc(i.id)}</td><td>${esc(i.customer)}</td><td class="muted">${esc(i.time)}</td><td class="align-right"><strong>${money(i.total)}</strong></td><td><span class="status-chip ${i.statusClass}">${esc(i.status)}</span></td><td class="align-right"><button class="icon-button" aria-label="เมนู ${esc(i.id)}"><span class="material-symbols-outlined">more_vert</span></button></td></tr>`).join('');const drafts=$('#draft-list');if(drafts)drafts.innerHTML=state.drafts.map(d=>`<div class="draft-item"><div class="draft-top"><strong>${esc(d.id)}</strong><small>${esc(d.time)}</small></div><p>${esc(d.label)}</p><div class="draft-bottom"><span class="amount">${money(d.total)}</span><button class="text-button" data-view="invoice">แก้ไข</button></div></div>`).join('')}
+function renderDashboard(){
+  const records=typeof loadInvoiceHistory==='function'?loadInvoiceHistory():(state.invoices||[]);
+  const today=typeof historyDateKey==='function'?historyDateKey():new Date().toISOString().slice(0,10);
+  const totalSales=records.reduce((sum,r)=>sum+Number(r.total||0),0);
+  const totalPending=records.reduce((sum,r)=>sum+(typeof historyPendingTotal==='function'?historyPendingTotal(r):Number(r.pendingTotal||0)),0);
+  const drafts=state.drafts||[];
+
+  const metricCards=document.querySelectorAll('#view-dashboard .metric-card');
+  if(metricCards[0]){const strong=metricCards[0].querySelector('strong');if(strong)strong.textContent=money(totalSales)}
+  if(metricCards[1]){const strong=metricCards[1].querySelector('strong');if(strong)strong.textContent=`${drafts.length} รายการ`}
+  if(metricCards[2]){const strong=metricCards[2].querySelector('strong');if(strong)strong.textContent=`${records.length} บิล`}
+  if(metricCards[3]){const strong=metricCards[3].querySelector('strong');if(strong){strong.textContent=money(totalPending);strong.className=totalPending>0?'critical-text':'positive-text'}}
+
+  const lastUpdated=$('#last-updated');
+  if(lastUpdated){
+    const now=new Date();
+    const timeStr=now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
+    lastUpdated.textContent=`ข้อมูลล่าสุดเมื่อ: วันนี้ | ${timeStr} น. · ข้อมูลจริง ${records.length} รายการ`;
+  }
+
+  const d=$('#dashboard-invoices');
+  if(d){
+    if(!records.length){
+      d.innerHTML='<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ยังไม่มีใบแจ้งหนี้</p><small>สร้างใบแจ้งหนี้ใหม่เพื่อบันทึกรายการ</small></div></td></tr>';
+    }else{
+      d.innerHTML=records.slice(0,8).map(i=>{
+        const status=typeof historyStatus==='function'?historyStatus(i):{label:i.status||'ชำระแล้ว',className:i.statusClass||'status-paid'};
+        const displayDate=typeof historyDisplayDate==='function'?historyDisplayDate(i.businessDate||today):(i.businessDate||today);
+        return `<tr>
+          <td><button class="button button-text mono strong-link" type="button" data-history-view="${esc(i.id)}" style="padding:0;font-weight:700;color:var(--primary);text-decoration:underline;cursor:pointer;background:none;border:none;">${esc(i.id)}</button></td>
+          <td><strong>${esc(i.customer||'-')}</strong><small class="table-subtext">${esc(i.villa||'-')} · ${esc(i.time||'-')} น.</small></td>
+          <td class="muted">${esc(displayDate)}</td>
+          <td class="align-right strong-number"><strong>${money(i.total)}</strong></td>
+          <td><span class="status-chip ${status.className}">${esc(status.label)}</span></td>
+          <td class="align-right">
+            <div class="history-actions" style="display:inline-flex;gap:4px;">
+              <button class="button button-outline action-small" data-history-view="${esc(i.id)}" title="ดู Information Bill"><span class="material-symbols-outlined">receipt_long</span>เปิดดู</button>
+              <button class="button button-danger action-small" data-history-delete="${esc(i.id)}" title="ลบใบแจ้งหนี้"><span class="material-symbols-outlined">delete</span>ลบ</button>
+            </div>
+          </td>
+        </tr>`;
+      }).join('');
+    }
+  }
+
+  const draftList=$('#draft-list');
+  if(draftList){
+    draftList.innerHTML=drafts.length?drafts.map(d=>`<div class="draft-item"><div class="draft-top"><strong>${esc(d.id)}</strong><small>${esc(d.time)}</small></div><p>${esc(d.label)}</p><div class="draft-bottom"><span class="amount">${money(d.total)}</span><button class="text-button" data-view="invoice">แก้ไข</button></div></div>`).join(''):'<div class="empty-state"><p class="muted">ไม่มีใบแจ้งหนี้แบบร่าง</p></div>';
+  }
+}
 function renderHistory(){const b=$('#history-body');if(!b)return;const q=($('#history-search')?.value||'').trim().toLowerCase(),rows=state.invoices.filter(i=>`${i.id} ${i.customer}`.toLowerCase().includes(q));b.innerHTML=rows.map(i=>`<tr><td>${esc(i.id)}</td><td><strong>${esc(i.customer)}</strong><small class="table-subtext">${esc(i.time)} น.</small></td><td>17 ก.ค. 2026</td><td class="align-right strong-number">${money(i.total)}</td><td>${i.status==='ชำระแล้ว'?'<span class="positive-text">ครบถ้วน</span>':'<span class="warning-text">ค้างชำระ</span>'}</td><td><span class="status-chip ${i.statusClass}">${esc(i.status)}</span></td><td><button class="button button-outline action-small" data-action="detail" data-id="${esc(i.id)}">เปิดบิล</button></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty-state"><span class="material-symbols-outlined">search_off</span><p>ไม่พบรายการ</p></div></td></tr>'}
 function renderBookingRecords(){const view=$('#view-master');if(!view)return;let panel=$('#booking-records-panel');if(!panel){panel=document.createElement('article');panel.id='booking-records-panel';panel.className='panel booking-records-panel';view.appendChild(panel)}panel.innerHTML=`<div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">folder_shared</span></span><h3>หลักฐานการจองที่ปิดยอดแล้ว</h3></div><span class="count-chip">${state.closedBookings.length} รายการ</span></div>${state.closedBookings.length?`<div class="table-wrap"><table><thead><tr><th>Invoice</th><th>Guest / Villa</th><th>วันที่ปิดยอด</th><th class="align-right">ยอดรวม</th><th>สถานะ</th></tr></thead><tbody>${state.closedBookings.map(r=>`<tr><td class="mono">${esc(r.reference)}</td><td><strong>${esc(r.customer)}</strong><small class="table-subtext">${esc(r.villa||'-')}</small></td><td>${esc(r.closedAt)}</td><td class="align-right strong-number">${money(r.total)}</td><td><span class="status-chip success">ชำระครบแล้ว</span></td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state"><span class="material-symbols-outlined">folder_open</span><p>ยังไม่มีการปิดยอด</p><small>เมื่อกดปิดยอด ใบแจ้งหนี้จะถูกเก็บหลักฐานไว้ที่นี่</small></div>'}`}
-function formValue(id,fallback=''){const element=$(`#${id}`);return element?.dataset.dateValue??element?.value??fallback}function formatDate(value){if(!value)return'-';const date=new Date(`${value}T00:00:00`);return Number.isNaN(date.getTime())?'-':date.toLocaleDateString('en-GB',{day:'2-digit',month:'short',year:'numeric'})}function lineAmount(line){return Math.max(0,Number(line.qty||0)*Number(line.rate||0))}
+function formValue(id,fallback=''){const element=$(`#${id}`);return element?.dataset.dateValue??element?.value??fallback}
+function formatDate(value){
+  if(!value||value==='-')return'-';
+  const str=String(value).trim();
+  if(!str||str==='-')return'-';
+  const isoMatch=str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+  if(isoMatch)return `${isoMatch[3].padStart(2,'0')}/${isoMatch[2].padStart(2,'0')}/${isoMatch[1]}`;
+  const d=new Date(str.includes('T')?str:`${str}T00:00:00`);
+  if(!Number.isNaN(d.getTime())){
+    const day=String(d.getDate()).padStart(2,'0');
+    const month=String(d.getMonth()+1).padStart(2,'0');
+    const year=d.getFullYear();
+    return `${day}/${month}/${year}`;
+  }
+  return str;
+}
+function lineAmount(line){return Math.max(0,Number(line.qty||0)*Number(line.rate||0))}
 function discountRateOptions(selected=0){return[0,5,10,15,20,25,30,50].map(n=>`<option value="${n}" ${Number(selected)===n?'selected':''}>ลด ${n}%</option>`).join('')}
 function paymentMethodOptions(selected='เงินสด'){return paymentMethods.map(method=>`<option value="${esc(method)}" ${method===selected?'selected':''}>${esc(method)}</option>`).join('')}
 function invoiceSnapshot(){
@@ -43,6 +112,7 @@ function invoiceSnapshot(){
     remark:formValue('remark','-'),
     docDate,
     villa:formValue('villa',''),
+    villaCode:formValue('villa-code',''),
     subtotal,
     discount,
     lineDeposits,
@@ -56,7 +126,22 @@ function invoiceSnapshot(){
   };
 }
 function allocateLineAmounts(snapshot){let paid=snapshot.paymentDeposits;const rows=state.invoiceLines.map(line=>{const amount=lineAmount(line),discount=snapshot.discountScope==='line'?amount*Number(line.discountRate||0)/100:amount*(snapshot.allRate/100),afterDiscount=Math.max(0,amount-discount),lineDeposit=Math.max(0,Number(line.deposit||0)),payment=Math.min(Math.max(0,afterDiscount-lineDeposit),paid),pending=Math.max(0,Number(line.pendingCollection||0));paid-=payment;return{line,amount,discount,lineDeposit,payment,pending,deposit:lineDeposit+payment,outstanding:afterDiscount-lineDeposit-payment-pending}});if(paid>0&&rows.length){const last=rows[rows.length-1];last.payment+=paid;last.deposit+=paid;last.outstanding-=paid}return rows}
-function lineRow(line,index){const gross=lineAmount(line),snapshot=invoiceSnapshot(),discount=snapshot.discountScope==='line'?gross*Number(line.discountRate||0)/100:snapshot.discountScope==='all'?gross*snapshot.allRate/100:0,net=Math.max(0,gross-discount);return`<tr><td>${esc(line.category)}</td><td>${esc(line.name)}</td><td class="align-center"><div class="qty-control"><button type="button" data-line-index="${index}" data-qty="-1">−</button><strong>${line.qty}</strong><button type="button" data-line-index="${index}" data-qty="1">+</button></div></td><td class="align-right"><input class="line-rate" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.rate||0)}" aria-label="Rate ${esc(line.name)}"></td><td class="align-right"><div class="line-deposit-fields"><input class="line-deposit" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.deposit||0)}" aria-label="Deposit ${esc(line.name)}"><select class="line-deposit-method" data-line-index="${index}" aria-label="ช่องทาง Deposit ${esc(line.name)}">${paymentMethodOptions(line.depositMethod)}</select></div></td><td><select class="line-discount" data-line-index="${index}" aria-label="ส่วนลด ${esc(line.name)}">${discountRateOptions(line.discountRate)}</select></td><td class="align-right strong-number"><span>${money(net)}</span>${discount?`<small class="line-gross">เต็ม ${money(gross)}</small>`:''}</td><td class="align-right"><button class="icon-button remove-form-line" type="button" data-line-index="${index}" aria-label="ลบรายการ"><span class="material-symbols-outlined">delete</span></button></td></tr>`}
+function lineRow(line,index){
+  const gross=lineAmount(line),snapshot=invoiceSnapshot(),discount=snapshot.discountScope==='line'?gross*Number(line.discountRate||0)/100:snapshot.discountScope==='all'?gross*snapshot.allRate/100:0,net=Math.max(0,gross-discount);
+  const defaultIn = formValue('check-in') || new Date().toISOString().slice(0,10);
+  const defaultOut = formValue('check-out') || defaultIn;
+  const inVal = line.checkIn || defaultIn;
+  const outVal = line.checkOut || defaultOut;
+  line.checkIn = inVal;
+  line.checkOut = outVal;
+  const splitStayBadge = line.isSplitStay ? `
+    <small class="table-subtext" style="color:#7a5028;display:block;margin-top:2px;font-size:11px;">
+      <span style="background:#f2e6da;color:#6b4423;font-size:9.5px;padding:1px 5px;border-radius:3px;font-weight:700;border:1px solid #d8c3b0;margin-right:4px;">พักต่อเนื่อง คืนที่ 2</span>
+      ${formatDate(inVal)} → ${formatDate(outVal)}
+    </small>
+  ` : '';
+  return `<tr><td>${esc(line.category)}</td><td><strong>${esc(line.name)}</strong>${splitStayBadge}</td><td class="align-center"><div class="qty-control"><button type="button" data-line-index="${index}" data-qty="-1">−</button><strong>${line.qty}</strong><button type="button" data-line-index="${index}" data-qty="1">+</button></div></td><td class="align-right"><input class="line-rate" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.rate||0)}" aria-label="Rate ${esc(line.name)}"></td><td class="align-right"><div class="line-deposit-fields"><input class="line-deposit" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.deposit||0)}" aria-label="Deposit ${esc(line.name)}"><select class="line-deposit-method" data-line-index="${index}" aria-label="ช่องทาง Deposit ${esc(line.name)}">${paymentMethodOptions(line.depositMethod)}</select></div></td><td><select class="line-discount" data-line-index="${index}" aria-label="ส่วนลด ${esc(line.name)}">${discountRateOptions(line.discountRate)}</select></td><td class="align-right strong-number"><span>${money(net)}</span>${discount?`<small class="line-gross">เต็ม ${money(gross)}</small>`:''}</td><td class="align-right"><button class="icon-button remove-form-line" type="button" data-line-index="${index}" aria-label="ลบรายการ"><span class="material-symbols-outlined">delete</span></button></td></tr>`;
+}
 function renderFormLines(){
   const a=$('#form-accommodation-lines'),b=$('#form-addon-lines');
   if(!a||!b)return;
@@ -94,7 +179,7 @@ function closeInvoice(){
   openSettlementModal();
 }
 function exportPdf(){setInvoicePage('preview');setTimeout(()=>window.print(),80)}
-function resetInvoice(){state.invoiceLines=[];state.payments=[];state.invoiceClosed=false;state.itemSearch={};const defaults={folio:'',customer:'','check-in':'','check-out':'','no-of-night':'',remark:'','doc-date':'','villa':'','discount-scope':'line','discount-all-rate':'0','cashier':''};Object.entries(defaults).forEach(([id,v])=>{if($(`#${id}`))$(`#${id}`).value=v});['accommodation-rate','accommodation-qty','addon-rate','addon-qty','payment-amount'].forEach(id=>{if($(`#${id}`))$(`#${id}`).value=''});$$('.invoice-search-input').forEach(input=>input.value='');$$('.invoice-search-clear').forEach(button=>button.hidden=true);renderFormLines();renderPayments();setInvoicePage('form');showToast('เริ่มใบแจ้งหนี้ใหม่แล้ว')}
+function resetInvoice(){state.invoiceLines=[];state.payments=[];state.invoiceClosed=false;state.itemSearch={};const defaults={folio:'',customer:'','check-in':'','check-out':'','no-of-night':'',remark:'','doc-date':'','villa':'','villa-code':'','discount-scope':'line','discount-all-rate':'0','cashier':''};Object.entries(defaults).forEach(([id,v])=>{if($(`#${id}`))$(`#${id}`).value=v});['accommodation-rate','accommodation-qty','addon-rate','addon-qty','payment-amount'].forEach(id=>{if($(`#${id}`))$(`#${id}`).value=''});$$('.invoice-search-input').forEach(input=>input.value='');$$('.invoice-search-clear').forEach(button=>button.hidden=true);renderFormLines();renderPayments();setInvoicePage('form');showToast('เริ่มใบแจ้งหนี้ใหม่แล้ว')}
 function openModal(title,body,actions='<button class="button button-primary" data-close-modal>ปิดหน้าต่าง</button>'){const root=$('#modal-root');if(!root)return;root.innerHTML=`<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-header"><h3>${esc(title)}</h3><button class="icon-button" data-close-modal aria-label="ปิด"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body">${body}</div><div class="modal-footer">${actions}</div></div></div>`}
 function wireEvents(){
   document.addEventListener('click',event=>{
@@ -102,7 +187,7 @@ function wireEvents(){
     if(viewTrigger){event.preventDefault();setView(viewTrigger.dataset.view);return}
     const pageTrigger=event.target.closest('[data-invoice-page]');
     if(pageTrigger){event.preventDefault();setInvoicePage(pageTrigger.dataset.invoicePage);return}
-    if(event.target.closest('[data-close-modal]')||event.target.classList.contains('modal-backdrop')){$('#modal-root').innerHTML='';return}
+    if(event.target.closest('[data-close-modal]')){$('#modal-root').innerHTML='';return}
     const qty=event.target.closest('[data-line-index][data-qty]');
     if(qty){
       const i=Number(qty.dataset.lineIndex);
@@ -119,26 +204,342 @@ function wireEvents(){
     }
     const history=event.target.closest('[data-action="detail"]');
     if(history)openModal(`รายละเอียด ${history.dataset.id}`,'<p>ใบแจ้งหนี้นี้สามารถใช้เป็นต้นทางสำหรับ Void, Adjustment หรือ Refund ได้ โดยระบบจะเก็บประวัติเดิมไว้เสมอ</p>');
-  });document.addEventListener('click',event=>{const button=event.target.closest('[data-payment-index]');if(!button)return;event.preventDefault();event.stopImmediatePropagation();state.payments.splice(Number(button.dataset.paymentIndex),1);renderPayments();showToast('ลบรายการชำระแล้ว')},true);$('#open-sidebar')?.addEventListener('click',()=>$('#sidebar')?.classList.add('open'));$('#close-sidebar')?.addEventListener('click',()=>$('#sidebar')?.classList.remove('open'));$('#login-form')?.addEventListener('submit',e=>{e.preventDefault();try{const email=String($('#username')?.value||'').trim();if(email)localStorage.setItem('scenery-last-login-email',email)}catch{}$('#password').value='';$('#login-screen')?.classList.add('is-hidden');$('#app-screen')?.classList.remove('is-hidden');showToast('เข้าสู่ระบบสำเร็จ')});$('#toggle-password')?.addEventListener('click',()=>{const input=$('#password');if(input)input.type=input.type==='password'?'text':'password'});$('#forgot-password')?.addEventListener('click',()=>openModal('ลืมรหัสผ่าน?','<p>กรุณาติดต่อผู้ดูแลระบบหรือฝ่ายไอทีเพื่อรีเซ็ตรหัสผ่านของคุณ</p>'));$('#help-button')?.addEventListener('click',()=>openModal('ศูนย์ช่วยเหลือ','<p>เลือก “หน้ากรอกข้อมูล” เพื่อเริ่มสร้างใบแจ้งหนี้ และตรวจผลได้ที่ “หน้าใบแจ้งหนี้”</p>'));$('#add-accommodation')?.addEventListener('click',()=>addLine('accommodation'));$('#add-addon')?.addEventListener('click',()=>addLine('addon'));$('#accommodation-select')?.addEventListener('change',()=>fillRate('accommodation'));$('#addon-select')?.addEventListener('change',()=>fillRate('addon'));$('#add-payment')?.addEventListener('click',()=>{const amount=Number($('#payment-amount')?.value||0);if(amount<=0){showToast('กรุณาระบุจำนวนเงินที่รับชำระ','error');return}state.payments.push({method:$('#payment-method').value,amount});$('#payment-amount').value='';renderPayments();showToast('บันทึกรายการรับชำระแล้ว')});['folio','customer','check-in','check-out','no-of-night','remark','doc-date','discount-scope','discount-all-rate','villa','cashier'].forEach(id=>{$(`#${id}`)?.addEventListener('input',calculateInvoice);$(`#${id}`)?.addEventListener('change',calculateInvoice)});document.addEventListener('input',event=>{if(event.target.matches('.line-rate')){const l=state.invoiceLines[Number(event.target.dataset.lineIndex)];if(l){l.rate=Math.max(0,Number(event.target.value||0));calculateInvoice()}}});document.addEventListener('change',event=>{if(event.target.matches('.line-discount')){const l=state.invoiceLines[Number(event.target.dataset.lineIndex)];if(l){l.discountRate=Number(event.target.value||0);calculateInvoice()}}});$('#reset-invoice')?.addEventListener('click',resetInvoice);$('#export-pdf')?.addEventListener('click',exportPdf);$('#close-invoice')?.addEventListener('click',closeInvoice);$('#history-search')?.addEventListener('input',renderHistory);$('#global-search')?.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.value.trim()){setView('history');$('#history-search').value=e.target.value.trim();renderHistory()}})}
+  });
+  document.addEventListener('click',event=>{
+    const splitBtn = event.target.closest('#btn-add-split-stay-invoice');
+    if(splitBtn){ event.preventDefault(); openSplitStayInvoiceModal(); return; }
+    const closeSplitBtn = event.target.closest('#btn-add-close-round-split-stay');
+    if(closeSplitBtn){ event.preventDefault(); openCloseRoundManualSplitModal(); return; }
+    const notesBtn = event.target.closest('#btn-close-round-notes-modal');
+    if(notesBtn){ event.preventDefault(); openCloseRoundNotesModal(); return; }
+    const button=event.target.closest('[data-payment-index]');
+    if(!button)return;
+    event.preventDefault();
+    event.stopImmediatePropagation();
+    state.payments.splice(Number(button.dataset.paymentIndex),1);
+    renderPayments();
+    showToast('ลบรายการชำระแล้ว');
+  },true);
+
+  document.addEventListener('change',event=>{
+    if(event.target.classList.contains('line-in-input')){
+      const idx=Number(event.target.dataset.lineIndex);
+      if(state.invoiceLines[idx]){
+        state.invoiceLines[idx].checkIn=event.target.value;
+        calculateInvoice();
+      }
+    }
+    if(event.target.classList.contains('line-out-input')){
+      const idx=Number(event.target.dataset.lineIndex);
+      if(state.invoiceLines[idx]){
+        state.invoiceLines[idx].checkOut=event.target.value;
+        calculateInvoice();
+      }
+    }
+  });
+
+  $('#open-sidebar')?.addEventListener('click',()=>$('#sidebar')?.classList.add('open'));
+  $('#close-sidebar')?.addEventListener('click',()=>$('#sidebar')?.classList.remove('open'));
+  $('#login-form')?.addEventListener('submit',e=>{
+    e.preventDefault();
+    try{
+      const email=String($('#username')?.value||'').trim();
+      if(email)localStorage.setItem('scenery-last-login-email',email);
+    }catch{}
+    $('#password').value='';
+    $('#login-screen')?.classList.add('is-hidden');
+    $('#app-screen')?.classList.remove('is-hidden');
+    showToast('เข้าสู่ระบบสำเร็จ');
+  });
+  $('#toggle-password')?.addEventListener('click',()=>{
+    const input=$('#password');
+    if(input)input.type=input.type==='password'?'text':'password';
+  });
+  $('#forgot-password')?.addEventListener('click',()=>openModal('ลืมรหัสผ่าน?','<p>กรุณาติดต่อผู้ดูแลระบบหรือฝ่ายไอทีเพื่อรีเซ็ตรหัสผ่านของคุณ</p>'));
+  $('#help-button')?.addEventListener('click',()=>openModal('ศูนย์ช่วยเหลือ','<p>เลือก “หน้ากรอกข้อมูล” เพื่อเริ่มสร้างใบแจ้งหนี้ และตรวจผลได้ที่ “หน้าใบแจ้งหนี้”</p>'));
+  $('#add-accommodation')?.addEventListener('click',()=>addLine('accommodation'));
+  $('#add-addon')?.addEventListener('click',()=>addLine('addon'));
+  $('#accommodation-select')?.addEventListener('change',()=>fillRate('accommodation'));
+  $('#addon-select')?.addEventListener('change',()=>fillRate('addon'));
+  $('#add-payment')?.addEventListener('click',()=>{
+    const amount=Number($('#payment-amount')?.value||0);
+    if(amount<=0){showToast('กรุณาระบุจำนวนเงินที่รับชำระ','error');return}
+    state.payments.push({method:$('#payment-method').value,amount});
+    $('#payment-amount').value='';
+    renderPayments();
+    showToast('บันทึกรายการรับชำระแล้ว');
+  });
+  ['folio','customer','check-in','check-out','no-of-night','remark','doc-date','discount-scope','discount-all-rate','villa','villa-code','cashier'].forEach(id=>{
+    $(`#${id}`)?.addEventListener('input',calculateInvoice);
+    $(`#${id}`)?.addEventListener('change',calculateInvoice);
+  });
+  document.addEventListener('input',event=>{
+    if(event.target.matches('.line-rate')){
+      const l=state.invoiceLines[Number(event.target.dataset.lineIndex)];
+      if(l){l.rate=Math.max(0,Number(event.target.value||0));calculateInvoice()}
+    }
+  });
+  document.addEventListener('change',event=>{
+    if(event.target.matches('.line-discount')){
+      const l=state.invoiceLines[Number(event.target.dataset.lineIndex)];
+      if(l){l.discountRate=Number(event.target.value||0);calculateInvoice()}
+    }
+  });
+  $('#reset-invoice')?.addEventListener('click',resetInvoice);
+  $('#export-pdf')?.addEventListener('click',exportPdf);
+  $('#close-invoice')?.addEventListener('click',closeInvoice);
+  $('#history-search')?.addEventListener('input',renderHistory);
+  $('#global-search')?.addEventListener('keydown',e=>{
+    if(e.key==='Enter'&&e.target.value.trim()){
+      setView('history');
+      $('#history-search').value=e.target.value.trim();
+      renderHistory();
+    }
+  });
+}
+
+function openSplitStayInvoiceModal() {
+  const currentIn = formValue('check-in') || new Date().toISOString().slice(0, 10);
+  const currentOut = formValue('check-out') || addDaysToDateStr(currentIn, 1);
+  const accommLines = state.invoiceLines.filter(l => l.type === 'accommodation');
+  let nextIn = currentOut;
+  if (accommLines.length > 0) {
+    const last = accommLines[accommLines.length - 1];
+    if (last.checkOut) nextIn = last.checkOut;
+  }
+  const nextOut = addDaysToDateStr(nextIn, 1);
+
+  const villaOpts = CLOSE_ROUND_SOURCE_VILLAS.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+
+  openModal(
+    'เพิ่มการพักคืนถัดไป (คนละบ้าน / Split Stay)',
+    `
+    <div style="font-size:13.5px;color:#554;margin-bottom:12px;">
+      เพิ่มการพักหลังที่ 2 ในใบแจ้งหนี้เดียวกันสำหรับลูกค้าคนเดียวกัน
+    </div>
+    <form id="split-stay-form" style="display:flex;flex-direction:column;gap:12px;" onsubmit="return false;">
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:4px;">เลือก Villa หลังที่ 2</label>
+        <select id="split-stay-villa" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" required>
+          ${villaOpts}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label style="display:block;font-weight:600;margin-bottom:4px;">Check-in (คืนที่ 2)</label>
+          <input id="split-stay-in" type="date" value="${nextIn}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" required />
+        </div>
+        <div>
+          <label style="display:block;font-weight:600;margin-bottom:4px;">Check-out (คืนที่ 2)</label>
+          <input id="split-stay-out" type="date" value="${nextOut}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" required />
+        </div>
+      </div>
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:4px;">ราคาค่าห้อง (บาท)</label>
+        <input id="split-stay-rate" type="number" min="0" placeholder="4500" value="4500" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" required />
+      </div>
+    </form>
+    `,
+    `
+    <button type="button" class="button button-primary" id="btn-save-split-stay-line">เพิ่มลงบิล</button>
+    <button type="button" class="button button-outline" data-close-modal>ยกเลิก</button>
+    `
+  );
+
+  $('#btn-save-split-stay-line')?.addEventListener('click', () => {
+    const villaName = $('#split-stay-villa')?.value;
+    const inDate = $('#split-stay-in')?.value;
+    const outDate = $('#split-stay-out')?.value;
+    const rate = Number($('#split-stay-rate')?.value || 0);
+
+    if (!villaName || !inDate || !outDate) {
+      showToast('กรุณากรอกข้อมูลบ้านพักและวันที่ให้ครบถ้วน', 'error');
+      return;
+    }
+
+    state.invoiceLines.push({
+      type: 'accommodation',
+      name: villaName,
+      villa: villaName,
+      category: 'Accommodation',
+      sourceIndex: null,
+      rate: rate,
+      deposit: 0,
+      depositMethod: 'เงินสด',
+      qty: 1,
+      discountRate: 0,
+      discountAmount: 0,
+      checkIn: inDate,
+      checkOut: outDate,
+      isSplitStay: true,
+      pendingCollection: 0,
+      pendingNote: ''
+    });
+
+    const checkOutEl = $('#check-out');
+    if (checkOutEl && (!checkOutEl.value || checkOutEl.value < outDate)) {
+      checkOutEl.value = outDate;
+    }
+
+    renderFormLines();
+    calculateInvoice();
+    $('#modal-root').innerHTML = '';
+    showToast(`เพิ่มการพักบ้าน "${villaName}" เรียบร้อยแล้ว`);
+  });
+}
+
+function openCloseRoundManualSplitModal() {
+  const date = typeof closeRoundSelectedDate === 'function' ? closeRoundSelectedDate() : new Date().toISOString().slice(0, 10);
+  const invoices = typeof loadInvoiceHistory === 'function' ? loadInvoiceHistory() : [];
+  const invoiceOptions = invoices.map(i => `<option value="${esc(i.id)}">${esc(i.id)} — ${esc(i.customer)} (${esc(i.villa || '-')})</option>`).join('');
+  const villaOpts = CLOSE_ROUND_SOURCE_VILLAS.map(v => `<option value="${esc(v)}">${esc(v)}</option>`).join('');
+
+  openModal(
+    'เพิ่มแถบรายการบ้านพักต่อเนื่อง (Split Stay Row ในปิดรอบ)',
+    `
+    <form id="close-round-split-stay-form" style="display:flex;flex-direction:column;gap:12px;" onsubmit="return false;">
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:4px;">เลือก Invoice อ้างอิง</label>
+        <select id="manual-split-invoice" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;">
+          <option value="">-- ไม่ระบุ หรือ ป้อนข้อมูลเอง --</option>
+          ${invoiceOptions}
+        </select>
+      </div>
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:4px;">ชื่อลูกค้า</label>
+        <input id="manual-split-customer" placeholder="เช่น คุณวิมลทิพย์ ก." style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" required />
+      </div>
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:4px;">ชื่อ Villa หลังที่ 2 (ที่พักต่อเนื่อง)</label>
+        <select id="manual-split-villa" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" required>
+          ${villaOpts}
+        </select>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;">
+        <div>
+          <label style="display:block;font-weight:600;margin-bottom:4px;">วัน Check-in (In)</label>
+          <input id="manual-split-in" type="date" value="${date}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" required />
+        </div>
+        <div>
+          <label style="display:block;font-weight:600;margin-bottom:4px;">วัน Check-out (Out)</label>
+          <input id="manual-split-out" type="date" value="${addDaysToDateStr(date, 1)}" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" required />
+        </div>
+      </div>
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:4px;">ยอดค่าที่พัก / ยอดรวม (บาท)</label>
+        <input id="manual-split-rate" type="number" min="0" placeholder="4500" value="4500" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" required />
+      </div>
+      <div>
+        <label style="display:block;font-weight:600;margin-bottom:4px;">หมายเหตุ</label>
+        <input id="manual-split-remark" placeholder="เช่น พักต่อเนื่องจากบ้าน 02 Pangola" style="width:100%;padding:8px;border:1px solid #ccc;border-radius:6px;" />
+      </div>
+    </form>
+    `,
+    `
+    <button type="button" class="button button-primary" id="btn-save-close-round-split">บันทึกแถบรายการ</button>
+    <button type="button" class="button button-outline" data-close-modal>ยกเลิก</button>
+    `
+  );
+
+  $('#manual-split-invoice')?.addEventListener('change', (e) => {
+    const chosenId = e.target.value;
+    const found = invoices.find(i => i.id === chosenId);
+    if (found) {
+      if ($('#manual-split-customer')) $('#manual-split-customer').value = found.customer || '';
+      if ($('#manual-split-remark')) $('#manual-split-remark').value = `พักต่อเนื่องจาก ${found.villa || 'บ้านหลัก'} (${found.id})`;
+    }
+  });
+
+  $('#btn-save-close-round-split')?.addEventListener('click', () => {
+    const invId = $('#manual-split-invoice')?.value;
+    const customer = ($('#manual-split-customer')?.value || '').trim();
+    const villa = $('#manual-split-villa')?.value;
+    const inDate = $('#manual-split-in')?.value;
+    const outDate = $('#manual-split-out')?.value;
+    const rate = Number($('#manual-split-rate')?.value || 0);
+    const remark = ($('#manual-split-remark')?.value || '').trim();
+
+    if (!customer || !villa || !inDate || !outDate) {
+      showToast('กรุณากรอกข้อมูลให้ครบถ้วน', 'error');
+      return;
+    }
+
+    saveManualSplitStay({
+      id: invId || `SPLIT-${Date.now()}`,
+      businessDate: date,
+      customer,
+      villa,
+      checkIn: inDate,
+      checkOut: outDate,
+      rate,
+      deposit: 0,
+      remark,
+      isSplitStay: true,
+      stayIndex: 2
+    });
+
+    $('#modal-root').innerHTML = '';
+    showToast(`เพิ่มแถบรายการ "${villa}" (พักต่อเนื่อง) ในรอบ ${date} แล้ว`);
+    if (typeof renderCloseRound === 'function') renderCloseRound();
+  });
+}
 let settlementRows=[],pendingCollectionRows=[];
 function installDepositHeaders(){document.querySelectorAll('#view-invoice .invoice-line-group thead tr').forEach(row=>{if(row.querySelector('.deposit-column'))return;const header=document.createElement('th');header.className='deposit-column align-right';header.textContent='Deposit';row.insertBefore(header,row.children[4]||null)})}
 function installSearchableItemFields(){[{id:'accommodation-select',prefix:'accommodation',type:'accommodation'},{id:'addon-select',prefix:'addon',type:'addon'}].forEach(({id,prefix,type})=>{const select=$(`#${id}`);if(!select||$(`#${prefix}-search`))return;const input=document.createElement('input');input.type='text';input.id=`${prefix}-search`;input.className='invoice-search-input';input.setAttribute('list',`${prefix}-options`);input.setAttribute('inputmode','search');input.dataset.source=id;input.autocomplete='off';input.placeholder='';const list=document.createElement('datalist');list.id=`${prefix}-options`;[...select.options].slice(1).forEach(option=>{const item=document.createElement('option');item.value=option.textContent;list.appendChild(item)});select.options[0].textContent='';select.hidden=true;select.insertAdjacentElement('beforebegin',input);select.insertAdjacentElement('afterend',list);const choose=()=>{const value=input.value.trim().toLowerCase(),option=[...select.options].slice(1).find(o=>o.textContent.trim().toLowerCase()===value);select.value=option?option.value:'';if(option){fillRate(type);select.dispatchEvent(new Event('change',{bubbles:true}))}else{const rate=$(`#${prefix}-rate`);if(rate)rate.value=''}};input.addEventListener('input',choose);input.addEventListener('change',choose)});}
 function installPreviewPaymentMeta(){const meta=$('#invoice-preview-sheet .preview-meta');if(!meta||$('#preview-payment-method'))return;const guestLabel=meta.querySelector('.guest-meta span');if(guestLabel)guestLabel.textContent='Guest Name / No. of Guest';const reference=meta.children[0];if(!reference)return;const row=document.createElement('div');row.className='preview-payment-method-row';row.innerHTML='<span>Payment Method</span><strong id="preview-payment-method">-</strong>';const wrapper=document.createElement('div');wrapper.className='preview-reference-payment-row';reference.parentNode.insertBefore(wrapper,reference);wrapper.append(reference,row)}
 function renderSettlementRows(){const box=$('#settlement-rows');if(!box)return;box.innerHTML=settlementRows.map((row,index)=>`<div class="settlement-row"><select data-settlement-index="${index}" data-settlement-field="method">${paymentMethodOptions(row.method)}</select><input data-settlement-index="${index}" data-settlement-field="amount" type="number" min="0" step="0.01" value="${Number(row.amount||0)}" placeholder="จำนวนเงิน"><button type="button" class="icon-button" data-settlement-remove="${index}" aria-label="ลบช่องทางชำระ"><span class="material-symbols-outlined">delete</span></button></div>`).join('')}
 function renderPendingCollectionRows(){const box=$('#pending-collection-rows');if(!box)return;box.innerHTML=state.invoiceLines.map((line,index)=>{const row=pendingCollectionRows[index]||{amount:0,note:''};return`<div class="pending-collection-row"><div class="pending-collection-name"><strong>${esc(line.name)}</strong><small>${esc(line.category||'รายการ')}</small></div><input data-pending-line-index="${index}" data-pending-field="amount" type="number" min="0" step="0.01" value="${Number(row.amount||0)}" placeholder="ยอดรอเก็บ"><input data-pending-line-index="${index}" data-pending-field="note" value="${esc(row.note||'')}" placeholder="แผนก / จุดที่รอเก็บ"></div>`}).join('')||'<p class="muted">ยังไม่มีรายการสำหรับกำหนดยอดรอเก็บ</p>';box.querySelectorAll('[data-pending-line-index]').forEach(input=>input.addEventListener('input',event=>{const index=Number(event.target.dataset.pendingLineIndex),row=pendingCollectionRows[index]||(pendingCollectionRows[index]={amount:0,note:''});if(event.target.dataset.pendingField==='amount')row.amount=Math.max(0,Number(event.target.value||0));else row.note=event.target.value;updateSettlementTotal()}))}
+function staffDisplayName(raw){
+  if(!raw)return'Now Narit';
+  const str=String(raw).trim();
+  if(!str)return'Now Narit';
+  if(!str.includes('@')){
+    if(['cashier','receptionist','user','staff','admin'].includes(str.toLowerCase()))return'Now Narit';
+    return str;
+  }
+  const emailLower=str.toLowerCase();
+  const emailMap={
+    'h.adv.scenery@gmail.com':'Now Narit',
+    'now@thescenery.co':'Now Narit',
+    'narit@thescenery.co':'Now Narit',
+    'mhew@thescenery.co':'Mhew Kusu',
+    'kusu@thescenery.co':'Mhew Kusu',
+    'nattaya@thescenery.co':'Nattaya Phung',
+    'phung@thescenery.co':'Nattaya Phung',
+    'nummim@thescenery.co':'Nummim',
+    'ple@thescenery.co':'Ple Theresa',
+    'theresa@thescenery.co':'Ple Theresa',
+    'somchai@thescenery.co':'Somchai R.',
+    'somchai@thesceneryresort.com':'Somchai R.',
+    'rungarun@thescenery.co':'Rungarun S.',
+    'kittipong@thescenery.co':'Kittipong T.',
+    'admin@thescenery.co':'Now Narit'
+  };
+  if(emailMap[emailLower])return emailMap[emailLower];
+  const usernamePart=str.split('@')[0];
+  const cleaned=usernamePart.replace(/[._-]+/g,' ').replace(/\b\w/g,c=>c.toUpperCase());
+  return cleaned||'Now Narit';
+}
+window.staffDisplayName=staffDisplayName;
+
 function openSettlementModal(){
   const s=invoiceSnapshot();
-  const currentStaff=localStorage.getItem('scenery-last-login-email')||'Cashier';
   settlementRows=state.payments.length?state.payments.map(p=>({...p})): [{method:'เงินสด',amount:s.netTotal||0}];
   pendingCollectionRows=state.invoiceLines.map(line=>({amount:Number(line.pendingCollection||0),note:line.pendingNote||''}));
   const root=$('#modal-root');if(!root)return;
-  root.innerHTML=`<div class="modal-backdrop"><div class="modal settlement-modal" role="dialog" aria-modal="true"><div class="modal-header"><h3>ยืนยันการชำระเงินและปิดยอด (${esc(s.customer)})</h3><button class="icon-button" data-close-modal aria-label="ปิด"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><p class="muted">แยกช่องทางและจำนวนเงินที่ลูกค้าชำระได้หลายรายการ</p><div id="settlement-rows"></div><button type="button" class="button button-soft full-width" data-settlement-add><span class="material-symbols-outlined">add</span>เพิ่มช่องทางชำระ</button><section class="pending-collection-section"><div class="pending-collection-heading"><strong>ยอดรอเก็บจากแผนก / จุดอื่น</strong><small>ระบุรายการที่ปิดงานได้โดยยังรอเก็บจากจุดอื่น</small></div><div id="pending-collection-rows"></div></section><label class="settlement-slip">หลักฐานการชำระเงิน<input id="settlement-slip" type="file" accept="image/*,.pdf"></label><label class="settlement-preparer">ผู้จัดทำ / ผู้ปิดงาน<input id="settlement-preparer" value="${esc(currentStaff)}" list="preparer-options" placeholder="พิมพ์ชื่อผู้จัดทำ"><datalist id="preparer-options"><option value="${esc(currentStaff)}"><option value="Now Narit"><option value="Mhew Kusu"><option value="Nattaya Phung"><option value="Nummim"><option value="Ple Theresa"></datalist></label><p id="settlement-total" class="settlement-total"></p></div><div class="modal-footer"><button class="button button-outline" type="button" data-close-modal>ยกเลิก</button><button class="button button-primary" type="button" data-settlement-confirm>ปิดยอดและบันทึกรอบ</button></div></div></div>`;
+  root.innerHTML=`<div class="modal-backdrop"><div class="modal settlement-modal" role="dialog" aria-modal="true"><div class="modal-header"><h3>ยืนยันการชำระเงินและปิดยอด (${esc(s.customer)})</h3><button class="icon-button" data-close-modal aria-label="ปิด"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><p class="muted">แยกช่องทางและจำนวนเงินที่ลูกค้าชำระได้หลายรายการ</p><div id="settlement-rows"></div><button type="button" class="button button-soft full-width" data-settlement-add><span class="material-symbols-outlined">add</span>เพิ่มช่องทางชำระ</button><section class="pending-collection-section"><div class="pending-collection-heading"><strong>ยอดรอเก็บจากแผนก / จุดอื่น</strong><small>ระบุรายการที่ปิดงานได้โดยยังรอเก็บจากจุดอื่น</small></div><div id="pending-collection-rows"></div></section><label class="settlement-slip">หลักฐานการชำระเงิน<input id="settlement-slip" type="file" accept="image/*,.pdf"></label><label class="settlement-preparer">ผู้จัดทำ / ผู้ปิดงาน <b class="required-note" style="color:var(--danger,#d32f2f)">*</b><input id="settlement-preparer" value="" list="preparer-options" placeholder="เลือกหรือพิมพ์ชื่อผู้จัดทำ" autocomplete="off" required><datalist id="preparer-options"><option value="Now Narit"><option value="Mhew Kusu"><option value="Nattaya Phung"><option value="Nummim"><option value="Ple Theresa"></datalist></label><p id="settlement-total" class="settlement-total"></p></div><div class="modal-footer"><button class="button button-outline" type="button" data-close-modal>ยกเลิก</button><button class="button button-primary" type="button" data-settlement-confirm>ปิดยอดและบันทึกรอบ</button></div></div></div>`;
   renderSettlementRows();renderPendingCollectionRows();updateSettlementTotal();
 }
 function updateSettlementTotal(){const el=$('#settlement-total');if(el){const paid=settlementRows.reduce((s,row)=>s+Math.max(0,Number(row.amount||0)),0),pending=pendingCollectionRows.reduce((s,row)=>s+Math.max(0,Number(row.amount||0)),0);el.innerHTML=`รวมชำระ ${money(paid)} <span>• ยอดรอเก็บ ${money(pending)}</span>`}}
 function fileToDataUrl(file){return new Promise((resolve,reject)=>{const reader=new FileReader();reader.onload=()=>resolve(reader.result);reader.onerror=reject;reader.readAsDataURL(file)})}
 async function finalizeInvoice(){
-  const preparer=($('#settlement-preparer')?.value||'').trim()||localStorage.getItem('scenery-last-login-email')||'Cashier';
+  const enteredPreparer=($('#settlement-preparer')?.value||'').trim();
+  if(!enteredPreparer){
+    showToast('กรุณาระบุชื่อผู้จัดทำ / ผู้ปิดงาน','error');
+    $('#settlement-preparer')?.focus();
+    return;
+  }
+  const preparer=staffDisplayName(enteredPreparer);
   const file=$('#settlement-slip')?.files?.[0];let proof=null;
   if(file){
     if(file.size>4*1024*1024){showToast('ไฟล์สลิปต้องมีขนาดไม่เกิน 4 MB','error');return}
@@ -150,7 +551,29 @@ async function finalizeInvoice(){
   state.invoiceLines.forEach((line,index)=>{line.pendingCollection=pendingCollections[index]?.amount||0;line.pendingNote=pendingCollections[index]?.note||''});
   const s=invoiceSnapshot();
   state.invoiceClosed=true;
-  const record={reference:s.reference,customer:s.customer,villa:s.villa,docDate:s.docDate,total:s.subtotal,discount:s.discount,deposit:s.deposit,pendingTotal:s.pendingTotal,pendingCollections:pendingCollections.filter(row=>row.amount>0),preparer,closedAt:new Date().toLocaleString('th-TH'),proof,lines:state.invoiceLines.map(l=>({...l})),payments:state.payments.map(p=>({...p}))};
+  const record={
+    reference:s.reference,
+    id:s.reference,
+    customer:s.customer,
+    villa:s.villa,
+    docDate:s.docDate,
+    businessDate:s.docDate,
+    checkIn:s.checkIn,
+    checkOut:s.checkOut,
+    nights:s.nights,
+    remark:s.remark,
+    total:s.subtotal,
+    discount:s.discount,
+    deposit:s.deposit,
+    pendingTotal:s.pendingTotal,
+    pendingCollections:pendingCollections.filter(row=>row.amount>0),
+    preparer,
+    cashier:preparer,
+    closedAt:new Date().toLocaleString('th-TH'),
+    proof,
+    lines:state.invoiceLines.map(l=>({...l})),
+    payments:state.payments.map(p=>({...p}))
+  };
   state.closedBookings.unshift(record);
   saveClosedBookings();
   state.invoices.unshift({id:s.reference,customer:s.customer,time:'เมื่อสักครู่',total:s.subtotal,status:'ชำระแล้ว',statusClass:'status-paid'});
@@ -282,7 +705,11 @@ function installFinalInvoiceRules(){
     const deposit=lineDeposits+paymentDeposits;
     const pending=Math.min(Math.max(0,subtotal-discount-deposit),pendingTotal());
     const netTotal=Math.max(0,subtotal-discount);
-    return {reference:formValue('folio',''),customer:formValue('customer',''),checkIn:formValue('check-in'),checkOut:formValue('check-out'),nights:formValue('no-of-night',''),remark:formValue('remark',''),docDate:formValue('doc-date'),villa:formValue('villa',''),subtotal,discount,lineDeposits,paymentDeposits,pendingTotal:pending,deposit,netTotal,outstanding:netTotal-deposit-pending,outstandingDisplay:netTotal-deposit,discountScope:scope,allAmount:allDiscount};
+    const todayStr=new Date().toISOString().slice(0,10);
+    const autoRef=`INV-${todayStr.slice(2).replaceAll('-','')}-${Math.floor(100+Math.random()*900)}`;
+    const reference=String(formValue('folio','')||'').trim()||autoRef;
+    const docDate=formValue('doc-date')||todayStr;
+    return {reference,customer:formValue('customer',''),checkIn:formValue('check-in')||docDate,checkOut:formValue('check-out')||docDate,nights:formValue('no-of-night','1'),remark:formValue('remark',''),docDate,villa:formValue('villa',''),villaCode:formValue('villa-code',''),subtotal,discount,lineDeposits,paymentDeposits,pendingTotal:pending,deposit,netTotal,outstanding:netTotal-deposit-pending,outstandingDisplay:netTotal-deposit,discountScope:scope,allAmount:allDiscount};
   };
   const settlementTotals=()=>{
     const snapshot=calculateLiveInvoiceSnapshot();
@@ -365,13 +792,12 @@ function installFinalInvoiceRules(){
   const baseOpenSettlementModal=openSettlementModal;
   openSettlementModal=function(){
     const snapshot=typeof calculateLiveInvoiceSnapshot==='function'?calculateLiveInvoiceSnapshot():invoiceSnapshot();
-    const currentStaff=localStorage.getItem('scenery-last-login-email')||'Cashier';
     const defaultAmount=Math.max(0,snapshot.netTotal-snapshot.deposit);
     settlementRows=state.payments.length?state.payments.map(payment=>({...payment})):[{method:'เงินสด',amount:defaultAmount}];
     pendingCollectionRows=[{amount:pendingTotal(),note:state.pendingCollectionNote||''}];
     const root=$('#modal-root');
     if(!root)return;
-    root.innerHTML=`<div class="modal-backdrop"><div class="modal settlement-modal" role="dialog" aria-modal="true"><div class="modal-header"><h3>ยืนยันการชำระเงินและปิดยอด (${esc(snapshot.customer)})</h3><button class="icon-button" data-close-modal aria-label="ปิด"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><p class="muted">บันทึกช่องทางชำระ และรวมยอดที่รอเรียกเก็บจากทุกจุดเป็นยอดเดียวของบิล</p><div id="settlement-rows"></div><button type="button" class="button button-soft full-width" data-settlement-add><span class="material-symbols-outlined">add</span>เพิ่มช่องทางชำระ</button><section class="pending-collection-section"><div class="pending-collection-heading"><strong>ยอดรอเรียกเก็บทั้งบิล</strong><small>ไม่แยกตามรายการ ให้ระบุยอดรวมและหมายเหตุครั้งเดียว</small></div><div id="pending-collection-rows"></div></section><label class="settlement-slip">หลักฐานการชำระเงิน<input id="settlement-slip" type="file" accept="image/*,.pdf"></label><label class="settlement-preparer">ผู้จัดทำ / ผู้ปิดงาน<input id="settlement-preparer" value="${esc(currentStaff)}" list="preparer-options" placeholder="พิมพ์ชื่อผู้จัดทำ"><datalist id="preparer-options"><option value="${esc(currentStaff)}"><option value="Now Narit"><option value="Mhew Kusu"><option value="Nattaya Phung"><option value="Nummim"><option value="Ple Theresa"></datalist></label><p id="settlement-total" class="settlement-total"></p></div><div class="modal-footer"><button class="button button-outline" type="button" data-close-modal>ยกเลิก</button><button class="button button-primary" type="button" data-settlement-confirm>ปิดยอดและบันทึกรอบ</button></div></div></div>`;
+    root.innerHTML=`<div class="modal-backdrop"><div class="modal settlement-modal" role="dialog" aria-modal="true"><div class="modal-header"><h3>ยืนยันการชำระเงินและปิดยอด (${esc(snapshot.customer)})</h3><button class="icon-button" data-close-modal aria-label="ปิด"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><p class="muted">บันทึกช่องทางชำระ และรวมยอดที่รอเรียกเก็บจากทุกจุดเป็นยอดเดียวของบิล</p><div id="settlement-rows"></div><button type="button" class="button button-soft full-width" data-settlement-add><span class="material-symbols-outlined">add</span>เพิ่มช่องทางชำระ</button><section class="pending-collection-section"><div class="pending-collection-heading"><strong>ยอดรอเรียกเก็บทั้งบิล</strong><small>ไม่แยกตามรายการ ให้ระบุยอดรวมและหมายเหตุครั้งเดียว</small></div><div id="pending-collection-rows"></div></section><label class="settlement-slip">หลักฐานการชำระเงิน<input id="settlement-slip" type="file" accept="image/*,.pdf"></label><label class="settlement-preparer">ผู้จัดทำ / ผู้ปิดงาน <b class="required-note" style="color:var(--danger,#d32f2f)">*</b><input id="settlement-preparer" value="" list="preparer-options" placeholder="เลือกหรือพิมพ์ชื่อผู้จัดทำ" autocomplete="off" required><datalist id="preparer-options"><option value="Now Narit"><option value="Mhew Kusu"><option value="Nattaya Phung"><option value="Nummim"><option value="Ple Theresa"></datalist></label><p id="settlement-total" class="settlement-total"></p></div><div class="modal-footer"><button class="button button-outline" type="button" data-close-modal>ยกเลิก</button><button class="button button-primary" type="button" data-settlement-confirm>ปิดยอดและบันทึกรอบ</button></div></div></div>`;
     renderSettlementRows();renderPendingCollectionRows();updateSettlementTotal();
   };
 
@@ -400,7 +826,13 @@ function installFinalInvoiceRules(){
   },true);
 
   finalizeInvoice=async function(){
-    const preparer=($('#settlement-preparer')?.value||'').trim()||localStorage.getItem('scenery-last-login-email')||'Cashier';
+    const enteredPreparer=($('#settlement-preparer')?.value||'').trim();
+    if(!enteredPreparer){
+      showToast('กรุณาระบุชื่อผู้จัดทำ / ผู้ปิดงาน','error');
+      $('#settlement-preparer')?.focus();
+      return;
+    }
+    const preparer=staffDisplayName(enteredPreparer);
     const enteredTotals=settlementTotals();
     if(enteredTotals.excess>0.005){
       updateSettlementTotal();
@@ -437,9 +869,31 @@ function installFinalInvoiceRules(){
     }
     state.closedInvoiceSnapshot=displaySnapshot;
     state.invoiceClosed=true;
-    const record={reference:settlementSnapshot.reference,customer:settlementSnapshot.customer,villa:settlementSnapshot.villa,checkIn:settlementSnapshot.checkIn,checkOut:settlementSnapshot.checkOut,nights:settlementSnapshot.nights,remark:settlementSnapshot.remark,docDate:settlementSnapshot.docDate,total:settlementSnapshot.subtotal,discount:settlementSnapshot.discount,deposit:settlementSnapshot.deposit,pendingTotal:settlementSnapshot.pendingTotal,pendingCollectionTotal:settlementSnapshot.pendingTotal,pendingCollectionNote:state.pendingCollectionNote,preparer,closedAt:new Date().toLocaleString('th-TH'),proof,lines:state.invoiceLines.map(line=>({...line})),payments:state.payments.map(payment=>({...payment}))};
+    const record={reference:settlementSnapshot.reference,customer:settlementSnapshot.customer,villa:settlementSnapshot.villa,checkIn:settlementSnapshot.checkIn,checkOut:settlementSnapshot.checkOut,nights:settlementSnapshot.nights,remark:settlementSnapshot.remark,docDate:settlementSnapshot.docDate,total:settlementSnapshot.subtotal,discount:settlementSnapshot.discount,deposit:settlementSnapshot.deposit,pendingTotal:settlementSnapshot.pendingTotal,pendingCollectionTotal:settlementSnapshot.pendingTotal,pendingCollectionNote:state.pendingCollectionNote,preparer,cashier:preparer,closedBy:preparer,closedAt:new Date().toLocaleString('th-TH'),proof,lines:state.invoiceLines.map(line=>({...line})),payments:state.payments.map(payment=>({...payment}))};
     state.closedBookings.unshift(record);saveClosedBookings();
     state.invoices.unshift({id:settlementSnapshot.reference,customer:settlementSnapshot.customer,time:'เมื่อสักครู่',total:settlementSnapshot.subtotal,status:'ชำระแล้ว',statusClass:'status-paid'});
+    const now=new Date();
+    const historyItem=normalizeHistoryRecord({
+      ...record,
+      id:record.reference,
+      reference:record.reference,
+      customer:settlementSnapshot.customer,
+      villa:settlementSnapshot.villa,
+      cashier:preparer,
+      preparer:preparer,
+      closedBy:preparer,
+      businessDate:record.docDate||historyDateKey(now),
+      time:now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}),
+      total:settlementSnapshot.subtotal,
+      netTotal:settlementSnapshot.netTotal,
+      discount:settlementSnapshot.discount,
+      deposit:settlementSnapshot.deposit,
+      pendingTotal:settlementSnapshot.pendingTotal
+    });
+    const historyList=loadInvoiceHistory().filter(item=>item.id!==historyItem.id);
+    saveInvoiceHistory([historyItem,...historyList]);
+    syncInvoiceHistoryState();
+    if(typeof renderInvoiceHistoryAllRecords==='function')renderInvoiceHistoryAllRecords();
     renderDashboard();renderBookingRecords();$('#modal-root').innerHTML='';calculateInvoice();setInvoicePage('preview');
     showToast(`บันทึกใบแจ้งหนี้ ${settlementSnapshot.reference} (${settlementSnapshot.customer}) เรียบร้อยแล้ว`);
     if(typeof renderCloseRound==='function')renderCloseRound();
@@ -548,14 +1002,31 @@ function installInvoiceDraftActions(){
 document.addEventListener('DOMContentLoaded',installInvoiceDraftActions);
 
 function normalizeInvoiceVillaOptions(){
-  $('#villa-code')?.closest('label')?.remove();
-  const select=$('#villa');if(!select)return;
-  const numberedVillas=[
-    '02 Pangola','03 Hamata','04 Barbados','05 Merino','06 Corriedale',
-    '07 Katahdin','08 Mulato','010 Napier','011 Setaria','012 Alfalfa','013 Rapunzel'
-  ];
-  select.innerHTML='<option value="">เลือก Villa / Room (ไม่ระบุก็ได้)</option>'+
-    numberedVillas.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  const villaSelect=$('#villa');
+  if(villaSelect){
+    const numberedVillas=[
+      '02 Pangola','03 Hamata','04 Barbados','05 Merino','06 Corriedale',
+      '07 Katahdin','08 Mulato','010 Napier','011 Setaria','012 Alfalfa','013 Rapunzel'
+    ];
+    villaSelect.innerHTML='<option value="">เลือก Villa / Room (ไม่ระบุก็ได้)</option>'+
+      numberedVillas.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  }
+  let codeInput=$('#villa-code');
+  if(!codeInput&&villaSelect){
+    const label=document.createElement('label');
+    label.innerHTML='รหัส <input id="villa-code" list="invoice-villa-code-options" placeholder="เช่น A — Rainy S" autocomplete="off"><datalist id="invoice-villa-code-options">'+
+      CLOSE_ROUND_VILLA_CODES.map(c=>`<option value="${esc(c.value)}">${esc(c.label)}</option>`).join('')+'</datalist>';
+    villaSelect.closest('label')?.insertAdjacentElement('afterend',label);
+  }else if(codeInput){
+    let datalist=$('#invoice-villa-code-options');
+    if(!datalist){
+      datalist=document.createElement('datalist');
+      datalist.id='invoice-villa-code-options';
+      codeInput.insertAdjacentElement('afterend',datalist);
+    }
+    datalist.innerHTML=CLOSE_ROUND_VILLA_CODES.map(c=>`<option value="${esc(c.value)}">${esc(c.label)}</option>`).join('');
+    codeInput.setAttribute('list','invoice-villa-code-options');
+  }
 }
 document.addEventListener('DOMContentLoaded',normalizeInvoiceVillaOptions);
 
@@ -565,6 +1036,17 @@ function normalizeReceptionLabels(){
   document.querySelectorAll('#view-users th').forEach(cell=>{if(cell.textContent.trim()==='จุดขาย')cell.textContent='หน่วยงาน'});
   document.querySelectorAll('#view-users td').forEach(cell=>{if(cell.textContent.trim()==='Zone A')cell.textContent='RECEPTION';if(cell.textContent.trim()==='ทุกจุดขาย')cell.textContent='ทุกหน่วยงาน'});
   document.querySelectorAll('#view-audit p,#view-audit small').forEach(element=>{element.textContent=element.textContent.replace(/จุดขาย/g,'หน่วยงาน').replace(/Zone A/g,'RECEPTION')});
+  updateTopbarUserProfile();
+}
+function updateTopbarUserProfile(){
+  const email=localStorage.getItem('scenery-last-login-email')||window.scenerySupabase?.user?.email||'h.adv.scenery@gmail.com';
+  const nameEl=document.querySelector('.profile-text strong');
+  if(nameEl)nameEl.textContent=email;
+  const avatarEl=document.querySelector('.profile-button .avatar');
+  if(avatarEl){
+    const initial=(email.replace(/[^a-zA-Z0-9]/g,'').slice(0,2)||'HA').toUpperCase();
+    avatarEl.textContent=initial;
+  }
 }
 document.addEventListener('DOMContentLoaded',normalizeReceptionLabels);
 
@@ -602,7 +1084,24 @@ function historyDateKey(date=new Date()){
   const year=date.getFullYear(),month=String(date.getMonth()+1).padStart(2,'0'),day=String(date.getDate()).padStart(2,'0');
   return `${year}-${month}-${day}`;
 }
-function loadInvoiceHistory(){try{const raw=JSON.parse(localStorage.getItem(INVOICE_HISTORY_KEY)||'[]');return Array.isArray(raw)?raw.map(normalizeHistoryRecord):[]}catch{return[]}}
+function defaultSeedInvoices(){
+  return [];
+}
+
+function loadInvoiceHistory(){
+  try{
+    const stored=localStorage.getItem(INVOICE_HISTORY_KEY);
+    if(stored!==null){
+      const raw=JSON.parse(stored);
+      if(Array.isArray(raw)){
+        return raw.filter(item=>item && typeof item === 'object' && (item.id || item.reference)).map(normalizeHistoryRecord);
+      }
+    }
+    return [];
+  }catch{
+    return [];
+  }
+}
 function saveInvoiceHistory(records){try{localStorage.setItem(INVOICE_HISTORY_KEY,JSON.stringify(records))}catch{showToast('บันทึกประวัติใบแจ้งหนี้ไม่สำเร็จ','error')}}
 function historyPendingTotal(record){
   if(Number(record.pendingTotal||0)>0)return Math.max(0,Number(record.pendingTotal||0));
@@ -616,17 +1115,33 @@ function normalizeHistoryRecord(record){
   const total=Math.max(0,Number(record.netTotal??(Number(record.total||0)-Number(record.discount||0)))||0);
   const pendingTotal=historyPendingTotal(record);
   const status=historyStatus({...record,pendingTotal});
-  return {...record,id:record.id||record.reference||`INV-${Date.now()}`,reference:record.reference||record.id||'',businessDate:record.businessDate||historyDateKey(),time:record.time||'ไม่ระบุเวลา',total,netTotal:total,pendingTotal,status:status.label,statusClass:status.className};
+  const staff=staffDisplayName(record.cashier||record.preparer||record.closedBy||record.user);
+  return {...record,id:record.id||record.reference||`INV-${Date.now()}`,reference:record.reference||record.id||'',businessDate:record.businessDate||historyDateKey(),time:record.time||'ไม่ระบุเวลา',cashier:staff,preparer:staff,total,netTotal:total,pendingTotal,status:status.label,statusClass:status.className};
 }
 function historyDisplayDate(key){
   const date=new Date(`${key}T00:00:00`);
   return Number.isNaN(date.getTime())?key:date.toLocaleDateString('th-TH',{day:'numeric',month:'short',year:'numeric'});
 }
 function syncInvoiceHistoryState(){
-  const today=historyDateKey();
-  state.invoices=loadInvoiceHistory().filter(record=>record.businessDate===today).sort((a,b)=>String(b.time).localeCompare(String(a.time))).map(record=>({id:record.id,customer:record.customer,time:record.time,total:record.total,status:record.status,statusClass:record.statusClass}));
+  const allRecords=loadInvoiceHistory().sort((a,b)=>{
+    const dCmp=String(b.businessDate||'').localeCompare(String(a.businessDate||''));
+    return dCmp || String(b.time||'').localeCompare(String(a.time||''));
+  });
+  state.invoices=allRecords.map(record=>({
+    id:record.id,
+    reference:record.reference||record.id,
+    customer:record.customer,
+    villa:record.villa,
+    businessDate:record.businessDate,
+    time:record.time,
+    total:record.total,
+    pendingTotal:record.pendingTotal,
+    status:record.status,
+    statusClass:record.statusClass
+  }));
   renderDashboard();
-  renderHistory();
+  if(typeof renderInvoiceHistoryAllRecords==='function')renderInvoiceHistoryAllRecords();
+  else renderHistory();
 }
 function historyRowsForToday(){
   const query=($('#history-search')?.value||'').trim().toLowerCase();
@@ -634,10 +1149,14 @@ function historyRowsForToday(){
   return loadInvoiceHistory().filter(record=>{
     const status=historyStatus(record);
     const haystack=[record.id,record.reference,record.customer,record.villa,record.time,record.businessDate,status.label,record.total,record.pendingTotal].join(' ').toLowerCase();
-    return record.businessDate===historyDateKey()&&(!query||haystack.includes(query))&&(statusFilter==='all'||status.label===statusFilter);
+    return (!query||haystack.includes(query))&&(statusFilter==='all'||status.label===statusFilter);
   }).sort((a,b)=>String(b.time).localeCompare(String(a.time)));
 }
 function renderHistory(){
+  if(typeof renderInvoiceHistoryAllRecords==='function'){
+    renderInvoiceHistoryAllRecords();
+    return;
+  }
   const body=$('#history-body');
   if(!body)return;
   const today=historyDateKey();
@@ -646,14 +1165,16 @@ function renderHistory(){
   const rows=historyRowsForToday();
   body.innerHTML=rows.map(record=>{
     const status=historyStatus(record),pending=historyPendingTotal(record);
-    return `<tr><td>${esc(record.id)}</td><td><strong>${esc(record.customer||'-')}</strong><small class="table-subtext">${esc(record.villa||'-')} · ${esc(record.time)} น.</small></td><td>${esc(historyDisplayDate(record.businessDate))}</td><td class="align-right strong-number">${money(record.total)}</td><td>${pending?`<span class="warning-text">รอเรียกเก็บ ${money(pending)}</span>`:'<span class="positive-text">ครบถ้วน</span>'}</td><td><span class="status-chip ${status.className}">${status.label}</span></td><td><div class="history-actions"><button class="button button-outline action-small" data-history-edit="${esc(record.id)}"><span class="material-symbols-outlined">edit</span>แก้ไข</button><button class="button button-danger action-small" data-history-delete="${esc(record.id)}"><span class="material-symbols-outlined">delete</span>ลบ</button></div></td></tr>`;
-  }).join('')||'<tr><td colspan="7"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ยังไม่มีประวัติใบแจ้งหนี้ของวันนี้</p><small>เมื่อยืนยันใบแจ้งหนี้แล้ว รายการจะปรากฏที่นี่</small></div></td></tr>';
+    const cashierName=staffDisplayName(record.cashier||record.preparer||record.closedBy||record.user);
+    return `<tr><td><button class="button button-text mono strong-link" type="button" data-history-view="${esc(record.id)}" style="padding:0;font-weight:700;color:var(--primary);text-decoration:underline;cursor:pointer;background:none;border:none;">${esc(record.id)}</button></td><td><strong>${esc(record.customer||'-')}</strong><small class="table-subtext">${esc(record.villa||'-')} · ${esc(record.time)} น.</small></td><td>${esc(historyDisplayDate(record.businessDate))}</td><td class="align-right strong-number">${money(record.total)}</td><td>${pending?`<span class="warning-text">รอเรียกเก็บ ${money(pending)}</span>`:'<span class="positive-text">ครบถ้วน</span>'}</td><td><span class="table-user" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text);background:rgba(0,0,0,0.04);padding:2px 8px;border-radius:12px;"><span class="material-symbols-outlined" style="font-size:15px;color:var(--muted);">person</span>${esc(cashierName)}</span></td><td><span class="status-chip ${status.className}">${status.label}</span></td><td><div class="history-actions"><button class="button button-outline action-small" data-history-view="${esc(record.id)}"><span class="material-symbols-outlined">receipt_long</span>ดู INFORMATION BILL</button><button class="button button-outline action-small" data-history-edit="${esc(record.id)}"><span class="material-symbols-outlined">edit</span>แก้ไข</button><button class="button button-danger action-small" data-history-delete="${esc(record.id)}"><span class="material-symbols-outlined">delete</span>ลบ</button></div></td></tr>`;
+  }).join('')||'<tr><td colspan="8"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ยังไม่มีประวัติใบแจ้งหนี้</p><small>เมื่อยืนยันใบแจ้งหนี้แล้ว รายการจะปรากฏที่นี่</small></div></td></tr>';
   historyRenderedDay=today;
 }
 function openHistoryEdit(id){
   const record=loadInvoiceHistory().find(item=>item.id===id);
   if(!record)return;
-  const body=`<div class="history-edit-form"><label>เลข Invoice<input value="${esc(record.id)}" disabled></label><label>ลูกค้า / บริษัท<input id="history-edit-customer" value="${esc(record.customer||'')}"></label><label>Villa / ห้องพัก<input id="history-edit-villa" value="${esc(record.villa||'')}"></label><label>ยอดสุทธิ<input id="history-edit-total" type="number" min="0" step="0.01" value="${Number(record.total||0)}"></label><label>ยอดรอเรียกเก็บ<input id="history-edit-pending" type="number" min="0" step="0.01" value="${historyPendingTotal(record)}"></label><small class="muted">ถ้ายอดรอเรียกเก็บมากกว่า 0 ระบบจะแสดงสถานะ “ค้างชำระ” อัตโนมัติ</small></div>`;
+  const currentCloser=staffDisplayName(record.cashier||record.preparer||record.closedBy||'');
+  const body=`<div class="history-edit-form"><label>เลข Invoice<input value="${esc(record.id)}" disabled></label><label>ลูกค้า / บริษัท<input id="history-edit-customer" value="${esc(record.customer||'')}"></label><label>Villa / ห้องพัก<input id="history-edit-villa" value="${esc(record.villa||'')}"></label><label class="settlement-preparer">ผู้ปิดยอด / ผู้แก้ไขล่าสุด <b class="required-note" style="color:var(--danger,#d32f2f)">*</b><input id="history-edit-preparer" value="${esc(currentCloser)}" list="preparer-options" placeholder="เลือกหรือพิมพ์ชื่อผู้ปิดยอดคนล่าสุด" autocomplete="off" required><datalist id="preparer-options"><option value="Now Narit"><option value="Mhew Kusu"><option value="Nattaya Phung"><option value="Nummim"><option value="Ple Theresa"></datalist></label><label>ยอดสุทธิ<input id="history-edit-total" type="number" min="0" step="0.01" value="${Number(record.total||0)}"></label><label>ยอดรอเรียกเก็บ<input id="history-edit-pending" type="number" min="0" step="0.01" value="${historyPendingTotal(record)}"></label><small class="muted">ถ้ายอดรอเรียกเก็บมากกว่า 0 ระบบจะแสดงสถานะ “ค้างชำระ” อัตโนมัติ</small></div>`;
   openModal(`แก้ไขย้อนหลัง ${record.id}`,body,'<button class="button button-outline" data-close-modal>ยกเลิก</button><button class="button button-primary" data-history-save="'+esc(record.id)+'">บันทึกการแก้ไข</button>');
 }
 function editInvoiceHistory(id){
@@ -663,14 +1184,22 @@ function editInvoiceHistory(id){
   if(pending>total){showToast('ยอดรอเรียกเก็บต้องไม่มากกว่ายอดสุทธิ','error');return}
   const current=records[index];
   if(closeRoundIsLocked(current.businessDate)){showToast(`แก้ไขไม่ได้: รอบ ${current.businessDate} ถูก Submit และ Lock แล้ว`,'error');return}
-  records[index]=normalizeHistoryRecord({...current,customer:($('#history-edit-customer')?.value||'').trim(),villa:($('#history-edit-villa')?.value||'').trim(),total,netTotal:total,discount:0,pendingTotal:pending,updatedAt:new Date().toISOString()});
+  const enteredCloser=($('#history-edit-preparer')?.value||'').trim();
+  if(!enteredCloser){
+    showToast('กรุณาระบุชื่อผู้ปิดยอดคนล่าสุด','error');
+    $('#history-edit-preparer')?.focus();
+    return;
+  }
+  const latestCloser=staffDisplayName(enteredCloser);
+  const now=new Date();
+  records[index]=normalizeHistoryRecord({...current,customer:($('#history-edit-customer')?.value||'').trim(),villa:($('#history-edit-villa')?.value||'').trim(),cashier:latestCloser,preparer:latestCloser,closedBy:latestCloser,total,netTotal:total,discount:0,pendingTotal:pending,updatedAt:now.toISOString()});
   saveInvoiceHistory(records);
-  state.closedBookings=state.closedBookings.map(record=>record.reference===id?{...record,customer:records[index].customer,villa:records[index].villa,total,pendingTotal:pending}:record);
+  state.closedBookings=state.closedBookings.map(record=>record.reference===id?{...record,customer:records[index].customer,villa:records[index].villa,cashier:latestCloser,preparer:latestCloser,closedBy:latestCloser,total,pendingTotal:pending,updatedAt:records[index].updatedAt}:record);
   saveClosedBookings();
   $('#modal-root').innerHTML='';
   syncInvoiceHistoryState();
-  recordAudit('แก้ไข Invoice','Invoice',id,current,records[index],{reason:'แก้ไขจากประวัติใบแจ้งหนี้'});
-  showToast(`แก้ไขประวัติ ${id} แล้ว`);
+  recordAudit('แก้ไข Invoice','Invoice',id,current,records[index],{reason:'แก้ไขจากประวัติใบแจ้งหนี้',updatedBy:latestCloser});
+  showToast(`แก้ไขประวัติ ${id} และบันทึกผู้ปิดยอดล่าสุด (${latestCloser}) แล้ว`);
 }
 function deleteInvoiceHistory(id){
   const records=loadInvoiceHistory();
@@ -694,8 +1223,8 @@ function requestDeleteInvoiceHistory(id){
 }
 function exportInvoiceHistoryCsv(){
   const rows=historyRowsForToday();
-  const headers=['Invoice','Customer','Villa','Business Date','Total','Pending','Status'];
-  const values=rows.map(record=>[record.id,record.customer,record.villa,record.businessDate,record.total,historyPendingTotal(record),historyStatus(record).label]);
+  const headers=['Invoice','Customer','Villa','Business Date','Total','Pending','Cashier','Status'];
+  const values=rows.map(record=>[record.id,record.customer,record.villa,record.businessDate,record.total,historyPendingTotal(record),record.cashier||record.preparer||localStorage.getItem('scenery-last-login-email')||'Cashier',historyStatus(record).label]);
   const csv='\uFEFF'+[headers,...values].map(row=>row.map(csvEscape).join(',')).join('\r\n');
   const url=URL.createObjectURL(new Blob([csv],{type:'text/csv;charset=utf-8'})),link=document.createElement('a');
   link.href=url;link.download=`invoice-history-${historyDateKey()}.csv`;document.body.append(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);showToast('ส่งออกประวัติใบแจ้งหนี้เป็น CSV แล้ว');
@@ -727,16 +1256,23 @@ function installInvoiceHistory(){
   if(typeof finalizeInvoice==='function'&&!finalizeInvoice.__historyWrapped){
     const baseFinalize=finalizeInvoice;
     const wrappedFinalize=async function(){
+      const enteredPreparer=($('#settlement-preparer')?.value||'').trim();
+      const selectedCashier=($('#cashier')?.value||'').trim();
       const beforeCount=state.closedBookings.length;
       await baseFinalize();
       if(state.closedBookings.length<=beforeCount)return;
       const source=state.closedBookings[0],now=new Date();
+      const userStaff=enteredPreparer?staffDisplayName(enteredPreparer):(source.preparer?staffDisplayName(source.preparer):(selectedCashier?staffDisplayName(selectedCashier):'Now Narit'));
+      source.preparer=userStaff;
+      source.cashier=userStaff;
+      source.closedBy=userStaff;
       source.villaCode=formValue('villa-code','');source.businessDate=source.docDate||historyDateKey(now);source.finalizedAt=now.toISOString();saveClosedBookings();
-      const record=normalizeHistoryRecord({...source,id:source.reference,reference:source.reference,businessDate:historyDateKey(now),time:now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}),finalizedAt:now.toISOString(),netTotal:Math.max(0,Number(source.total||0)-Number(source.discount||0))});
+      const record=normalizeHistoryRecord({...source,id:source.reference,reference:source.reference,cashier:userStaff,preparer:userStaff,closedBy:userStaff,businessDate:historyDateKey(now),time:now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'}),finalizedAt:now.toISOString(),netTotal:Math.max(0,Number(source.total||0)-Number(source.discount||0))});
       record.businessDate=source.businessDate;
       const records=loadInvoiceHistory().filter(item=>item.id!==record.id);
       saveInvoiceHistory([record,...records]);
       syncInvoiceHistoryState();
+      if(typeof renderInvoiceHistoryAllRecords==='function')renderInvoiceHistoryAllRecords();
       if(typeof renderCloseRound==='function'&&state.currentView==='close-round')renderCloseRound();
     };
     wrappedFinalize.__historyWrapped=true;
@@ -764,7 +1300,8 @@ function renderInvoiceHistoryAllRecords(){
   const selectedDate=dateFilter?.value||'all';
   const rows=records.filter(record=>{
     const status=historyStatus(record);
-    const haystack=[record.id,record.reference,record.customer,record.villa,record.time,record.businessDate,status.label,record.total,record.pendingTotal].join(' ').toLowerCase();
+    const cashierName=record.cashier||record.preparer||record.closedBy||record.user||'';
+    const haystack=[record.id,record.reference,record.customer,record.villa,record.time,record.businessDate,cashierName,status.label,record.total,record.pendingTotal].join(' ').toLowerCase();
     return (selectedDate==='all'||record.businessDate===selectedDate)&&(!query||haystack.includes(query))&&(statusFilter==='all'||status.label===statusFilter);
   }).sort((a,b)=>{
     const dateCompare=String(b.businessDate||'').localeCompare(String(a.businessDate||''));
@@ -772,8 +1309,9 @@ function renderInvoiceHistoryAllRecords(){
   });
   body.innerHTML=rows.map(record=>{
     const status=historyStatus(record),pending=historyPendingTotal(record);
-    return `<tr><td>${esc(record.id)}</td><td><strong>${esc(record.customer||'-')}</strong><small class="table-subtext">${esc(record.villa||'-')} · ${esc(record.time||'-')} น.</small></td><td>${esc(historyDisplayDate(record.businessDate))}</td><td class="align-right strong-number">${money(record.total)}</td><td>${pending?`<span class="warning-text">รอเรียกเก็บ ${money(pending)}</span>`:'<span class="positive-text">ครบถ้วน</span>'}</td><td><span class="status-chip ${status.className}">${status.label}</span></td><td><div class="history-actions"><button class="button button-outline action-small" data-history-edit="${esc(record.id)}"><span class="material-symbols-outlined">edit</span>แก้ไข</button><button class="button button-danger action-small" data-history-delete="${esc(record.id)}"><span class="material-symbols-outlined">delete</span>ลบ</button></div></td></tr>`;
-  }).join('')||'<tr><td colspan="7"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ไม่พบประวัติใบแจ้งหนี้</p><small>เมื่อยืนยันใบแจ้งหนี้แล้ว รายการจะปรากฏที่นี่</small></div></td></tr>';
+    const cashierName=staffDisplayName(record.cashier||record.preparer||record.closedBy||record.user);
+    return `<tr><td><button class="button button-text mono strong-link" type="button" data-history-view="${esc(record.id)}" style="padding:0;font-weight:700;color:var(--primary);text-decoration:underline;cursor:pointer;background:none;border:none;">${esc(record.id)}</button></td><td><strong>${esc(record.customer||'-')}</strong><small class="table-subtext">${esc(record.villa||'-')} · ${esc(record.time||'-')} น.</small></td><td>${esc(historyDisplayDate(record.businessDate))}</td><td class="align-right strong-number">${money(record.total)}</td><td>${pending?`<span class="warning-text">รอเรียกเก็บ ${money(pending)}</span>`:'<span class="positive-text">ครบถ้วน</span>'}</td><td><span class="table-user" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;color:var(--text);background:rgba(0,0,0,0.04);padding:2px 8px;border-radius:12px;"><span class="material-symbols-outlined" style="font-size:15px;color:var(--muted);">person</span>${esc(cashierName)}</span></td><td><span class="status-chip ${status.className}">${status.label}</span></td><td><div class="history-actions"><button class="button button-outline action-small" data-history-view="${esc(record.id)}"><span class="material-symbols-outlined">receipt_long</span>ดู INFORMATION BILL</button><button class="button button-outline action-small" data-history-edit="${esc(record.id)}"><span class="material-symbols-outlined">edit</span>แก้ไข</button><button class="button button-danger action-small" data-history-delete="${esc(record.id)}"><span class="material-symbols-outlined">delete</span>ลบ</button></div></td></tr>`;
+  }).join('')||'<tr><td colspan="8"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ไม่พบประวัติใบแจ้งหนี้</p><small>เมื่อยืนยันใบแจ้งหนี้แล้ว รายการจะปรากฏที่นี่</small></div></td></tr>';
   historyRenderedDay=historyDateKey();
 }
 
@@ -1035,40 +1573,110 @@ function historyInvoiceDetailBody(record){
 }
 
 function historyInformationBillBody(record){
-  const lines=Array.isArray(record.lines)?record.lines:[],lineRows=lines.map(line=>{
-    const qty=Math.max(1,Number(line.qty||1)),rate=Math.max(0,Number(line.rate||0)),gross=qty*rate;
-    const rateDiscount=Math.min(100,Math.max(0,Number(line.discountRate||0))),fixedDiscount=Math.max(0,Number(line.discountAmount||0));
-    const discount=Math.min(gross,gross*rateDiscount/100+fixedDiscount),deposit=Math.max(0,Number(line.deposit||0));
-    return '<tr><td>'+esc(line.category||'-')+'</td><td class="align-center">'+qty+'</td><td>'+esc(line.name||'-')+'</td><td class="align-right">'+money(rate)+'</td><td class="align-right">'+money(deposit)+'</td><td class="align-right">'+money(discount)+'</td><td class="align-right">'+money(Math.max(0,gross-discount))+'</td></tr>';
-  }).join('')||'<tr class="blank-line"><td colspan="7">-</td></tr>';
-  const subtotal=lines.reduce((sum,line)=>sum+Math.max(1,Number(line.qty||1))*Math.max(0,Number(line.rate||0)),0),discount=Math.max(0,Number(record.discount||0)),total=Math.max(0,Number(record.total||0)),deposit=Math.max(0,Number(record.deposit||0));
-  const displayTotal=total||Math.max(0,subtotal-discount),outstanding=Math.max(0,displayTotal-deposit-discount);
-  const paymentMethods=[...new Set((Array.isArray(record.payments)?record.payments:[]).filter(payment=>Number(payment.amount||0)>0).map(payment=>payment.method||'-'))].join(', ')||'-';
-  return '<div class="history-information-bill-wrap"><div class="invoice-preview-stage"><article class="invoice-preview-sheet history-information-bill"><header class="preview-header"><div class="preview-company"><img src="346973899_1639269593246469_4301917493848559029_n.jpg" alt="The Scenery"><div><p>234 Moo 7, Suan Phueng</p><p>Ratchaburi 70180</p><p>Tel : +66 81 000 7070</p><p>Fax : +66 32 206 370</p><p>www.sceneryvintagefarm.com</p></div></div><div class="preview-title"><h1>INFORMATION<br>BILL</h1><div><span>Invoice No</span><strong>'+esc(record.id||record.reference||'-')+'</strong></div><div><span>Date</span><strong>'+esc(formatDate(record.docDate||record.businessDate||''))+'</strong></div></div></header><div class="preview-meta"><div><span>Reference No.</span><strong>'+esc(record.reference||record.id||'-')+'</strong></div><div class="guest-meta"><span>Guest Name / No. of Guest</span><strong>'+esc(record.customer||'-')+'</strong></div><div><span>Check-in Date</span><strong>'+esc(formatDate(record.checkIn||''))+'</strong></div><div><span>Check-out Date</span><strong>'+esc(formatDate(record.checkOut||''))+'</strong></div><div><span>No. of Nights</span><strong>'+esc(record.nights||'-')+'</strong></div><div><span>Remark</span><strong>'+esc(record.remark||paymentMethods||'-')+'</strong></div></div><div class="preview-table-wrap"><table class="invoice-preview-table"><thead><tr><th>Category</th><th>QTY</th><th>Description</th><th>Rate<br>(per total QTY)</th><th>Deposit</th><th>Discount</th><th>Total THB</th></tr></thead><tbody>'+lineRows+'</tbody></table></div><footer class="preview-footer"><div class="preview-agreement">I agree that my liability for this bill is not waived and agree to be held personally liable in the event that the indicated person, company or association fails to pay for any part of the full amount of these charges.<div class="signature-row"><span>Guest Signature</span><span>Receptionist</span></div></div><div class="preview-totals"><div><span>Total</span><strong>'+money(displayTotal)+'</strong></div><div><span>Deposit</span><strong>'+money(deposit)+'</strong></div><div><span>Discount</span><strong>'+money(discount)+'</strong></div><div class="total-outstanding"><span>Outstanding</span><strong>'+money(outstanding)+'</strong></div><small>THAI BAHT</small></div></footer></article></div></div>';
+  const lines=Array.isArray(record.lines)?record.lines.map(line=>({...line,qty:Math.max(1,Number(line.qty||1)),rate:Math.max(0,Number(line.rate||0)),deposit:Math.max(0,Number(line.deposit||0)),discountAmount:Math.max(0,Number(line.discountAmount||0)),discountRate:Math.max(0,Number(line.discountRate||0))})):[];
+  const payments=Array.isArray(record.payments)?record.payments.map(payment=>({...payment,amount:Math.max(0,Number(payment.amount||0))})):[];
+  const subtotal=lines.reduce((sum,line)=>sum+lineAmount(line),0);
+  const discount=Math.max(0,Number(record.discount||0));
+  const deposit=lines.reduce((sum,line)=>sum+line.deposit,0)+payments.reduce((sum,payment)=>sum+payment.amount,0);
+  const hasLineDiscount=lines.some(line=>line.discountAmount>0||line.discountRate>0);
+  const discountScope=hasLineDiscount?'line':discount>0?'all':'none';
+  const snapshot={subtotal,discount,discountScope,netTotal:Math.max(0,subtotal-discount),allAmount:discount,paymentDeposits:payments.reduce((sum,payment)=>sum+payment.amount,0)};
+  
+  const previousLines=state.invoiceLines,previousPayments=state.payments;
+  let rows='';
+  try{
+    state.invoiceLines=lines;
+    state.payments=payments;
+    rows=previewItemRows(snapshot);
+  }finally{
+    state.invoiceLines=previousLines;
+    state.payments=previousPayments;
+  }
+  
+  const total=subtotal||Math.max(0,Number(record.total||0)+discount);
+  const netTotal=Math.max(0,total-discount);
+  const outstanding=Math.max(0,netTotal-deposit);
+  const methods=[...new Set(payments.filter(payment=>payment.amount>0).map(payment=>payment.method||'-'))].join(', ')||'';
+  const cashierName=staffDisplayName(record.cashier||record.preparer||record.closedBy);
+
+  return `
+    <div class="history-information-bill-wrap">
+      <div class="invoice-preview-stage">
+        <article class="invoice-preview-sheet history-information-bill">
+          <header class="preview-header">
+            <div class="preview-company">
+              <img src="346973899_1639269593246469_4301917493848559029_n.jpg" alt="The Scenery">
+              <div>
+                <p>234 Moo 7, Suan Phueng</p>
+                <p>Ratchaburi 70180</p>
+                <p>Tel : +66 81 000 7070</p>
+                <p>Fax : +66 32 206 370</p>
+                <p>www.sceneryvintagefarm.com</p>
+              </div>
+            </div>
+            <div class="preview-title">
+              <h1>INFORMATION<br>BILL</h1>
+              <div><span>Invoice No</span><strong>${esc(record.id||record.reference||'-')}</strong></div>
+              <div><span>Date</span><strong>${esc(formatDate(record.docDate||record.businessDate||''))}</strong></div>
+            </div>
+          </header>
+          <div class="preview-meta">
+            <div><span>Reference No.</span><strong>${esc(record.reference||record.id||'-')}</strong></div>
+            <div class="guest-meta"><span>Guest Name / No. of Guest</span><strong>${esc(record.customer||'-')}</strong></div>
+            <div><span>Check-in Date</span><strong>${esc(formatDate(record.checkIn||''))}</strong></div>
+            <div><span>Check-out Date</span><strong>${esc(formatDate(record.checkOut||''))}</strong></div>
+            <div><span>No. of Nights</span><strong>${esc(record.nights||'1')}</strong></div>
+            <div><span>Remark</span><strong>${esc(record.remark||methods||'-')}</strong></div>
+          </div>
+          <div class="preview-table-wrap">
+            <table class="invoice-preview-table">
+              <thead>
+                <tr>
+                  <th>Category</th>
+                  <th>QTY</th>
+                  <th>Description</th>
+                  <th>Rate<br>(per total QTY)</th>
+                  <th>Deposit</th>
+                  <th>Discount</th>
+                  <th>Total THB</th>
+                </tr>
+              </thead>
+              <tbody>
+                ${rows||'<tr class="blank-line"><td colspan="7">-</td></tr>'}
+              </tbody>
+            </table>
+          </div>
+          <footer class="preview-footer">
+            <div class="preview-agreement">
+              I agree that my liability for this bill is not waived and agree to be held personally liable in the event that the indicated person, company or association fails to pay for any part of the full amount of these charges.
+              <div class="signature-row">
+                <span>Guest Signature</span>
+                <span>${esc(cashierName)} (Receptionist)</span>
+              </div>
+            </div>
+            <div class="preview-totals">
+              <div><span>Total</span><strong>${money(total)}</strong></div>
+              <div><span>Deposit</span><strong>${money(deposit)}</strong></div>
+              <div><span>Discount</span><strong>${money(discount)}</strong></div>
+              <div class="total-outstanding"><span>Outstanding</span><strong>${outstanding===0?'฿0':money(outstanding)}</strong></div>
+              <small>THAI BAHT</small>
+            </div>
+          </footer>
+        </article>
+      </div>
+    </div>
+  `;
 }
 
 function openInvoiceHistoryDetail(id){
   const record=loadInvoiceHistory().find(item=>String(item.id)===String(id)||String(item.reference)===String(id));
   if(!record)return;
-  openModal('INFORMATION BILL · '+(record.id||record.reference||''),historyInformationBillBody(record),'<button class="button button-primary" data-close-modal>ปิด</button>');
-}
-
-/* History must use the exact live Information Bill DOM, including its A4 sizing and later layout fixes. */
-function historyInformationBillBody(record){
-  const source=document.querySelector('#invoice-preview-sheet');
-  if(!source)return historyInvoiceDetailBody(record);
-  const lines=Array.isArray(record.lines)?record.lines.map(line=>({...line,qty:Math.max(1,Number(line.qty||1)),rate:Math.max(0,Number(line.rate||0)),deposit:Math.max(0,Number(line.deposit||0)),discountAmount:Math.max(0,Number(line.discountAmount||0)),discountRate:Math.max(0,Number(line.discountRate||0))})):[],payments=Array.isArray(record.payments)?record.payments.map(payment=>({...payment,amount:Math.max(0,Number(payment.amount||0))})):[];
-  const subtotal=lines.reduce((sum,line)=>sum+lineAmount(line),0),discount=Math.max(0,Number(record.discount||0)),deposit=lines.reduce((sum,line)=>sum+line.deposit,0)+payments.reduce((sum,payment)=>sum+payment.amount,0),hasLineDiscount=lines.some(line=>line.discountAmount>0||line.discountRate>0),discountScope=hasLineDiscount?'line':discount>0?'all':'none',snapshot={subtotal,discount,discountScope,netTotal:Math.max(0,subtotal-discount),allAmount:discount,paymentDeposits:payments.reduce((sum,payment)=>sum+payment.amount,0)};
-  const previousLines=state.invoiceLines,previousPayments=state.payments;
-  let rows='';
-  try{state.invoiceLines=lines;state.payments=payments;rows=previewItemRows(snapshot)}finally{state.invoiceLines=previousLines;state.payments=previousPayments}
-  const sheet=source.cloneNode(true);sheet.removeAttribute('id');sheet.classList.add('history-information-bill');
-  const set=(id,value)=>{const element=sheet.querySelector('#'+id);if(element)element.textContent=value==null?'':String(value)};
-  const total=subtotal||Math.max(0,Number(record.total||0)+discount),netTotal=Math.max(0,total-discount),outstanding=Math.max(0,netTotal-deposit),methods=[...new Set(payments.filter(payment=>payment.amount>0).map(payment=>payment.method||'-'))].join(', ')||'';
-  set('preview-reference',record.id||record.reference||'-');set('preview-reference-meta',record.reference||record.id||'-');set('preview-customer',record.customer||'-');set('preview-check-in',formatDate(record.checkIn||''));set('preview-check-out',formatDate(record.checkOut||''));set('preview-nights',record.nights||'-');set('preview-remark',record.remark||'-');set('preview-invoice-date',formatDate(record.docDate||record.businessDate||''));set('preview-payment-method',methods);set('preview-total',money(total));set('preview-deposit',money(deposit));set('preview-discount',money(discount));set('preview-outstanding',outstanding===0?'':money(outstanding));
-  const linesBox=sheet.querySelector('#preview-invoice-lines');if(linesBox)linesBox.innerHTML=rows;
-  const noteBox=sheet.querySelector('#preview-pending-notes');if(noteBox){const pending=historyPendingTotal(record),noteParts=[];if(methods)noteParts.push('<div><strong>ชำระแล้วจากช่องทาง</strong><span>'+esc(methods)+'</span></div>');if(pending)noteParts.push('<div><strong>รอเรียกเก็บ '+money(pending)+'</strong><span>'+esc(record.pendingCollectionNote||'รอเรียกเก็บจากจุดที่เกี่ยวข้อง')+'</span></div>');noteBox.innerHTML=noteParts.join('');noteBox.classList.toggle('long-note',String(record.pendingCollectionNote||'').length>90);}
-  const view=document.createElement('div');view.id='view-invoice';view.className='history-information-bill-wrap';const stage=document.createElement('div');stage.className='invoice-preview-stage';stage.appendChild(sheet);view.appendChild(stage);return view.outerHTML;
+  const actions=`
+    <button class="button button-outline" type="button" data-history-load-invoice="${esc(record.id)}"><span class="material-symbols-outlined">edit</span>เปิดในหน้าสร้างใบแจ้งหนี้</button>
+    <button class="button button-outline" type="button" onclick="window.print()"><span class="material-symbols-outlined">print</span>พิมพ์ใบแจ้งหนี้ / PDF</button>
+    <button class="button button-primary" type="button" data-close-modal>ปิด</button>
+  `;
+  openModal('INFORMATION BILL · '+(record.id||record.reference||''),historyInformationBillBody(record),actions);
 }
 
 function installInvoiceHistoryDetailView(){
@@ -1088,9 +1696,37 @@ function installInvoiceHistoryDetailView(){
   renderHistory=function(){baseRenderHistory();addViewButtons()};
   document.addEventListener('click',event=>{
     const button=event.target.closest?.('[data-history-view]');
-    if(!button)return;
-    event.preventDefault();
-    openInvoiceHistoryDetail(button.dataset.historyView);
+    if(button){
+      event.preventDefault();
+      openInvoiceHistoryDetail(button.dataset.historyView);
+      return;
+    }
+    const loadBtn=event.target.closest?.('[data-history-load-invoice]');
+    if(loadBtn){
+      event.preventDefault();
+      const id=loadBtn.dataset.historyLoadInvoice;
+      const rec=loadInvoiceHistory().find(item=>String(item.id)===String(id)||String(item.reference)===String(id));
+      if(!rec)return;
+      $('#modal-root').innerHTML='';
+      if($('#folio'))$('#folio').value=rec.id||rec.reference||'';
+      if($('#customer'))$('#customer').value=rec.customer||'';
+      if($('#villa'))$('#villa').value=rec.villa||'';
+      if($('#check-in'))$('#check-in').value=rec.checkIn||rec.docDate||'';
+      if($('#check-out'))$('#check-out').value=rec.checkOut||rec.docDate||'';
+      if($('#no-of-night'))$('#no-of-night').value=rec.nights||'1';
+      if($('#remark'))$('#remark').value=rec.remark||'';
+      if($('#doc-date'))$('#doc-date').value=rec.docDate||rec.businessDate||'';
+      if($('#cashier'))$('#cashier').value=rec.cashier||rec.preparer||'';
+      state.invoiceLines=Array.isArray(rec.lines)?rec.lines.map(l=>({...l})):[];
+      state.payments=Array.isArray(rec.payments)?rec.payments.map(p=>({...p})):[];
+      renderFormLines();
+      renderPayments();
+      calculateInvoice();
+      renderInvoicePreview();
+      setView('invoice');
+      setInvoicePage('preview');
+      showToast(`เปิดใบแจ้งหนี้ ${rec.id} ในหน้าใบแจ้งหนี้แล้ว`);
+    }
   });
   renderHistory();
 }
@@ -1151,7 +1787,7 @@ const CLOSE_ROUND_CATEGORIES=[
   {key:'product',label:'สินค้า (0)',className:'green'},
   {key:'atv',label:'ATV (0)',className:'ochre'},
   {key:'ev',label:'ชาร์จ EV (0)',className:'taupe'},
-  {key:'other',label:'อื่น ๆ',className:'brown'}
+  {key:'other',label:'อื่นๆ',className:'brown'}
 ];
 const CLOSE_ROUND_PAYMENTS=[
   {key:'cash',label:'เงินสด',className:'cash'},
@@ -1182,7 +1818,7 @@ function loadCloseRoundDetailEdits(){try{const value=JSON.parse(localStorage.get
 function closeRoundDetailEditFor(record){const key=String(record?.id||record?.reference||'');return loadCloseRoundDetailEdits()[key]||{}}
 function saveCloseRoundDetailEdit(recordId,field,value){const key=String(recordId||'');if(!key)return;const date=closeRoundSelectedDate();if(closeRoundIsLocked(date)){showToast(`แก้ไขไม่ได้: รอบ ${date} ถูก Submit และ Lock แล้ว`,'error');renderCloseRound();return}const edits=loadCloseRoundDetailEdits();const before=edits[key]||{};edits[key]={...before,[field]:String(value||'').trim()};try{localStorage.setItem(CLOSE_ROUND_DETAIL_EDITS_KEY,JSON.stringify(edits));recordAudit('แก้ไขรายละเอียดปิดรอบ','Close Round',key,before,edits[key],{field,reason:'แก้ไขหมายเหตุหรือรหัส Villa'})}catch{showToast('บันทึกการแก้ไขรายละเอียดปิดรอบไม่สำเร็จ','error')}}
 function closeRoundInvoiceDate(record){
-  return String(record?.docDate||record?.businessDate||'').slice(0,10);
+  return String(record?.businessDate||record?.docDate||'').slice(0,10);
 }
 function closeRoundDefaultDate(){
   return historyDateKey();
@@ -1194,8 +1830,8 @@ function closeRoundSelectedDate(){
 }
 function closeRoundCategoryKey(line){
   const text=`${line?.category||''} ${line?.name||''}`.toLowerCase();
-  if(line?.type==='accommodation'||/villa|วิลล่า|ห้องพัก|accommodation/.test(text))return text.includes('bed')||text.includes('ที่นอน')?'extraBed':'villa';
-  if(/extra.?bed|ที่นอนเสริม/.test(text))return 'extraBed';
+  if(/extra.?bed|เตียงเสริม|ที่นอนเสริม|ที่นอน|เด้งราคา|extra.?person/.test(text))return 'extraBed';
+  if(line?.type==='accommodation'||/villa|วิลล่า|ห้องพัก|accommodation/.test(text))return 'villa';
   if(/minibar|มินิบาร์/.test(text))return 'minibar';
   if(/ht\s*\/?\s*sht|ht\d|ht\s/.test(text))return 'htSht';
   if(/dog|สุนัข|ชมโชว์/.test(text))return 'dogActivity';
@@ -1203,7 +1839,7 @@ function closeRoundCategoryKey(line){
   if(/atv/.test(text))return 'atv';
   if(/ev|ชาร์จ/.test(text))return 'ev';
   if(/souvenir|สินค้า|ของที่ระลึก|product/.test(text))return 'product';
-  if(/food|อาหาร|beverage|เครื่องดื่ม|bbq|package|afternoon/.test(text))return 'food';
+  if(/food|อาหาร|beverage|เครื่องดื่ม|bbq|package|afternoon|waffle|cake/.test(text))return 'food';
   return 'other';
 }
 function closeRoundLineNet(line){
@@ -1225,7 +1861,11 @@ function closeRoundPaymentKey(method){
 }
 function closeRoundRecords(date){
   const target=String(date||'').slice(0,10);
-  return loadInvoiceHistory().filter(record=>closeRoundInvoiceDate(record)===target);
+  return loadInvoiceHistory().filter(record=>{
+    const bDate = String(record?.businessDate||'').slice(0,10);
+    const dDate = String(record?.docDate||'').slice(0,10);
+    return bDate === target || dDate === target;
+  });
 }
 function closeRoundRecordModel(record){
   const categories=Object.fromEntries(CLOSE_ROUND_CATEGORIES.map(item=>[item.key,0]));
@@ -1255,29 +1895,160 @@ closeRoundRecordModel=function(record){
   const villaMatch=DATA.villas.find(v=>v.name===record.villa||v.reference===record.villa);
   return {...base,villa:villaMatch?.name||record.villa||'',categories,payments,total,deposit:Math.max(0,Number(record.deposit||0)),outstanding:Math.max(0,total-Math.max(0,Number(record.deposit||0))),pending:payments.pending,villaCode:record.villaCode||''};
 }
-function closeRoundMoneyCell(value){return Number(value||0)?money(value):'-'}
+function formatDayOnly(dateStr){
+  if(!dateStr||dateStr==='-')return '';
+  const str=String(dateStr).trim();
+  if(!str||str==='-')return '';
+  const isoMatch=str.match(/^\d{4}-\d{2}-(\d{1,2})/);
+  if(isoMatch)return String(parseInt(isoMatch[1],10));
+  const slashMatch=str.match(/^(\d{1,2})[\/\-]/);
+  if(slashMatch)return String(parseInt(slashMatch[1],10));
+  const thaiMatch=str.match(/^(\d{1,2})\s+/);
+  if(thaiMatch)return String(parseInt(thaiMatch[1],10));
+  if(/^\d{1,2}$/.test(str))return str;
+  const d=new Date(str);
+  if(!isNaN(d.getDate()))return String(d.getDate());
+  return str;
+}
+function closeRoundNumberCell(value){
+  const num=Number(value||0);
+  if(!num||Math.abs(num)<0.005)return '';
+  const hasDecimals=Math.abs(num%1)>=0.005;
+  return num.toLocaleString('en-US',{
+    minimumFractionDigits:hasDecimals?2:0,
+    maximumFractionDigits:2
+  });
+}
+function closeRoundMoneyCell(value){return closeRoundNumberCell(value)}
 function closeRoundVillaLabel(value){return String(value||'-').replace(/\s+Villa$/i,'')}
-function closeRoundRows(records){
-  return records.map(record=>{const row=closeRoundRecordModel(record),payments=CLOSE_ROUND_PAYMENTS.map(item=>`<td class="align-right">${closeRoundMoneyCell(row.payments[item.key])}</td>`).join('');return `<tr><td><strong>${esc(closeRoundVillaLabel(row.villa))}</strong></td><td class="mono">${esc(row.id||row.reference||'-')}</td><td>${esc(row.customer||'-')}</td><td>${esc(row.checkIn||'-')}</td><td>${esc(row.checkOut||'-')}</td>${CLOSE_ROUND_CATEGORIES.map(item=>`<td class="align-right">${closeRoundMoneyCell(row.categories[item.key])}</td>`).join('')}<td class="align-right strong-number">${money(row.total)}</td><td class="align-right">${closeRoundMoneyCell(row.deposit)}</td><td class="align-right ${row.outstanding?'warning-text':'positive-text'}">${closeRoundMoneyCell(row.outstanding)}</td>${payments}<td>${esc(row.remark||row.pendingCollectionNote||'-')}</td></tr>`}).join('')||`<tr><td colspan="${5+CLOSE_ROUND_CATEGORIES.length+3+CLOSE_ROUND_PAYMENTS.length+1}"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ยังไม่มี Invoice ที่ Finalized ในวันที่เลือก</p><small>เมื่อยืนยันใบแจ้งหนี้แล้ว รายการจะปรากฏในรอบนี้</small></div></td></tr>`;
+const MANUAL_SPLIT_STAYS_KEY = 'scenery-close-round-manual-split-stays';
+function loadManualSplitStays(date) {
+  try {
+    const all = JSON.parse(localStorage.getItem(MANUAL_SPLIT_STAYS_KEY) || '[]');
+    return Array.isArray(all) ? all.filter(s => !date || s.businessDate === date) : [];
+  } catch { return []; }
 }
-function closeRoundEditableRows(records){
-  const locked=closeRoundIsLocked(closeRoundSelectedDate());
-  return records.map(record=>{
-    const row=closeRoundRecordModel(record);
-    const recordId=esc(row.id||row.reference||'');
-    const payments=CLOSE_ROUND_PAYMENTS.map(item=>`<td class="align-right">${closeRoundMoneyCell(row.payments[item.key])}</td>`).join('');
-    const lockAttribute=locked?' disabled title="รอบถูก Submit และ Lock แล้ว"':'';
-    const code=closeRoundVillaCodeField(row.villaCode,` data-record-id="${recordId}"${lockAttribute}`);
-    const note=`<textarea class="close-round-note-input" rows="1" data-close-round-edit="remark" data-record-id="${recordId}" aria-label="หมายเหตุ" placeholder="พิมพ์หมายเหตุ" autocomplete="off"${lockAttribute}>${esc(row.remark||row.pendingCollectionNote||'')}</textarea>`;
-    return `<tr><td><strong>${esc(closeRoundVillaLabel(row.villa))}</strong></td><td>${code}</td><td>${esc(row.customer||'-')}</td><td>${esc(row.checkIn||'-')}</td><td>${esc(row.checkOut||'-')}</td>${CLOSE_ROUND_CATEGORIES.map(item=>`<td class="align-right">${closeRoundMoneyCell(row.categories[item.key])}</td>`).join('')}<td class="align-right strong-number">${money(row.total)}</td><td class="align-right">${closeRoundMoneyCell(row.deposit)}</td><td class="align-right ${row.outstanding?'warning-text':'positive-text'}">${closeRoundMoneyCell(row.outstanding)}</td>${payments}<td>${note}</td></tr>`;
-  }).join('')||`<tr><td colspan="${5+CLOSE_ROUND_CATEGORIES.length+3+CLOSE_ROUND_PAYMENTS.length+1}"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ยังไม่มี Invoice ที่ Finalized ในวันที่เลือก</p><small>เมื่อยืนยันใบแจ้งหนี้แล้ว รายการจะปรากฏในรอบนี้</small></div></td></tr>`;
+function saveManualSplitStay(stay) {
+  try {
+    const all = JSON.parse(localStorage.getItem(MANUAL_SPLIT_STAYS_KEY) || '[]');
+    all.push(stay);
+    localStorage.setItem(MANUAL_SPLIT_STAYS_KEY, JSON.stringify(all));
+  } catch {}
 }
-closeRoundRows=closeRoundEditableRows;
-/* Keep the accounting detail grid stable: one row for every Villa in the
- * source form, then fill that row when a Finalized Invoice exists. */
-const closeRoundRowsFromInvoice=closeRoundRows;
-const closeRoundEditableRowsFromInvoice=closeRoundEditableRows;
-function closeRoundVillaTemplateKey(value){const match=String(value||'').trim().match(/^(\d{2,3})/);return match?String(Number(match[1])):''}
+
+function addDaysToDateStr(dateStr, days) {
+  if (!dateStr) return '';
+  const d = new Date(`${dateStr.slice(0, 10)}T00:00:00`);
+  if (isNaN(d.getTime())) return dateStr;
+  d.setDate(d.getDate() + days);
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${y}-${m}-${day}`;
+}
+
+function matchVillaFromText(text) {
+  if (!text) return '';
+  const clean = String(text).trim();
+  const found = CLOSE_ROUND_SOURCE_VILLAS.find(v => clean.toLowerCase().includes(v.toLowerCase()));
+  if (found) return found;
+  const match = clean.match(/^(?:Villa\s+)?(\d{2,3})/i);
+  if (match) {
+    const num = String(Number(match[1]));
+    const foundByNum = CLOSE_ROUND_SOURCE_VILLAS.find(v => {
+      const vMatch = v.match(/^(\d{2,3})/);
+      return vMatch && String(Number(vMatch[1])) === num;
+    });
+    if (foundByNum) return foundByNum;
+  }
+  return clean;
+}
+
+function isActualVillaLine(line) {
+  if (!line) return false;
+  const name = String(line.name || '').trim();
+  const category = String(line.category || '').trim();
+  const text = `${name} ${category}`.toLowerCase();
+
+  // Explicitly exclude Extra Bed, Packages, Complimentary, BBQ, Food, Waffles, Cakes, Minibar, Addons
+  if (/extra\s*bed|เตียงเสริม|ที่นอนเสริม|extra\s*person|ผู้เข้าพักเสริม|ที่นอน|เด้งราคา|waffle|cake|muesli|yogurt|croissant|milk|bbq|food|package|voucher|coupon|dinner|lunch|breakfast|afternoon|souvenir|activity|massage|atv|ev\b|keycard|ice|น้ำแข็ง/i.test(text)) {
+    return false;
+  }
+
+  // Must match one of the 11 base villas or have a villa number/name
+  if (CLOSE_ROUND_SOURCE_VILLAS.some(v => text.includes(v.toLowerCase()))) {
+    return true;
+  }
+
+  const matched = matchVillaFromText(name);
+  if (matched && CLOSE_ROUND_SOURCE_VILLAS.includes(matched)) {
+    return true;
+  }
+
+  if (/^(?:villa\s*)?\d{2,3}/i.test(name)) {
+    return true;
+  }
+
+  return false;
+}
+
+function extractInvoiceStays(record) {
+  if (!record) return [];
+  const lines = Array.isArray(record.lines) ? record.lines : [];
+  const villaLines = lines.filter(isActualVillaLine);
+
+  const mainCheckIn = record.checkIn || record.docDate || record.businessDate || '';
+  const mainCheckOut = record.checkOut || addDaysToDateStr(mainCheckIn, 1);
+  const mainVilla = matchVillaFromText(record.villa) || (villaLines[0] ? matchVillaFromText(villaLines[0].name) : '') || '';
+
+  if (villaLines.length <= 1) {
+    return [{
+      stayIndex: 1,
+      isSplitStay: false,
+      villa: mainVilla,
+      villaCode: record.villaCode || '',
+      customer: record.customer || '',
+      checkIn: mainCheckIn,
+      checkOut: mainCheckOut,
+      rate: Number(record.total || 0),
+      deposit: Number(record.deposit || 0),
+      netTotal: Number(record.total || 0),
+      record: record
+    }];
+  }
+
+  let currentIn = mainCheckIn;
+  return villaLines.map((line, index) => {
+    const lineVilla = matchVillaFromText(line.name) || matchVillaFromText(line.villa) || (index === 0 ? mainVilla : `Villa ${index + 1}`);
+    const lineNights = Math.max(1, Number(line.qty || 1));
+    const lineIn = line.checkIn || currentIn;
+    const lineOut = line.checkOut || addDaysToDateStr(lineIn, lineNights);
+    currentIn = lineOut;
+
+    const lineRate = Number(line.rate || 0) * lineNights;
+    const lineDeposit = Number(line.deposit || 0);
+
+    return {
+      stayIndex: index + 1,
+      isSplitStay: index > 0,
+      villa: lineVilla,
+      villaCode: line.villaCode || (index === 0 ? (record.villaCode || '') : ''),
+      customer: record.customer || '',
+      checkIn: lineIn,
+      checkOut: lineOut,
+      rate: lineRate,
+      deposit: lineDeposit,
+      line: line,
+      record: record,
+      parentVilla: index > 0 ? (matchVillaFromText(villaLines[0].name) || mainVilla) : ''
+    };
+  });
+}
+
+function closeRoundVillaTemplateKey(value){
+  const match=String(value||'').trim().match(/^(\d{2,3})/);
+  return match?String(Number(match[1])):String(value||'').trim().toLowerCase();
+}
 function closeRoundEmptyVillaRow(villa,locked,villaCode=''){
   const lockAttribute=locked?' disabled title="รอบถูก Submit และ Lock แล้ว"':'';
   const code=locked?'':closeRoundVillaCodeField(villaCode,' data-record-id=""');
@@ -1293,35 +2064,316 @@ function closeRoundAddVillaRow(locked){
   const controls=locked?'<span class="muted">รอบถูกล็อกแล้ว</span>':`<input class="close-round-new-villa-name" data-close-round-new-villa="name" placeholder="เช่น 014 New Villa" aria-label="ชื่อ Villa ใหม่" autocomplete="off"><input class="close-round-new-villa-code" data-close-round-new-villa="code" placeholder="รหัส Villa" aria-label="รหัส Villa ใหม่" autocomplete="off"><button class="button button-outline" type="button" data-close-round-add-villa>เพิ่ม Villa</button>`;
   return `<tr class="close-round-villa-add-row"><td colspan="${totalColumns}">${controls}</td></tr>`;
 }
-function closeRoundTemplateEntries(records){
-  const byVilla=new Map(),known=new Set(CLOSE_ROUND_SOURCE_VILLAS.map(closeRoundVillaTemplateKey));
-  records.forEach(record=>{const row=closeRoundRecordModel(record),key=closeRoundVillaTemplateKey(row.villa);if(!byVilla.has(key))byVilla.set(key,[]);byVilla.get(key).push(record)});
-  const entries=[];
-  CLOSE_ROUND_SOURCE_VILLAS.forEach(villa=>{const key=closeRoundVillaTemplateKey(villa),matches=byVilla.get(key)||[];if(matches.length){matches.forEach(record=>entries.push({record,villa}))}else entries.push({record:null,villa})});
-  loadCloseRoundExtraVillas().forEach(item=>entries.push({record:null,villa:item.name,villaCode:item.code,extra:true}));
-  records.filter(record=>{const row=closeRoundRecordModel(record);return !known.has(closeRoundVillaTemplateKey(row.villa))}).forEach(record=>entries.push({record,villa:''}));
-  return entries;
+
+function closeRoundTemplateEntries(records, selectedDate){
+  const date = selectedDate || closeRoundSelectedDate();
+  const activeRecords = (Array.isArray(records) ? records : closeRoundRecords(date)).filter(r => r && r.status !== 'Void');
+  const staysByVillaKey = new Map();
+  const continuationStays = [];
+
+  activeRecords.forEach(record => {
+    const stays = extractInvoiceStays(record);
+    const model = closeRoundRecordModel(record);
+
+    if (!stays || stays.length <= 1) {
+      const mainVilla = (stays && stays[0] && stays[0].villa) ? stays[0].villa : (model.villa || record.villa || '');
+      const stay = {
+        villa: mainVilla || 'Walk-in / อื่นๆ',
+        villaCode: record.villaCode || '',
+        customer: record.customer || 'ลูกค้าทั่วไป',
+        checkIn: formatDayOnly(record.checkIn || record.docDate),
+        checkOut: formatDayOnly(record.checkOut || record.checkIn || record.docDate),
+        categories: model.categories || {},
+        total: Number(model.total || 0),
+        deposit: Number(model.deposit || 0),
+        outstanding: Number(model.outstanding || 0),
+        payments: model.payments || {},
+        remark: record.remark || record.pendingCollectionNote || '',
+        recordId: record.id || record.reference || '',
+        record: record,
+        isSplitStay: false
+      };
+      const vKey = closeRoundVillaTemplateKey(mainVilla);
+      if (mainVilla && vKey && CLOSE_ROUND_SOURCE_VILLAS.some(v => closeRoundVillaTemplateKey(v) === vKey)) {
+        if (!staysByVillaKey.has(vKey)) staysByVillaKey.set(vKey, []);
+        staysByVillaKey.get(vKey).push(stay);
+      } else {
+        // รายการอื่นที่สร้างใบแจ้งหนี้ ที่ไม่ใช่บ้านพัก -> ไปอยู่เพิ่มเติม
+        continuationStays.push(stay);
+      }
+    } else {
+      // Multiple stays in invoice: คืนล่าสุด (Last stay) -> ตารางหลัก 02-013; คืนแรก/คืนก่อนหน้า -> เพิ่มเติม
+      stays.forEach((stay, idx) => {
+        const isLatest = idx === stays.length - 1;
+        const isFirst = idx === 0;
+        const stayRate = Number(stay.rate || 0);
+        const stayDeposit = Number(stay.deposit || (isLatest ? model.deposit : 0));
+        const stayOutstanding = Math.max(0, stayRate - stayDeposit);
+
+        const categories = {};
+        CLOSE_ROUND_CATEGORIES.forEach(cat => {
+          if (cat.key === 'villa') {
+            categories[cat.key] = stayRate;
+          } else if (isLatest) {
+            categories[cat.key] = model.categories[cat.key] || 0;
+          } else {
+            categories[cat.key] = 0;
+          }
+        });
+
+        const payments = {};
+        CLOSE_ROUND_PAYMENTS.forEach(pay => {
+          if (isLatest) {
+            payments[pay.key] = model.payments[pay.key] || 0;
+          } else {
+            payments[pay.key] = pay.key === 'cash' ? stayOutstanding : 0;
+          }
+        });
+
+        const otherStaysRate = stays.filter((_, i) => i !== (stays.length - 1)).reduce((s, x) => s + Number(x.rate || 0), 0);
+        const stayTotal = isLatest ? Math.max(0, model.total - otherStaysRate) : stayRate;
+        const stayRow = {
+          villa: stay.villa || (idx === 0 ? model.villa : `Villa ${idx + 1}`),
+          villaCode: stay.villaCode || (isLatest ? (record.villaCode || '') : ''),
+          customer: record.customer || '',
+          checkIn: formatDayOnly(stay.checkIn || record.checkIn),
+          checkOut: formatDayOnly(stay.checkOut || record.checkOut),
+          categories: categories,
+          total: Number(stayTotal),
+          deposit: Number(stayDeposit),
+          outstanding: isLatest ? Math.max(0, stayTotal - stayDeposit) : Number(stayOutstanding),
+          payments: payments,
+          remark: stay.remark || record.remark || (isLatest ? (stay.parentVilla ? `พักต่อเนื่องจาก ${stay.parentVilla} (${record.id || ''})` : `พักต่อเนื่อง (${record.id || ''})`) : `พักคืนแรก (${record.id || ''})`),
+          recordId: record.id || record.reference || '',
+          record: record,
+          isSplitStay: !isLatest
+        };
+
+        if (isLatest) {
+          const vKey = closeRoundVillaTemplateKey(stayRow.villa);
+          if (vKey && CLOSE_ROUND_SOURCE_VILLAS.some(v => closeRoundVillaTemplateKey(v) === vKey)) {
+            if (!staysByVillaKey.has(vKey)) staysByVillaKey.set(vKey, []);
+            staysByVillaKey.get(vKey).push(stayRow);
+          } else {
+            continuationStays.push(stayRow);
+          }
+        } else {
+          // คืนแรก / คืนก่อนหน้า -> ลงในส่วน "เพิ่มเติม"
+          continuationStays.push(stayRow);
+        }
+      });
+    }
+  });
+
+  const baseEntries = [];
+
+  // 1. The 11 base villas
+  CLOSE_ROUND_SOURCE_VILLAS.forEach(villaName => {
+    const vKey = closeRoundVillaTemplateKey(villaName);
+    const matches = staysByVillaKey.get(vKey) || [];
+    if (matches.length > 0) {
+      matches.forEach(item => {
+        baseEntries.push({
+          hasData: true,
+          villa: villaName,
+          villaCode: item.villaCode || '',
+          customer: item.customer || '',
+          checkIn: item.checkIn || '',
+          checkOut: item.checkOut || '',
+          categories: item.categories || {},
+          total: Number(item.total || 0),
+          deposit: Number(item.deposit || 0),
+          outstanding: Number(item.outstanding || 0),
+          payments: item.payments || {},
+          remark: item.remark || '',
+          recordId: item.recordId || '',
+          record: item.record || null,
+          isSplitStay: false
+        });
+      });
+    } else {
+      baseEntries.push({
+        hasData: false,
+        villa: villaName,
+        villaCode: '',
+        customer: '',
+        checkIn: '',
+        checkOut: '',
+        categories: {},
+        total: 0,
+        deposit: 0,
+        outstanding: 0,
+        payments: {},
+        remark: '',
+        recordId: '',
+        record: null,
+        isSplitStay: false
+      });
+    }
+  });
+
+  // 2. Extra entries under เพิ่มเติม (คืนแรก + บิลอื่นที่ไม่ใช่บ้านพัก)
+  const extraEntries = [];
+  continuationStays.forEach(item => {
+    if (!item.customer && !item.total && !item.villa) return;
+    extraEntries.push({
+      hasData: true,
+      villa: item.villa || 'Walk-in / อื่นๆ',
+      villaCode: item.villaCode || '',
+      customer: item.customer || '',
+      checkIn: item.checkIn || '',
+      checkOut: item.checkOut || '',
+      categories: item.categories || {},
+      total: Number(item.total || 0),
+      deposit: Number(item.deposit || 0),
+      outstanding: Number(item.outstanding || 0),
+      payments: item.payments || {},
+      remark: item.remark || '',
+      recordId: item.recordId || '',
+      record: item.record || null,
+      isSplitStay: item.isSplitStay || false
+    });
+  });
+
+  const allEntries = [...baseEntries, ...extraEntries];
+  allEntries.baseEntries = baseEntries;
+  allEntries.extraEntries = extraEntries;
+  return allEntries;
 }
-function closeRoundTemplateRows(records){
-  const locked=closeRoundIsLocked(closeRoundSelectedDate());
-  return closeRoundTemplateEntries(records).map(entry=>entry.record?closeRoundEditableRowsFromInvoice([entry.record]):closeRoundEmptyVillaRow(entry.villa,locked,entry.villaCode)).join('')+closeRoundAddVillaRow(locked);
+
+function closeRoundRows(records, date){
+  const selectedDate = date || closeRoundSelectedDate();
+  const locked = closeRoundIsLocked(selectedDate);
+  const lockAttr = locked ? ' disabled title="รอบถูก Submit และ Lock แล้ว"' : '';
+  const data = closeRoundTemplateEntries(records, selectedDate);
+  const baseEntries = data.baseEntries || data;
+  const extraEntries = data.extraEntries || [];
+  const totalColumns = 5 + CLOSE_ROUND_CATEGORIES.length + 3 + CLOSE_ROUND_PAYMENTS.length + 1;
+
+  const catTotals = Object.fromEntries(CLOSE_ROUND_CATEGORIES.map(c => [c.key, 0]));
+  const payTotals = Object.fromEntries(CLOSE_ROUND_PAYMENTS.map(p => [p.key, 0]));
+  let grandTotal = 0;
+  let grandDeposit = 0;
+  let grandOutstanding = 0;
+
+  const renderSingleRow = (entry) => {
+    const edit = entry.recordId ? closeRoundDetailEditFor({ id: entry.recordId }) : {};
+    const villaCode = edit.villaCode !== undefined ? edit.villaCode : entry.villaCode;
+    const remark = edit.remark !== undefined ? edit.remark : entry.remark;
+
+    if (!entry.hasData) {
+      return closeRoundEmptyVillaRow(entry.villa, locked, villaCode);
+    }
+
+    grandTotal += Number(entry.total || 0);
+    grandDeposit += Number(entry.deposit || 0);
+    grandOutstanding += Number(entry.outstanding || 0);
+    CLOSE_ROUND_CATEGORIES.forEach(c => {
+      catTotals[c.key] += Number(entry.categories[c.key] || 0);
+    });
+    CLOSE_ROUND_PAYMENTS.forEach(p => {
+      payTotals[p.key] += Number(entry.payments[p.key] || 0);
+    });
+
+    const codeField = closeRoundVillaCodeField(villaCode, ` data-record-id="${esc(entry.recordId)}"${lockAttr}`);
+    const noteField = `<textarea class="close-round-note-input" rows="1" data-close-round-edit="remark" data-record-id="${esc(entry.recordId)}" aria-label="หมายเหตุ" placeholder="พิมพ์หมายเหตุ" autocomplete="off"${lockAttr}>${esc(remark)}</textarea>`;
+
+    const catCells = CLOSE_ROUND_CATEGORIES.map(c => `<td class="align-right">${closeRoundMoneyCell(entry.categories[c.key])}</td>`).join('');
+    const payCells = CLOSE_ROUND_PAYMENTS.map(p => `<td class="align-right">${closeRoundMoneyCell(entry.payments[p.key])}</td>`).join('');
+    const rowClass = entry.isSplitStay ? ' class="close-round-split-stay-row" style="background:#fcf8f3;"' : '';
+
+    return `<tr${rowClass}>
+      <td><strong>${esc(closeRoundVillaLabel(entry.villa))}</strong></td>
+      <td>${codeField}</td>
+      <td>${esc(entry.customer)}</td>
+      <td class="align-center">${esc(entry.checkIn)}</td>
+      <td class="align-center">${esc(entry.checkOut)}</td>
+      ${catCells}
+      <td class="align-right strong-number">${closeRoundNumberCell(entry.total)}</td>
+      <td class="align-right">${closeRoundMoneyCell(entry.deposit)}</td>
+      <td class="align-right ${entry.outstanding ? 'warning-text' : 'positive-text'}">${closeRoundMoneyCell(entry.outstanding)}</td>
+      ${payCells}
+      <td>${noteField}</td>
+    </tr>`;
+  };
+
+  const baseRowsHtml = baseEntries.map(renderSingleRow).join('');
+
+  let extraRowsHtml = '';
+  if (extraEntries && extraEntries.length > 0) {
+    const separatorHtml = `<tr class="close-round-separator-row" style="background:#f4ebe1;font-weight:700;border-top:2px solid #8a5d32;border-bottom:2px solid #8a5d32;">
+      <td colspan="${totalColumns}" style="padding:6px 12px;font-size:12px;color:#5a3617;">
+        <strong>เพิ่มเติม</strong>
+      </td>
+    </tr>`;
+    extraRowsHtml = separatorHtml + extraEntries.map(renderSingleRow).join('');
+  }
+
+  const addVillaRow = closeRoundAddVillaRow(locked);
+  return baseRowsHtml + extraRowsHtml + addVillaRow;
 }
-closeRoundRows=function(records){return closeRoundTemplateRows(records)};
-closeRoundEditableRows=closeRoundRows;
-function closeRoundSummaryRows(records){
-  const totals=Object.fromEntries(CLOSE_ROUND_CATEGORIES.map(item=>[item.key,{count:0,total:0,deposit:0,outstanding:0}]));
-  records.map(closeRoundRecordModel).forEach(row=>CLOSE_ROUND_CATEGORIES.forEach(item=>{const value=row.categories[item.key];if(value){const share=row.total?value/row.total:0;totals[item.key].count+=1;totals[item.key].total+=value;totals[item.key].deposit+=row.deposit*share;totals[item.key].outstanding+=row.outstanding*share}}));
-  return CLOSE_ROUND_CATEGORIES.map(item=>{const total=totals[item.key];return `<tr><td><span class="category-dot ${item.className}"></span>${item.label}</td><td class="align-right">${total.count}</td><td class="align-right">${closeRoundMoneyCell(total.total)}</td><td class="align-right">${closeRoundMoneyCell(total.deposit)}</td><td class="align-right">${closeRoundMoneyCell(total.outstanding)}</td></tr>`}).join('');
-}
-function closeRoundPaymentRows(records){
-  const totals=Object.fromEntries(CLOSE_ROUND_PAYMENTS.map(item=>[item.key,0]));
-  records.map(closeRoundRecordModel).forEach(row=>CLOSE_ROUND_PAYMENTS.forEach(item=>{totals[item.key]+=row.payments[item.key]}));
-  const grand=Object.values(totals).reduce((sum,value)=>sum+value,0);
-  return CLOSE_ROUND_PAYMENTS.map(item=>{const value=totals[item.key],width=grand?Math.round(value/grand*100):0;return `<div class="payment-bar-row"><div><span><i class="payment-dot ${item.className}"></i>${item.label}</span><strong>${closeRoundMoneyCell(value)}</strong></div><div class="bar"><i style="width:${width}%"></i></div></div>`}).join('')+`<div class="payment-foot"><span>รวมรับชำระ / รอเรียกเก็บ</span><strong>${money(grand)}</strong></div>`;
-}
-function closeRoundAnomalies(records){
-  const rows=records.map(closeRoundRecordModel).filter(row=>row.pending>0||row.outstanding>0);
-  return rows.map(row=>`<div><span class="material-symbols-outlined">warning</span><p><strong>${esc(row.id||row.reference||'-')}</strong> ${row.pending?`มียอดค้างชำระ ${money(row.pending)}`:`ยังมียอดคงเหลือ ${money(row.outstanding)}`}<small>ลูกค้า: ${esc(row.customer||'-')} · Villa: ${esc(closeRoundVillaLabel(row.villa))}</small></p><button class="text-button" data-view="history">ดูประวัติ</button></div>`).join('')||'<div class="close-round-empty"><span class="material-symbols-outlined">task_alt</span><p>ไม่พบรายการผิดปกติในวันที่เลือก</p></div>';
+const closeRoundRowsFromInvoice = closeRoundRows;
+const closeRoundEditableRowsFromInvoice = closeRoundRows;
+
+function closeRoundAnomalies(records, date){
+  const targetDate = String(date || closeRoundSelectedDate()).slice(0, 10);
+  const allHistory = typeof loadInvoiceHistory === 'function' ? loadInvoiceHistory() : [];
+  
+  const dateRecords = allHistory.filter(r => {
+    const bDate = String(r?.businessDate || '').slice(0, 10);
+    const dDate = String(r?.docDate || '').slice(0, 10);
+    return bDate === targetDate || dDate === targetDate;
+  });
+
+  const sourceList = dateRecords.length > 0 ? dateRecords : (Array.isArray(records) ? records : []);
+  
+  const anomalyRows = sourceList.map(closeRoundRecordModel).filter(row => {
+    const pendingVal = Number(row.pending || 0) || Number(row.pendingTotal || 0) || Number(row.payments?.pending || 0);
+    const frontDue = Math.max(0, Number(row.total || 0) - Number(row.deposit || 0));
+    const frontPaid = CLOSE_ROUND_PAYMENTS.filter(p => p.key !== 'pending').reduce((sum, p) => sum + Number(row.payments?.[p.key] || 0), 0);
+    const hasUnpaid = frontDue > 0 && frontPaid < frontDue;
+    return pendingVal > 0 || hasUnpaid || String(row.status || '').includes('ค้าง');
+  });
+
+  if (!anomalyRows.length) {
+    return '<div class="close-round-empty"><span class="material-symbols-outlined" style="color:var(--success,#2e7d32);">task_alt</span><p>ไม่พบรายการมียอดค้างชำระในวันที่เลือก (ชำระเงินครบถ้วนแล้ว)</p></div>';
+  }
+
+  return anomalyRows.map(row => {
+    const id = row.id || row.reference || '-';
+    const pendingVal = Number(row.pending || 0) || Number(row.pendingTotal || 0) || Number(row.payments?.pending || 0);
+    const frontDue = Math.max(0, Number(row.total || 0) - Number(row.deposit || 0));
+    const frontPaid = CLOSE_ROUND_PAYMENTS.filter(p => p.key !== 'pending').reduce((sum, p) => sum + Number(row.payments?.[p.key] || 0), 0);
+    const unpaidVal = Math.max(0, frontDue - frontPaid);
+    const displayAmount = pendingVal > 0 ? pendingVal : (unpaidVal > 0 ? unpaidVal : Number(row.total || 0));
+
+    return `<div class="anomaly-item" style="display:flex;justify-content:space-between;align-items:center;padding:12px 16px;background:#fff8f4;border:1px solid #ebd2c1;border-radius:12px;margin-bottom:10px;gap:12px;flex-wrap:wrap;">
+      <div style="display:flex;align-items:center;gap:12px;">
+        <div style="width:38px;height:38px;border-radius:8px;background:#faeae5;color:#c94a29;display:flex;align-items:center;justify-content:center;flex-shrink:0;">
+          <span class="material-symbols-outlined" style="font-size:22px;">warning</span>
+        </div>
+        <div>
+          <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+            <button type="button" class="button button-text mono strong-link" data-history-view="${esc(id)}" style="padding:0;font-size:14px;font-weight:700;color:var(--primary);text-decoration:underline;cursor:pointer;background:none;border:none;">${esc(id)}</button>
+            <span style="font-size:12.5px;background:#fde8e4;color:#b3261e;padding:2px 10px;border-radius:12px;font-weight:700;">
+              มียอดค้างชำระ ${money(displayAmount)}
+            </span>
+          </div>
+          <p style="margin:4px 0 0;font-size:12.5px;color:#66584e;">
+            ลูกค้า: <strong>${esc(row.customer||'-')}</strong> · Villa: <strong>${esc(closeRoundVillaLabel(row.villa))}</strong> · ยอดรวม: ${money(row.total)}
+          </p>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;flex-shrink:0;">
+        <button class="button button-primary action-small" type="button" data-history-load-invoice="${esc(id)}">
+          <span class="material-symbols-outlined" style="font-size:16px;">receipt_long</span>ไปยังใบแจ้งหนี้นี้
+        </button>
+        <button class="button button-outline action-small" type="button" data-history-view="${esc(id)}">
+          <span class="material-symbols-outlined" style="font-size:16px;">visibility</span>ดูบิล
+        </button>
+      </div>
+    </div>`;
+  }).join('');
 }
 function csvEscape(value){return `"${String(value??'').replace(/"/g,'""')}"`}
 function exportCloseRoundCsv(records,date){
@@ -1343,32 +2395,308 @@ function closeRoundPrintTable(source){
   table.querySelectorAll('.empty-state').forEach(empty=>empty.textContent='ยังไม่มีรายการ');
   return table;
 }
+function closeRoundBottomSummaryHtml(entries) {
+  const activeList = (Array.isArray(entries) ? entries : []).filter(e => e && e.hasData);
+  const totalSales = activeList.reduce((sum, e) => sum + Number(e.total || 0), 0);
+  const totalDeposit = activeList.reduce((sum, e) => sum + Number(e.deposit || 0), 0);
+  const frontIncome = Math.max(0, totalSales - totalDeposit);
+
+  const payTotals = Object.fromEntries(CLOSE_ROUND_PAYMENTS.map(p => [p.key, 0]));
+  activeList.forEach(e => {
+    CLOSE_ROUND_PAYMENTS.forEach(p => {
+      payTotals[p.key] += Number(e.payments?.[p.key] || 0);
+    });
+  });
+
+  const pending = activeList.reduce((sum, e) => sum + (Number(e.payments?.pending || 0) || Number(e.outstanding || 0)), 0);
+
+  return `<div class="close-round-bottom-summary-wrap" style="display:flex;justify-content:flex-end;margin-top:8px;">
+    <table class="close-round-bottom-summary-table" style="width:280px;border-collapse:collapse;font-size:10px;line-height:1.15;border:1px solid #d2c2b4;background:#fff;border-radius:4px;overflow:hidden;">
+      <tbody>
+        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#493c31;font-weight:600;">รวม</td><td style="padding:3px 8px;text-align:right;font-weight:700;color:#2c2017;">${closeRoundMoneyCell(totalSales)}</td></tr>
+        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#55483d;">หักค่าบ้านพักชำระล่วงหน้า</td><td style="padding:3px 8px;text-align:right;color:#b25e16;font-weight:600;">${closeRoundMoneyCell(totalDeposit)}</td></tr>
+        <tr style="border-bottom:1.5px solid #8a5d32;background:#f5eee6;"><td style="padding:4px 8px;font-weight:700;color:#5a3617;">รวมรายได้หน้า Front วันนี้</td><td style="padding:4px 8px;text-align:right;font-weight:700;color:#5a3617;font-size:11px;">${closeRoundMoneyCell(frontIncome)}</td></tr>
+        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">เงินสด</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.cash)}</td></tr>
+        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">บัตรเครดิต</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.card)}</td></tr>
+        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">QR Code</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.qr)}</td></tr>
+        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">โอนเงิน SC</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.transfer)}</td></tr>
+        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">รัฐ 50%</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.government)}</td></tr>
+        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">ททท.</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.tat)}</td></tr>
+        <tr style="background:#faf7f4;">
+          <td style="padding:3px 8px;color:#66584e;">ไม่เรียกเก็บ: <strong style="color:#2c2017;">${closeRoundMoneyCell(payTotals.noCharge)}</strong></td>
+          <td style="padding:3px 8px;text-align:right;color:#a83232;">ค้างชำระ: <strong style="color:#a83232;">${closeRoundMoneyCell(pending)}</strong></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>`;
+}
+
 function closeRoundPrintSummaryMarkup(records){
-  const rows=records.map(closeRoundRecordModel),sales=rows.reduce((sum,row)=>sum+Number(row.total||0),0),deposit=rows.reduce((sum,row)=>sum+Number(row.deposit||0),0),outstanding=rows.reduce((sum,row)=>sum+Number(row.outstanding||0),0),pending=rows.reduce((sum,row)=>sum+Number(row.pending||0),0),difference=Math.max(0,outstanding-pending);
-  return `<div class="close-round-print-summary"><p>สรุปรวม: ยอดรวม Q ${money(sales)} · Deposit R ${money(deposit)} · คงเหลือ S ${money(outstanding)} · ค้างชำระ ${money(pending)} · ยอดต่าง ${money(difference)}</p></div>`;
+  const entries=closeRoundTemplateEntries(records);
+  return closeRoundBottomSummaryHtml(entries);
 }
 function closeRoundSinglePageExcel(records,date){
   const source=document.querySelector('#view-close-round .close-round-detail-table'),table=closeRoundPrintTable(source);
   if(!table){showToast('ยังไม่มีตารางปิดรอบสำหรับส่งออก','error');return}
   const heading=`<div class="report-heading"><strong>รายละเอียดรายการปิดรอบ</strong><span>Business Date: ${esc(date)}</span></div>`,summary=closeRoundPrintSummaryMarkup(records);
-  const html=`<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A4 landscape;margin:6mm}html,body{margin:0;padding:0;background:#fff;color:#211a15;font-family:Arial,"Tahoma",sans-serif}.sheet{width:100%;mso-page-orientation:landscape;mso-fit-to-page:yes}.report-heading{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:4mm;padding-bottom:2mm;border-bottom:2px solid #6e442d;font-size:12px}.report-heading span{font-size:9px;color:#66584e}.close-round-detail-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:5px}.close-round-detail-table th,.close-round-detail-table td{border:1px solid #1f1b18;padding:2px 1px;line-height:1.15;vertical-align:middle;overflow-wrap:anywhere;word-break:break-word}.close-round-detail-table th{background:#eee3d8;font-weight:700;text-align:center}.close-round-detail-table td{text-align:left}.close-round-detail-table .align-right{text-align:right}.close-round-detail-table th:nth-child(1),.close-round-detail-table td:nth-child(1){width:5.5%}.close-round-detail-table th:nth-child(2),.close-round-detail-table td:nth-child(2){width:6%}.close-round-detail-table th:nth-child(3),.close-round-detail-table td:nth-child(3){width:9%}.close-round-detail-table th:nth-child(4),.close-round-detail-table td:nth-child(4),.close-round-detail-table th:nth-child(5),.close-round-detail-table td:nth-child(5){width:3.5%}.close-round-detail-table th:nth-child(n+6):nth-child(-n+16),.close-round-detail-table td:nth-child(n+6):nth-child(-n+16){width:2.8%}.close-round-detail-table th:nth-child(n+17):nth-child(-n+19),.close-round-detail-table td:nth-child(n+17):nth-child(-n+19){width:3.8%}.close-round-detail-table th:nth-child(n+20):nth-child(-n+27),.close-round-detail-table td:nth-child(n+20):nth-child(-n+27){width:2.8%}.close-round-detail-table th:nth-child(28),.close-round-detail-table td:nth-child(28){width:7%}.close-round-print-summary{display:flex;gap:3mm;margin-top:4mm;border-top:2px solid #6e442d;padding-top:3mm}.close-round-print-summary>div{flex:1;border:1px solid #cbb9aa;padding:2mm;text-align:center}.close-round-print-summary span,.close-round-print-summary strong{display:block}.close-round-print-summary span{font-size:8px;color:#66584e}.close-round-print-summary strong{font-size:11px;margin-top:1mm}.close-round-detail-table{font-size:6px}.close-round-print-summary{font-size:5.5px}.close-round-print-summary span{font-size:5.2px}.close-round-print-summary strong{font-size:7px}.close-round-print-summary p{margin:0;font-size:6px;line-height:1.2}</style></head><body><div class="sheet">${heading}${table.outerHTML}${summary}</div></body></html>`;
+  const html=`<!doctype html><html><head><meta charset="utf-8"><style>@page{size:A4 landscape;margin:6mm}html,body{margin:0;padding:0;background:#fff;color:#211a15;font-family:Arial,"Tahoma",sans-serif}.sheet{width:100%;mso-page-orientation:landscape;mso-fit-to-page:yes}.report-heading{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:4mm;padding-bottom:2mm;border-bottom:2px solid #6e442d;font-size:12px}.report-heading span{font-size:9px;color:#66584e}.close-round-detail-table{width:100%;border-collapse:collapse;table-layout:fixed;font-size:5px}.close-round-detail-table th,.close-round-detail-table td{border:1px solid #1f1b18;padding:2px 1px;line-height:1.15;vertical-align:middle;overflow-wrap:anywhere;word-break:break-word}.close-round-detail-table th{background:#eee3d8;font-weight:700;text-align:center}.close-round-detail-table td{text-align:left}.close-round-detail-table .align-right{text-align:right}.close-round-detail-table th:nth-child(1),.close-round-detail-table td:nth-child(1){width:5.5%}.close-round-detail-table th:nth-child(2),.close-round-detail-table td:nth-child(2){width:6%}.close-round-detail-table th:nth-child(3),.close-round-detail-table td:nth-child(3){width:9%}.close-round-detail-table th:nth-child(4),.close-round-detail-table td:nth-child(4),.close-round-detail-table th:nth-child(5),.close-round-detail-table td:nth-child(5){width:3.5%}.close-round-detail-table th:nth-child(n+6):nth-child(-n+16),.close-round-detail-table td:nth-child(n+6):nth-child(-n+16){width:2.8%}.close-round-detail-table th:nth-child(n+17):nth-child(-n+19),.close-round-detail-table td:nth-child(n+17):nth-child(-n+19){width:3.8%}.close-round-detail-table th:nth-child(n+20):nth-child(-n+27),.close-round-detail-table td:nth-child(n+20):nth-child(-n+27){width:2.8%}.close-round-detail-table th:nth-child(28),.close-round-detail-table td:nth-child(28){width:7%}.close-round-bottom-summary-wrap{display:flex;justify-content:flex-end;margin-top:4mm}.close-round-bottom-summary-table{width:65mm;border-collapse:collapse;font-size:5.5px}.close-round-bottom-summary-table td{border:1px solid #1f1b18;padding:1px 2px}</style></head><body><div class="sheet">${heading}${table.outerHTML}${summary}</div></body></html>`;
   const blob=new Blob([html],{type:'application/vnd.ms-excel;charset=utf-8'}),url=URL.createObjectURL(blob),link=document.createElement('a');link.href=url;link.download=`close-round-${date}-single-page.xls`;document.body.appendChild(link);link.click();link.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);showToast(`ส่งออกปิดรอบ ${date} เป็น Excel หน้าเดียวแล้ว`);
 }
 document.addEventListener('click',event=>{const button=event.target.closest('[data-close-round-export]');if(!button||!button.textContent.includes('Excel'))return;event.preventDefault();event.stopImmediatePropagation();closeRoundSinglePageExcel(closeRoundRecords(closeRoundSelectedDate()),closeRoundSelectedDate())},true);
+const CLOSE_ROUND_TEXT_TEMPLATES = [
+  {
+    id: 'others',
+    title: 'หัวข้อ: อื่นๆ',
+    badge: 'ทั่วไป / นวด / กิจกรรม',
+    text: `อื่นๆ Grandma's Cafe by the Creek = ......... บาท
+ปิคนิค ATV ยอด 100 บาท = เรียกเก็บ 0
+ปิคนิค ATV ยอด 60 บาท = เรียกเก็บ 0
+ตระกร้าปิคนิค เรียกเก็บ Defender = 500 บาท
+อื่นๆ ม้าหมุน = ................. บาท
+อื่นๆ SPS 3 = .............. บาท
+อื่นๆ SPS 2 = .............. บาท
+อื่นๆ กิจกรรมหน้าฟาร์ม = ............. บาท
+อื่นๆ Happy Birthday Cake (23) = 200 บาท
+อื่นๆ Happy Birthday วาฟเฟิล (22) = 195 บาท
+----------------------------------------
+- นวดไทย 1 ชั่วโมง จ่ายหมอนวด 300 บาท
+- นวดอโรม่า 1 ชั่วโมง จ่ายหมอนวด 400 บาท
+- นวดฝ่าเท้า 1 ชั่วโมง จ่ายหมอนวด 300 บาท
+- นวดแก้อาการ 1 ชั่วโมง จ่ายหมอนวด 400 บาท
+- นวดคอบ่าไหล่ 1 ชั่วโมง จ่ายหมอนวด 400 บาท
+----------------------------------------
+- ค่าTest Driveทดสอบรถ (ซื้อเพิ่ม) =4,500 บาท
+-Pizzy DIY   = เเพ็กเกจ 0  ส่วนต่าง 80 บาท รายได้ 0`
+  },
+  {
+    id: 'g3',
+    title: 'หัวข้อ: G3 เจ้าของ [Range Rover]',
+    badge: 'Range Rover',
+    text: `[Range Rover]
+
+ค่าวิลล่า ส่วนลด 15%=5,100 บาท (เรียกเก็บอินซ์เคป) 
+ที่นอนเสริมปกติ = ...............บาท (เรียกเก็บอินซ์เคป) 
+ค่าตะกร้าออกรูท = ................. บาท (เรียกเก็บอินซ์เคป) 
+อาหารเย็นตรีมกระเหรี่ยง  = .................. บาท  (เรียกเก็บอินซ์เคป)  
+มินิบาร์ปกติ /มีค่าใช้จ่ายทุกรายการ =........บาท (เรียกเก็บอินซ์เคป) 
+ค่าชมสุนัข = 1,800 บาท (เรียกเก็บอินซ์เคป)`
+  },
+  {
+    id: 'g5',
+    title: 'หัวข้อ: G5 [08+Test Drive]',
+    badge: '08+Test Drive',
+    text: `[08+Test Drive]
+
+ค่าวิลล่า(ส่วนลด15%) = 5,100 บาท (เก็บอินเคป)
+ค่าตะกร้ารูทใหญ่ = 500 บาท (เก็บอินเคป)
+อาหาร 800 บาท = เเพ็กเกจ 0  
+HT 800 บาท = เเพ็กเกจ 0`
+  },
+  {
+    id: 'g6',
+    title: 'หัวข้อ: G6 [08+Test Drive]',
+    badge: 'แพ็กเกจ 15,000.-',
+    text: `[08+Test Drive]
+
+ชำระบัตรเครดิต วันที่ ....................................
+อาหาร 800 บาท = เเพ็กเกจ 0  
+HT 800 บาท = เเพ็กเกจ 0   
+
+แพ็จเกจ G6 = 15,000.-
+ยอดค้างชำระ ........ (มาจากช่องค้างชำระ)
+-ส่วนต่างหักจากค่าบ้าน = .........
+(มาจาก 15,000 - ค่าบ้านเปล่า)
+-ส่วนลด 15% ให้ Defender = .....(มาจากบ้านเปล่า ลด 15% เป็นยอดที่ลดไปเท่าไหร่)
+รวมยอด .....+.......= ......
+(มาจาก ยอดค้างชำระ + ยอดส่วนลดค่าบ้านที่ลดไปเท่าไหร่)
+-หักค่าตะกร้าปิกนิค 500.-
+เหลือยอดต้องชำระให้ Defender = ......
+(มาจากเอายอดรวม - ตะกร้า 500 บาท)`
+  },
+  {
+    id: 'g6_6000',
+    title: 'หัวข้อ: (G6) สำหรับ **ค่าวิลล่า6,000 **',
+    badge: 'วิลล่า 6,000.-',
+    text: `(G6)  สำหรับ **ค่าวิลล่า6,000 **
+
+ชำระบัตรเครดิต วันที่ ....................................
+อาหาร 800 บาท = เเพ็กเกจ 0  
+HT 800 บาท = เเพ็กเกจ 0   
+
+ยอดค้างชำระ 9,400.-
+-ส่วนต่างหักจากค่าบ้าน = 9,000.-
+-ส่วนลด 15% ให้ Defender = 900.-
+รวมยอด 9,000+900= 9,900.-
+-หักค่าตะกร้าปิกนิค 500.-
+เหลือยอดต้องชำระให้ Defender = 9,400.-`
+  },
+  {
+    id: 'g6_7200',
+    title: 'หัวข้อ: (G6) สำหรับ **ค่าวิลล่า7,200 **',
+    badge: 'วิลล่า 7,200.-',
+    text: `(G6)  สำหรับ **ค่าวิลล่า7,200 **
+
+ชำระบัตรเครดิต วันที่ ....................................
+อาหาร 800 บาท = เเพ็กเกจ 0  
+HT 800 บาท = เเพ็กเกจ 0   
+
+ยอดค้างชำระ 8,380.-
+-ส่วนต่างหักจากค่าบ้าน =7,800.-
+-ส่วนลด 15% ให้ Defender = 1,080.-
+รวมยอด 7,800+1,080= 8,880.
+-หักค่าตะกร้าปิกนิค 500.-
+เหลือยอดต้องชำระให้ Defender = 8,380.-`
+  }
+];
+
+function copyTextToClipboard(text, successCallback) {
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text).then(() => {
+      if (typeof successCallback === 'function') successCallback();
+    }).catch(() => fallbackCopyText(text, successCallback));
+  } else {
+    fallbackCopyText(text, successCallback);
+  }
+}
+
+function fallbackCopyText(text, successCallback) {
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-999999px';
+  textArea.style.top = '-999999px';
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+  try {
+    document.execCommand('copy');
+    if (typeof successCallback === 'function') successCallback();
+  } catch (err) {
+    console.error('Fallback copy failed', err);
+  }
+  textArea.remove();
+}
+
+function openCloseRoundNotesModal() {
+  const cardsHtml = CLOSE_ROUND_TEXT_TEMPLATES.map((item, idx) => `
+    <div class="close-round-note-card" style="background:#ffffff;border:1px solid #e3d3c4;border-radius:10px;padding:14px;margin-bottom:14px;box-shadow:0 1px 4px rgba(0,0,0,0.04);">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px;gap:8px;flex-wrap:wrap;">
+        <div style="display:flex;align-items:center;gap:6px;">
+          <strong style="font-size:14px;color:#3d2211;">${esc(item.title)}</strong>
+          <span style="font-size:11px;background:#f4ebe1;color:#7a4b2a;padding:2px 8px;border-radius:12px;border:1px solid #dfcfbe;font-weight:600;">${esc(item.badge)}</span>
+        </div>
+        <button type="button" class="button button-primary action-small" data-copy-note-index="${idx}" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:5px 12px;border-radius:6px;">
+          <span class="material-symbols-outlined" style="font-size:16px;">content_copy</span>
+          <span>คัดลอกข้อความ</span>
+        </button>
+      </div>
+      <pre style="margin:0;padding:10px 12px;background:#faf6f2;border:1px solid #ebdccb;border-radius:6px;font-size:12.5px;line-height:1.5;color:#2c1e14;font-family:Consolas,Monaco,'Courier New',Courier,monospace;white-space:pre-wrap;word-break:break-word;user-select:all;">${esc(item.text)}</pre>
+    </div>
+  `).join('');
+
+  const modalBody = `
+    <div style="margin-bottom:12px;display:flex;justify-content:space-between;align-items:center;gap:10px;flex-wrap:wrap;">
+      <p style="margin:0;font-size:13px;color:#6b584a;">กดปุ่ม <strong>"คัดลอกข้อความ"</strong> ในแต่ละหัวข้อเพื่อนำไปวางในหมายเหตุปิดรอบได้ทันที</p>
+      <button type="button" class="button button-outline action-small" id="btn-copy-all-notes" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;padding:5px 12px;">
+        <span class="material-symbols-outlined" style="font-size:16px;">library_add_check</span>
+        <span>คัดลอกทั้งหมดทุกหัวข้อ</span>
+      </button>
+    </div>
+    <div style="max-height:65vh;overflow-y:auto;padding-right:4px;">
+      ${cardsHtml}
+    </div>
+  `;
+
+  openModal(
+    'ข้อความและหมายเหตุสำหรับปิดรอบ',
+    modalBody,
+    '<button class="button button-outline" data-close-modal>ปิดหน้าต่าง</button>'
+  );
+
+  const root = $('#modal-root');
+  if (!root) return;
+
+  root.querySelectorAll('[data-copy-note-index]').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = Number(btn.dataset.copyNoteIndex);
+      const template = CLOSE_ROUND_TEXT_TEMPLATES[idx];
+      if (!template) return;
+      copyTextToClipboard(template.text, () => {
+        const originalText = btn.innerHTML;
+        btn.innerHTML = '<span class="material-symbols-outlined" style="font-size:16px;">check</span><span>คัดลอกแล้ว!</span>';
+        btn.style.background = '#2e7d32';
+        btn.style.borderColor = '#2e7d32';
+        btn.style.color = '#ffffff';
+        setTimeout(() => {
+          btn.innerHTML = originalText;
+          btn.style.background = '';
+          btn.style.borderColor = '';
+          btn.style.color = '';
+        }, 2000);
+        showToast(`คัดลอก "${template.title}" เรียบร้อยแล้ว`);
+      });
+    });
+  });
+
+  root.querySelector('#btn-copy-all-notes')?.addEventListener('click', () => {
+    const allText = CLOSE_ROUND_TEXT_TEMPLATES.map(t => `${t.title}\n${t.text}`).join('\n\n========================================\n\n');
+    copyTextToClipboard(allText, () => {
+      showToast('คัดลอกข้อความทุกหัวข้อเรียบร้อยแล้ว');
+    });
+  });
+}
+
+function formatCloseRoundThaiDate(dateStr){
+  if(!dateStr)return '';
+  const str=String(dateStr).trim();
+  const d=new Date(str.includes('T')?str:`${str}T00:00:00`);
+  if(isNaN(d.getTime()))return str;
+  const thMonths=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
+  return `ประจำวันที่ ${d.getDate()} ${thMonths[d.getMonth()]} ${d.getFullYear()+543}`;
+}
 function renderCloseRound(){
   const view=$('#view-close-round');if(!view)return;
   const oldOptions=$('#close-round-villa-code-options');
   if(oldOptions)oldOptions.remove();
-  const date=closeRoundSelectedDate(),records=closeRoundRecords(date),models=records.map(closeRoundRecordModel),sales=models.reduce((sum,row)=>sum+row.total,0),deposit=models.reduce((sum,row)=>sum+row.deposit,0),outstanding=models.reduce((sum,row)=>sum+row.outstanding,0),pending=models.reduce((sum,row)=>sum+row.pending,0),closed=loadClosedRounds().some(row=>row.businessDate===date&&row.status==='Submitted');
-  view.innerHTML=`<div class="page-heading compact"><div><p class="eyebrow">ACCOUNTING / CLOSE ROUND</p><h2>รายงานปิดรอบประจำวันของเดอะ ซีนเนอรี่ รีสอร์ท</h2><p class="muted">ดึงเฉพาะ Invoice ที่ Finalized แล้วตาม Business Date ที่เลือก</p></div><div class="heading-actions"><span class="status-chip ${closed?'success':'warning'}">${closed?'ปิดรอบแล้ว':'รอตรวจสอบ'}</span><button class="button button-primary" id="submit-round" ${closed?'disabled':''}><span class="material-symbols-outlined">${closed?'lock':'lock_clock'}</span>${closed?'รอบถูกล็อกแล้ว':'Submit และ Lock รอบ'}</button></div></div><div class="round-toolbar panel"><label>Business Date<input id="close-round-date" type="date" value="${esc(date)}"></label><label>รอบการปิด<select id="close-round-shift"><option value="daily">รอบประจำวัน · RECEPTION</option><option value="shift">รอบกะที่เลือกจากลิ้นชัก</option></select></label><div class="round-health"><span class="online-dot"></span><div><strong>${records.length?'ข้อมูลพร้อมตรวจสอบ':'รอข้อมูล Finalized'}</strong><small>${records.length?`${records.length} Invoice · อัปเดตตามวันที่เลือก`:'ยังไม่มีรายการของวันนี้'}</small></div></div></div><div class="round-metrics"><article><small>ยอดรวม (Q)</small><strong>${money(sales)}</strong><span>${records.length} Invoice Finalized</span></article><article><small>ชำระล่วงหน้า / Deposit (R)</small><strong>${money(deposit)}</strong><span>${models.filter(row=>row.deposit>0).length} รายการ</span></article><article><small>คงเหลือยอดชำระ (S)</small><strong>${money(outstanding)}</strong><span class="${outstanding?'critical-text':'positive-text'}">${outstanding?`${models.filter(row=>row.outstanding>0).length} รายการต้องติดตาม`:'ยอดคงเหลือเป็นศูนย์'}</span></article><article><small>ค้างชำระ / ตรวจสอบ</small><strong class="${pending?'warning-text':'positive-text'}">${money(pending)}</strong><span>${pending?'ตรวจสอบก่อน Submit':'ไม่พบยอดค้างชำระ'}</span></article></div><div class="close-round-source-note"><span class="material-symbols-outlined">info</span><div><strong>โครงสร้างตามไฟล์หน้าปิดรอบ.xlsx</strong><small>แสดง Villa, รหัส, ลูกค้า, In/Out, หมวดรายได้ F–P, ยอดรวม Q, Deposit R, คงเหลือ S, รายได้หน้า Front และช่องทางชำระเงิน T–AA</small></div></div><div class="close-round-grid"><article class="panel"><div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">table_view</span></span><h3>สรุปตามหมวดรายได้</h3></div><button class="button button-outline" type="button" data-close-round-export><span class="material-symbols-outlined">download</span>Excel</button></div><div class="table-wrap"><table><thead><tr><th>หมวดรายได้</th><th class="align-right">จำนวนรายการ</th><th class="align-right">ยอดรวม</th><th class="align-right">Deposit</th><th class="align-right">คงเหลือ</th></tr></thead><tbody>${closeRoundSummaryRows(records)}<tr class="total-row"><td>รวมทั้งหมด</td><td class="align-right">${records.length}</td><td class="align-right">${money(sales)}</td><td class="align-right">${money(deposit)}</td><td class="align-right">${money(outstanding)}</td></tr></tbody></table></div></article><article class="panel payment-summary"><div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">account_balance</span></span><h3>รายได้หน้า Front / ช่องทางชำระเงิน</h3></div></div><div class="close-round-footer-summary"><div><span>รวม</span><strong>${money(sales)}</strong></div><div><span>หักค่าบ้านพักชำระล่วงหน้า</span><strong>${money(deposit)}</strong></div><div><span>รวมรายได้หน้า Front วันนี้</span><strong>${money(Math.max(0,sales-deposit))}</strong></div><div><span>ผู้จัดทำ</span><strong>-</strong></div></div>${closeRoundPaymentRows(records)}</article></div><article class="panel close-round-detail-panel"><div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">receipt_long</span></span><h3>รายละเอียดรายการตาม Villa และ Invoice</h3></div><span class="count-chip">${records.length} รายการ</span></div><div class="table-wrap close-round-detail-wrap"><table class="close-round-detail-table"><thead><tr><th rowspan="2">ชื่อวิลล่า</th><th rowspan="2">รหัส</th><th rowspan="2">ชื่อลูกค้า</th><th rowspan="2">In</th><th rowspan="2">Out</th>${CLOSE_ROUND_CATEGORIES.map(item=>`<th rowspan="2">${item.label}</th>`).join('')}<th rowspan="2">ยอดรวม (Q)</th><th rowspan="2">Deposit (R)</th><th rowspan="2">คงเหลือ (S)</th><th colspan="${CLOSE_ROUND_PAYMENTS.length}">รายได้หน้า Front (T–AA)</th><th rowspan="2">หมายเหตุ (AB)</th></tr><tr>${CLOSE_ROUND_PAYMENTS.map(item=>`<th>${item.label}</th>`).join('')}</tr></thead><tbody>${closeRoundRows(records)}</tbody></table></div></article><article class="panel anomalies"><div class="panel-heading"><div><span class="title-icon alert-icon"><span class="material-symbols-outlined">error</span></span><h3>รายการที่ต้องตรวจสอบ</h3></div><span class="status-chip ${pending||outstanding?'warning':'success'}">${pending||outstanding?`${models.filter(row=>row.pending||row.outstanding).length} รายการ`:'เรียบร้อย'}</span></div><div class="anomaly-list">${closeRoundAnomalies(records)}</div></article>`;
+  const date=closeRoundSelectedDate(),records=closeRoundRecords(date),entries=closeRoundTemplateEntries(records,date);
+  const sales=entries.reduce((sum,row)=>sum+(row.hasData?Number(row.total||0):0),0);
+  const deposit=entries.reduce((sum,row)=>sum+(row.hasData?Number(row.deposit||0):0),0);
+  const outstanding=entries.reduce((sum,row)=>sum+(row.hasData?Number(row.outstanding||0):0),0);
+  const pending=entries.reduce((sum,row)=>sum+(row.hasData?Number(row.payments?.pending||0):0),0);
+  const closed=loadClosedRounds().some(row=>row.businessDate===date&&row.status==='Submitted');
+  view.innerHTML=`<div class="page-heading close-round-header" style="display:flex;justify-content:space-between;align-items:center;background:linear-gradient(135deg,#ffffff 0%,#fbf7f2 100%);padding:18px 24px;border-radius:14px;border:1px solid #ebdccb;margin-bottom:20px;box-shadow:0 2px 8px rgba(110,68,45,0.05);flex-wrap:wrap;gap:16px;">
+    <div style="display:flex;align-items:center;gap:16px;">
+      <div style="width:48px;height:48px;border-radius:12px;background:linear-gradient(135deg,#8a5433 0%,#5a331c 100%);color:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 4px 10px rgba(90,51,28,0.22);flex-shrink:0;">
+        <span class="material-symbols-outlined" style="font-size:26px;">account_balance</span>
+      </div>
+      <div>
+        <div style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+          <h2 style="margin:0;font-size:21px;font-weight:700;color:#351f11;letter-spacing:-0.2px;line-height:1.2;">รายงานปิดรอบประจำวัน</h2>
+          <span style="font-size:13.5px;color:#6e4022;background:#f3e5d7;border:1px solid #dfcfbe;padding:3px 12px;border-radius:20px;font-weight:600;display:inline-flex;align-items:center;gap:5px;">
+            <span class="material-symbols-outlined" style="font-size:16px;color:#8a5433;">calendar_month</span>${esc(formatCloseRoundThaiDate(date))}
+          </span>
+        </div>
+        <p class="muted" style="margin:5px 0 0;font-size:13px;color:#78695d;">เดอะ ซีนเนอรี่ วินเทจ ฟาร์ม รีสอร์ท · ดึงเฉพาะ Invoice ที่ Finalized แล้วตาม Business Date</p>
+      </div>
+    </div>
+    <div class="heading-actions" style="display:flex;align-items:center;gap:10px;flex-wrap:wrap;">
+      <span class="status-chip ${closed?'success':'warning'}">${closed?'ปิดรอบแล้ว':'รอตรวจสอบ'}</span>
+      <button class="button button-soft" type="button" id="btn-close-round-notes-modal" style="display:inline-flex;align-items:center;gap:5px;font-size:12.5px;padding:6px 12px;cursor:pointer;background:#f5ece2;color:#6b3f21;border:1px solid #dfcfbe;border-radius:8px;font-weight:600;" title="คัดลอกข้อความสรุป / หมายเหตุปิดรอบ"><span class="material-symbols-outlined" style="font-size:18px;color:#8a5433;">content_paste</span><span>ข้อความสรุป / หมายเหตุ</span></button>
+      <button class="button button-primary" id="submit-round" ${closed?'disabled':''}><span class="material-symbols-outlined">${closed?'lock':'lock_clock'}</span>${closed?'รอบถูกล็อกแล้ว':'Submit และ Lock รอบ'}</button>
+      <button class="button button-outline" type="button" data-close-round-export="pdf"><span class="material-symbols-outlined">picture_as_pdf</span>PDF</button>
+      <button class="button button-outline" type="button" data-close-round-export="excel"><span class="material-symbols-outlined">download</span>Excel</button>
+    </div>
+  </div><div class="round-toolbar panel"><label>Business Date<input id="close-round-date" type="date" value="${esc(date)}"></label><label>รอบการปิด<select id="close-round-shift"><option value="daily">รอบประจำวัน · RECEPTION</option><option value="shift">รอบกะที่เลือกจากลิ้นชัก</option></select></label><div class="round-health"><span class="online-dot"></span><div><strong>${records.length?'ข้อมูลพร้อมตรวจสอบ':'รอข้อมูล Finalized'}</strong><small>${records.length?`${records.length} Invoice · อัปเดตตามวันที่เลือก`:'ยังไม่มีรายการของวันนี้'}</small></div></div></div><div class="round-metrics"><article><small>ยอดรวม (Q)</small><strong>${money(sales)}</strong><span>${records.length} Invoice Finalized</span></article><article><small>ชำระล่วงหน้า / Deposit (R)</small><strong>${money(deposit)}</strong><span>${entries.filter(row=>row.hasData&&row.deposit>0).length} รายการ</span></article><article><small>ยอดเรียกเก็บหน้า Front (S = Q - R)</small><strong>${money(outstanding)}</strong><span class="positive-text">${entries.filter(row=>row.hasData&&row.outstanding>0).length} รายการรับชำระหน้า Front</span></article><article><small>ค้างชำระ / ตรวจสอบ</small><strong class="${pending?'warning-text':'positive-text'}">${money(pending)}</strong><span class="${pending?'warning-text':'positive-text'}">${pending?`${entries.filter(row=>row.hasData&&row.payments?.pending>0).length} รายการรอเรียกเก็บ`:'ชำระครบถ้วนแล้ว (฿0)'}</span></article></div><article class="panel close-round-detail-panel"><div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">receipt_long</span></span><h3>รายละเอียดรายการตาม Villa และ Invoice</h3></div><span class="count-chip">${entries.filter(e=>e.hasData).length} รายการมีข้อมูล</span></div><div class="table-wrap close-round-detail-wrap"><table class="close-round-detail-table"><thead><tr><th rowspan="2">Villa Name</th><th rowspan="2">รหัส</th><th rowspan="2">ชื่อลูกค้า</th><th rowspan="2">In</th><th rowspan="2">Out</th>${CLOSE_ROUND_CATEGORIES.map(item=>`<th rowspan="2">${item.label}</th>`).join('')}<th rowspan="2">ยอดรวม (Q)</th><th rowspan="2">Deposit (R)</th><th rowspan="2">คงเหลือ (S)</th><th colspan="${CLOSE_ROUND_PAYMENTS.length}">รายได้หน้า Front (T–AA)</th><th rowspan="2">หมายเหตุ (AB)</th></tr><tr>${CLOSE_ROUND_PAYMENTS.map(item=>`<th>${item.label}</th>`).join('')}</tr></thead><tbody>${closeRoundRows(records,date)}</tbody></table></div></article><article class="panel anomalies"><div class="panel-heading"><div><span class="title-icon alert-icon"><span class="material-symbols-outlined">error</span></span><h3>รายการที่ต้องตรวจสอบ</h3></div><span class="status-chip ${pending>0?'warning':'success'}">${pending>0?`${entries.filter(row=>row.hasData&&row.payments?.pending>0).length} รายการค้างชำระ`:'เรียบร้อย'}</span></div><div class="anomaly-list">${closeRoundAnomalies(records,date)}</div></article>`;
   const codeOptions=document.createElement('datalist');
   codeOptions.id='close-round-villa-code-options';
-  codeOptions.innerHTML=CLOSE_ROUND_VILLA_CODES.map(item=>`<option value="${esc(item.value)}"></option>`).join('');
+  codeOptions.innerHTML=CLOSE_ROUND_VILLA_CODES.map(item=>`<option value="${esc(item.value)}">${esc(item.label)}</option>`).join('');
   view.append(codeOptions);
-   $('#close-round-date')?.addEventListener('change',event=>{event.target.dataset.userSelected='true';renderCloseRound()});
+  $('#close-round-date')?.addEventListener('change',event=>{event.target.dataset.userSelected='true';renderCloseRound()});
   $('#submit-round')?.addEventListener('click',()=>openModal('ยืนยัน Submit และ Lock รอบ','<p>เมื่อยืนยันแล้ว รอบนี้จะถูกล็อกและไม่ควรแก้ไขรายการย้อนหลังโดยตรง</p><p class="muted">กรุณาตรวจสอบยอดค้างชำระและรายการผิดปกติก่อนส่งฝ่ายบัญชี</p>','<button class="button button-outline" data-close-modal>ยกเลิก</button><button class="button button-primary" data-submit-round>ยืนยัน Submit และ Lock</button>'));
-  const exportButton=$('[data-close-round-export]');
-  if(exportButton){exportButton.dataset.closeRoundExport='pdf';exportButton.innerHTML='<span class="material-symbols-outlined">picture_as_pdf</span>PDF';exportButton.addEventListener('click',()=>printCloseRoundDetailOnePage());const excelButton=exportButton.cloneNode(true);excelButton.dataset.closeRoundExport='excel';excelButton.innerHTML='<span class="material-symbols-outlined">download</span>Excel';excelButton.addEventListener('click',()=>closeRoundSinglePageExcel(records,date));exportButton.insertAdjacentElement('afterend',excelButton)}
+  view.querySelector('[data-close-round-export="pdf"]')?.addEventListener('click',()=>printCloseRoundDetailOnePage());
+  view.querySelector('[data-close-round-export="excel"]')?.addEventListener('click',()=>closeRoundSinglePageExcel(records,date));
+  view.querySelector('#btn-close-round-notes-modal')?.addEventListener('click',()=>openCloseRoundNotesModal());
+  if(typeof installCloseRoundDetailTools==='function')installCloseRoundDetailTools();
 }
 function installCloseRound(){
   renderCloseRound();
@@ -1507,7 +2835,7 @@ function closeRoundCompactPrintTable(source,records){
     const villaCode=Object.prototype.hasOwnProperty.call(edit,'villaCode')?edit.villaCode:model.villaCode;
     const remark=Object.prototype.hasOwnProperty.call(edit,'remark')?edit.remark:(model.remark||model.pendingCollectionNote||'');
     const values=[
-      closeRoundVillaLabel(model.villa),villaCode,model.customer,model.checkIn,model.checkOut,
+      closeRoundVillaLabel(model.villa),villaCode,model.customer,formatDayOnly(model.checkIn),formatDayOnly(model.checkOut),
       ...CLOSE_ROUND_CATEGORIES.map(item=>closeRoundMoneyCell(model.categories[item.key])),
       closeRoundMoneyCell(model.total),closeRoundMoneyCell(model.deposit),closeRoundMoneyCell(model.outstanding),
       closeRoundPrintPaymentChannel(record),remark
@@ -1811,8 +3139,7 @@ document.addEventListener('DOMContentLoaded',installCashDrawerV2);
 function buildInvoiceWorkspace(){
   const view=$('#view-invoice');
   if(!view)return;
-  const numberedVillas=['02 Pangola','03 Hamata','04 Barbados','05 Merino','06 Corriedale','07 Katahdin','08 Mulato','010 Napier','011 Setaria','012 Alfalfa','013 Rapunzel'];
-  const villaMarkup=numberedVillas.map(v=>`<option value="${esc(v)}">${esc(v)}</option>`).join('');
+  const villaMarkup=[...new Map(villaOptions.filter(v=>v?.name).map(v=>[v.name,v])).values()].map(v=>`<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
   const categoryOptions=items=>[...new Set(items.map(item=>cleanEnglishText(item.category)).filter(Boolean))].map(category=>`<option value="${esc(category)}">${esc(category)}</option>`).join('');
   const aOptions=accommodationItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
   const bOptions=addonItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
@@ -1824,7 +3151,7 @@ function buildInvoiceWorkspace(){
       <article class="panel invoice-entry-card invoice-lines-card"><div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">list_alt</span></span><h3>รายการในใบแจ้งหนี้</h3></div><span class="required-note">เลือกลำดับ หมวด → รายการ</span></div>
         <div class="invoice-add-grid"><div class="invoice-add-box"><h4>Accommodation &amp; Inclusive Package</h4><div class="invoice-add-fields category-first-fields"><select id="accommodation-category" class="invoice-category-select"><option value="">เลือกหมวด</option>${categoryOptions(accommodationItems)}</select><select id="accommodation-select" disabled><option value="">เลือกรายการในหมวด</option>${aOptions}</select><input id="accommodation-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="accommodation-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวน Accommodation"><button class="button button-primary" id="add-accommodation" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
         <div class="invoice-add-box"><h4>Food and Beverages (add-on) and Other Expenses</h4><div class="invoice-add-fields category-first-fields"><select id="addon-category" class="invoice-category-select"><option value="">เลือกหมวด</option>${categoryOptions(addonItems)}</select><select id="addon-select" disabled><option value="">เลือกรายการในหมวด</option>${bOptions}</select><input id="addon-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="addon-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวนค่าใช้จ่ายทั่วไป"><button class="button button-primary" id="add-addon" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div></div>
-        <section class="invoice-line-group"><div class="line-group-heading"><strong>Accommodation &amp; Inclusive Package</strong><small>รายการค่าบ้านและ Inclusive ทั้งหมด</small></div><div class="table-wrap"><table><thead><tr><th>หมวด</th><th>รายการ</th><th class="align-center">จำนวน</th><th class="align-right">Rate</th><th>ส่วนลด</th><th class="align-right">ยอดรวม</th><th></th></tr></thead><tbody id="form-accommodation-lines"></tbody></table><div id="accommodation-empty" class="empty-state"><p>ยังไม่มีรายการ</p></div></div></section>
+        <section class="invoice-line-group"><div class="line-group-heading" style="display:flex;align-items:center;justify-content:space-between;width:100%;"><div><strong>Accommodation &amp; Inclusive Package</strong><small>รายการค่าบ้านและ Inclusive ทั้งหมด</small></div><button type="button" class="button button-soft action-small" id="btn-add-split-stay-invoice" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 10px;"><span class="material-symbols-outlined" style="font-size:16px;">night_shelter</span> + พักต่อคืนที่ 2 (คนละบ้าน)</button></div><div class="table-wrap"><table><thead><tr><th>หมวด</th><th>รายการ</th><th class="align-center">จำนวน</th><th class="align-right">Rate</th><th>ส่วนลด</th><th class="align-right">ยอดรวม</th><th></th></tr></thead><tbody id="form-accommodation-lines"></tbody></table><div id="accommodation-empty" class="empty-state"><p>ยังไม่มีรายการ</p></div></div></section>
         <section class="invoice-line-group"><div class="line-group-heading"><strong>Food and Beverages (add-on) and Other Expenses</strong><small>รายการค่าใช้จ่ายทั่วไปทั้งหมด</small></div><div class="table-wrap"><table><thead><tr><th>หมวด</th><th>รายการ</th><th class="align-center">จำนวน</th><th class="align-right">Rate</th><th>ส่วนลด</th><th class="align-right">ยอดรวม</th><th></th></tr></thead><tbody id="form-addon-lines"></tbody></table><div id="addon-empty" class="empty-state"><p>ยังไม่มีรายการ</p></div></div></section>
         <section class="invoice-adjustments"><div class="line-group-heading"><strong>ยอดปรับและการชำระเงิน</strong><small>Deposit จะรวมจากรายการชำระด้านล่าง</small></div><div class="form-grid three compact-grid"><label>รูปแบบส่วนลด <select id="discount-scope"><option value="line">ส่วนลดตามรายการ</option><option value="all">ส่วนลดทั้งบิล</option><option value="none">ไม่มีส่วนลด</option></select></label><label>ส่วนลดทั้งบิล <select id="discount-all-rate">${discountRateOptions(0)}</select></label><label>พนักงาน <select id="cashier"><option value="">เลือกพนักงาน</option><option>Now Narit</option><option>Mhew Kusu</option><option>Nattaya Phung</option><option>Nummim</option><option>Ple Theresa</option></select></label></div><div class="payment-entry"><select id="payment-method"><option value="เงินสด">เงินสด</option><option value="บัตรเครดิต">บัตรเครดิต</option><option value="QR Code">QR Code</option><option value="โอนเงิน SC">โอนเงิน SC</option></select><input id="payment-amount" type="number" min="0" placeholder="จำนวนเงินที่รับ"><button class="button button-outline" id="add-payment" type="button"><span class="material-symbols-outlined">add</span>บันทึกการชำระ</button></div><div id="payment-list" class="payment-list"></div></section>
       </article>
@@ -1883,10 +3210,6 @@ document.addEventListener('click',event=>{
 
 /* Source workbook dictionary for Close Round and the system/data pages. */
 const CLOSE_ROUND_SOURCE_DATE='2026-04-22';
-const CLOSE_ROUND_SOURCE_VILLAS=[
-  '02 Pangola','03 Hamata','04 Barbados','05 Merino','06 Corriedale','07 Katahdin',
-  '08 Mulato','010 Napier','011 Setaria','012 Alfalfa','013 Rapunzel'
-];
 const CLOSE_ROUND_SOURCE_GROUPS=[
   ['A–E','ชื่อวิลล่า, รหัส, ชื่อลูกค้า, In, Out','ตัวตนของผู้เข้าพักและช่วงเข้าพัก'],
   ['F–P','ค่าวิลล่า, ที่นอนเสริม, อาหาร, มินิบาร์, HT/SHT, กิจกรรมชมสุนัข (92), ค่านวด (0), สินค้า (0), ATV (0), ชาร์จ EV (0), อื่น ๆ','หมวดรายได้จากรายการใน Invoice'],
@@ -1929,11 +3252,6 @@ function renderCloseRoundSourceTemplate(){
     metric.querySelector('span').textContent=pending?`ค้างชำระในช่อง AA ${money(pending)}`:'ยอดรับชำระตรงกับยอดที่ต้องติดตาม';
   }
 }
-const closeRoundRenderWithSource=renderCloseRound;
-renderCloseRound=function(){
-  closeRoundRenderWithSource();
-  setTimeout(()=>{renderCloseRoundSourceTemplate();installCloseRoundDetailTools()},0);
-};
 
 function renderCloseRoundSystemData(){
   const master=$('#view-master');
@@ -2092,28 +3410,12 @@ closeRoundRecordModel=function(record){
   return model;
 };
 
-/* Final display guard: keep the Villa template even when no Invoice is finalized. */
-closeRoundRows=function(records){
-  const locked=closeRoundIsLocked(closeRoundSelectedDate());
-  return closeRoundTemplateEntries(records).map(entry=>entry.record?closeRoundEditableRowsFromInvoice([entry.record]):closeRoundEmptyVillaRow(entry.villa,locked,entry.villaCode)).join('')+closeRoundAddVillaRow(locked);
-};
+
 closeRoundPaymentRows=function(records){
   const totals=Object.fromEntries(CLOSE_ROUND_PAYMENTS.map(item=>[item.key,0]));
   records.forEach(record=>{const row=closeRoundRecordModel(record);CLOSE_ROUND_PAYMENTS.forEach(item=>{totals[item.key]+=item.key==='noCharge'?closeRoundDiscountOnly(record):row.payments[item.key]})});
   const grand=Object.values(totals).reduce((sum,value)=>sum+value,0);
   return CLOSE_ROUND_PAYMENTS.map(item=>{const value=totals[item.key],width=grand?Math.round(value/grand*100):0;return `<div class="payment-bar-row"><div><span><i class="payment-dot ${item.className}"></i>${item.label}</span><strong>${closeRoundMoneyCell(value)}</strong></div><div class="bar"><i style="width:${width}%"></i></div></div>`}).join('')+`<div class="payment-foot"><span>รวมรับชำระ / รอเรียกเก็บ</span><strong>${money(grand)}</strong></div>`;
-};
-const renderCloseRoundWithDiscountOnlyGuard=renderCloseRound;
-renderCloseRound=function(){
-  renderCloseRoundWithDiscountOnlyGuard();
-  const records=closeRoundRecords(closeRoundSelectedDate()),table=document.querySelector('.close-round-detail-table'),noChargeIndex=5+CLOSE_ROUND_CATEGORIES.length+3+CLOSE_ROUND_PAYMENTS.findIndex(item=>item.key==='noCharge');
-  [...table?.tBodies?.[0]?.rows||[]].forEach((row,index)=>{const record=records[index],cell=row.cells[noChargeIndex];if(record&&cell)cell.textContent=closeRoundMoneyCell(closeRoundDiscountOnly(record))});
-};
-const renderCloseRoundWithEnglishVillaHeader=renderCloseRound;
-renderCloseRound=function(){
-  renderCloseRoundWithEnglishVillaHeader();
-  const header=document.querySelector('#view-close-round .close-round-detail-table thead th');
-  if(header)header.textContent='Villa Name';
 };
 
 /* Master Data: render the real loaded catalog instead of the starter mockup. */

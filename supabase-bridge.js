@@ -336,7 +336,20 @@
 
   window.scenerySupabase.recordAudit = entry => recordAudit(entry).catch(error => console.warn('Audit log:', error));
 
+  const localDeletedInvoicesKey = 'scenery-deleted-invoice-ids';
+  function getDeletedInvoiceIds() {
+    return new Set(readLocal(localDeletedInvoicesKey, []));
+  }
+  function recordDeletedInvoiceId(id) {
+    const list = readLocal(localDeletedInvoicesKey, []);
+    if (!list.includes(String(id))) {
+      list.push(String(id));
+      writeLocal(localDeletedInvoicesKey, list);
+    }
+  }
+
   async function deleteInvoiceRemote(id) {
+    recordDeletedInvoiceId(id);
     if (!client) return;
     try {
       await client.from('invoice_history').delete().eq('id', String(id));
@@ -353,127 +366,279 @@
 
   // Refresh UI dynamically without full page reload
   function triggerUIRefresh() {
+    const activeEl = document.activeElement;
+    const isInteracting = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
     if (typeof window.syncInvoiceHistoryState === 'function') window.syncInvoiceHistoryState();
     if (typeof window.renderInvoiceHistoryAllRecords === 'function') window.renderInvoiceHistoryAllRecords();
     if (typeof window.renderDashboard === 'function') window.renderDashboard();
-    if (typeof window.renderCloseRound === 'function') window.renderCloseRound();
+    if (!isInteracting && typeof window.renderCloseRound === 'function' && window.sceneryAppState?.currentView === 'close-round') {
+      window.renderCloseRound();
+    }
     if (typeof window.renderAuditLog === 'function') window.renderAuditLog();
     if (typeof window.renderBookingRecords === 'function') window.renderBookingRecords();
   }
 
-  async function pullInvoices() {
-    if (!client) return;
-    const result = await client.from('invoice_history').select('*').order('business_date', { ascending: false }).order('created_at', { ascending: false });
-    if (result.error) throw result.error;
+  // Safe merge helpers that preserve local unsynced records
+  function mergeInvoicesWithLocal(remoteList, localList) {
+    const deletedIds = getDeletedInvoiceIds();
+    const map = new Map();
 
-    const remote = (result.data || []).map(row => {
-      const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
-      const payloadHasDiscount = Object.prototype.hasOwnProperty.call(payload, 'discount');
-      const discount = payloadHasDiscount ? Math.max(0, Number(payload.discount) || 0) : Math.max(0, Number(row.discount) || 0);
-      return {
-        ...payload,
-        id: row.id,
-        reference: row.reference || payload.reference || row.id,
-        businessDate: row.business_date,
-        customer: row.customer,
-        villa: row.villa,
-        villaCode: row.villa_code,
-        total: Number(row.total || 0),
-        discount,
-        deposit: Number(row.deposit || 0),
-        pendingTotal: Number(row.pending_total || 0),
-        status: row.status
-      };
+    (localList || []).forEach(item => {
+      const id = String(item?.id || item?.reference || '');
+      if (id && !deletedIds.has(id)) {
+        map.set(id, item);
+      }
     });
 
-    writeLocal(localHistoryKey, remote);
-    if (window.sceneryAppState) window.sceneryAppState.invoices = remote;
-    triggerUIRefresh();
+    (remoteList || []).forEach(remoteItem => {
+      const id = String(remoteItem?.id || remoteItem?.reference || '');
+      if (!id || deletedIds.has(id)) return;
+      const existing = map.get(id);
+      if (!existing) {
+        map.set(id, remoteItem);
+      } else {
+        const existingTime = new Date(existing.updatedAt || existing.finalizedAt || existing.created_at || 0).getTime();
+        const remoteTime = new Date(remoteItem.updatedAt || remoteItem.finalizedAt || remoteItem.created_at || 0).getTime();
+        if (remoteTime > existingTime) {
+          map.set(id, { ...existing, ...remoteItem });
+        } else {
+          map.set(id, { ...remoteItem, ...existing });
+        }
+      }
+    });
+
+    return Array.from(map.values()).sort((a, b) => {
+      const dCmp = String(b.businessDate || '').localeCompare(String(a.businessDate || ''));
+      if (dCmp !== 0) return dCmp;
+      return String(b.time || b.finalizedAt || b.id || '').localeCompare(String(a.time || a.finalizedAt || a.id || ''));
+    });
+  }
+
+  function mergeBookingsWithLocal(remoteList, localList) {
+    const deletedIds = getDeletedInvoiceIds();
+    const map = new Map();
+    (localList || []).forEach(item => {
+      const id = String(item?.reference || item?.id || '');
+      if (id && !deletedIds.has(id)) map.set(id, item);
+    });
+    (remoteList || []).forEach(remoteItem => {
+      const id = String(remoteItem?.reference || remoteItem?.id || '');
+      if (!id || deletedIds.has(id)) return;
+      if (!map.has(id)) map.set(id, remoteItem);
+      else map.set(id, { ...remoteItem, ...map.get(id) });
+    });
+    return Array.from(map.values()).sort((a, b) => {
+      const dCmp = String(b.businessDate || b.docDate || '').localeCompare(String(a.businessDate || a.docDate || ''));
+      if (dCmp !== 0) return dCmp;
+      return String(b.closedAt || b.reference || '').localeCompare(String(a.closedAt || a.reference || ''));
+    });
+  }
+
+  function mergeRoundsWithLocal(remoteList, localList) {
+    const map = new Map();
+    (localList || []).forEach(item => {
+      const id = String(item?.id || item?.businessDate || '');
+      if (id) map.set(id, item);
+    });
+    (remoteList || []).forEach(remoteItem => {
+      const id = String(remoteItem?.id || remoteItem?.businessDate || '');
+      if (!id) return;
+      if (!map.has(id)) map.set(id, remoteItem);
+      else map.set(id, { ...remoteItem, ...map.get(id) });
+    });
+    return Array.from(map.values()).sort((a, b) => String(b.businessDate || '').localeCompare(String(a.businessDate || '')));
+  }
+
+  async function pullInvoices() {
+    if (!client) return;
+    try {
+      const result = await client.from('invoice_history').select('*').order('business_date', { ascending: false }).order('created_at', { ascending: false });
+      if (result.error) throw result.error;
+
+      const deletedIds = getDeletedInvoiceIds();
+      const remote = (result.data || [])
+        .filter(row => !deletedIds.has(String(row.id)))
+        .map(row => {
+          const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+          const payloadHasDiscount = Object.prototype.hasOwnProperty.call(payload, 'discount');
+          const discount = payloadHasDiscount ? Math.max(0, Number(payload.discount) || 0) : Math.max(0, Number(row.discount) || 0);
+          const staff = payload.cashier || payload.preparer || payload.closedBy || payload.user || row.cashier || row.preparer || row.closed_by || row.user || '';
+          return {
+            ...payload,
+            id: row.id,
+            reference: row.reference || payload.reference || row.id,
+            businessDate: row.business_date || payload.businessDate,
+            customer: row.customer || payload.customer,
+            villa: row.villa || payload.villa,
+            villaCode: row.villa_code || payload.villaCode,
+            total: Number(row.total || payload.total || 0),
+            discount,
+            deposit: Number(row.deposit || payload.deposit || 0),
+            pendingTotal: Number(row.pending_total || payload.pendingTotal || 0),
+            status: row.status || payload.status || 'ชำระแล้ว',
+            cashier: staff,
+            preparer: staff,
+            closedBy: staff
+          };
+        });
+
+      const local = readLocal(localHistoryKey, []);
+      const merged = mergeInvoicesWithLocal(remote, local);
+      if (JSON.stringify(merged) !== JSON.stringify(local)) {
+        writeLocal(localHistoryKey, merged);
+        if (window.sceneryAppState) window.sceneryAppState.invoices = merged;
+        triggerUIRefresh();
+      }
+
+      // Background push of any local records not yet saved on remote
+      if (remote.length < merged.length) {
+        const missingOnRemote = merged.filter(m => !remote.some(r => r.id === m.id));
+        if (missingOnRemote.length) {
+          upsertInvoices(missingOnRemote).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn('[Supabase Sync] pullInvoices:', e.message || e);
+    }
   }
 
   async function pullBookings() {
     if (!client) return;
-    const result = await client.from('closed_bookings').select('*').order('created_at', { ascending: false });
-    if (result.error) throw result.error;
-    const remote = (result.data || []).map(row => ({
-      ...row.payload,
-      id: row.id,
-      reference: row.reference || row.payload?.reference || row.id,
-      businessDate: row.business_date,
-      customer: row.customer,
-      villa: row.villa,
-      total: Number(row.total || 0)
-    }));
-    writeLocal(localBookingsKey, remote);
-    if (window.sceneryAppState) window.sceneryAppState.closedBookings = remote;
-    if (typeof window.renderBookingRecords === 'function') window.renderBookingRecords();
+    try {
+      const result = await client.from('closed_bookings').select('*').order('created_at', { ascending: false });
+      if (result.error) throw result.error;
+      const deletedIds = getDeletedInvoiceIds();
+      const remote = (result.data || [])
+        .filter(row => !deletedIds.has(String(row.id)) && !deletedIds.has(String(row.reference)))
+        .map(row => ({
+          ...row.payload,
+          id: row.id,
+          reference: row.reference || row.payload?.reference || row.id,
+          businessDate: row.business_date || row.payload?.businessDate,
+          customer: row.customer || row.payload?.customer,
+          villa: row.villa || row.payload?.villa,
+          total: Number(row.total || row.payload?.total || 0)
+        }));
+      const local = readLocal(localBookingsKey, []);
+      const merged = mergeBookingsWithLocal(remote, local);
+      if (JSON.stringify(merged) !== JSON.stringify(local)) {
+        writeLocal(localBookingsKey, merged);
+        if (window.sceneryAppState) window.sceneryAppState.closedBookings = merged;
+        if (typeof window.renderBookingRecords === 'function') window.renderBookingRecords();
+      }
+      if (remote.length < merged.length) {
+        const missingOnRemote = merged.filter(m => !remote.some(r => r.reference === m.reference || r.id === m.id));
+        if (missingOnRemote.length) {
+          upsertBookings(missingOnRemote).catch(() => {});
+        }
+      }
+    } catch (e) {
+      console.warn('[Supabase Sync] pullBookings:', e.message || e);
+    }
   }
 
   async function syncRounds() {
     if (!client) return;
-    const rounds = readLocal(localRoundsKey, []);
-    const user = await currentUser();
-    if (!rounds.length) return;
-    const rows = rounds.map(round => ({
-      id: String(round.id),
-      business_date: round.businessDate,
-      status: round.status || 'Submitted',
-      totals: round.totals || {},
-      payload: round,
-      submitted_by: user?.id || null,
-      submitted_at: round.submittedAt ? new Date(round.submittedAt).toISOString() : new Date().toISOString()
-    }));
-    const result = await client.from('close_rounds').upsert(rows, { onConflict: 'id' });
-    if (result.error) throw result.error;
-    broadcastSync('round_upsert');
+    try {
+      const rounds = readLocal(localRoundsKey, []);
+      const user = await currentUser();
+      if (!rounds.length) return;
+      const rows = rounds.map(round => ({
+        id: String(round.id),
+        business_date: round.businessDate,
+        status: round.status || 'Submitted',
+        totals: round.totals || {},
+        payload: round,
+        submitted_by: user?.id || null,
+        submitted_at: round.submittedAt ? new Date(round.submittedAt).toISOString() : new Date().toISOString()
+      }));
+      const result = await client.from('close_rounds').upsert(rows, { onConflict: 'id' });
+      if (result.error) throw result.error;
+      broadcastSync('round_upsert');
+    } catch (e) {
+      console.warn('[Supabase Sync] syncRounds:', e.message || e);
+    }
   }
 
   async function pullRounds() {
     if (!client) return;
-    const result = await client.from('close_rounds').select('*').order('business_date', { ascending: false });
-    if (result.error) throw result.error;
-    const remote = (result.data || []).map(row => ({
-      ...row.payload,
-      id: row.id,
-      businessDate: row.business_date,
-      status: row.status,
-      submittedAt: row.submitted_at,
-      totals: row.totals || {}
-    }));
-    writeLocal(localRoundsKey, remote);
-    if (typeof window.renderCloseRound === 'function') window.renderCloseRound();
+    try {
+      const result = await client.from('close_rounds').select('*').order('business_date', { ascending: false });
+      if (result.error) throw result.error;
+      const remote = (result.data || []).map(row => ({
+        ...row.payload,
+        id: row.id,
+        businessDate: row.business_date,
+        status: row.status,
+        submittedAt: row.submitted_at,
+        totals: row.totals || {}
+      }));
+      const local = readLocal(localRoundsKey, []);
+      const merged = mergeRoundsWithLocal(remote, local);
+      if (JSON.stringify(merged) !== JSON.stringify(local)) {
+        writeLocal(localRoundsKey, merged);
+        const activeEl = document.activeElement;
+        const isInteracting = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+        if (!isInteracting && typeof window.renderCloseRound === 'function' && window.sceneryAppState?.currentView === 'close-round') {
+          window.renderCloseRound();
+        }
+      }
+    } catch (e) {
+      console.warn('[Supabase Sync] pullRounds:', e.message || e);
+    }
   }
 
   async function pullEdits() {
     if (!client) return;
-    const result = await client.from('close_round_edits').select('record_id,payload,updated_at').order('updated_at', { ascending: false });
-    if (result.error) throw result.error;
-    const remote = {};
-    (result.data || []).forEach(row => {
-      if (row?.record_id) remote[String(row.record_id)] = row.payload && typeof row.payload === 'object' ? row.payload : {};
-    });
-    writeLocal(localEditsKey, remote);
-    if (typeof window.renderCloseRound === 'function') window.renderCloseRound();
+    try {
+      const result = await client.from('close_round_edits').select('record_id,payload,updated_at').order('updated_at', { ascending: false });
+      if (result.error) throw result.error;
+      const remote = {};
+      (result.data || []).forEach(row => {
+        if (row?.record_id) remote[String(row.record_id)] = row.payload && typeof row.payload === 'object' ? row.payload : {};
+      });
+      const local = readLocal(localEditsKey, {});
+      const merged = { ...remote, ...local };
+      if (JSON.stringify(merged) !== JSON.stringify(local)) {
+        writeLocal(localEditsKey, merged);
+        const activeEl = document.activeElement;
+        const isInteracting = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+        if (!isInteracting && typeof window.renderCloseRound === 'function' && window.sceneryAppState?.currentView === 'close-round') {
+          window.renderCloseRound();
+        }
+      }
+    } catch (e) {
+      console.warn('[Supabase Sync] pullEdits:', e.message || e);
+    }
   }
 
   async function pullAudit() {
     if (!client) return;
-    const result = await client.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(200);
-    if (result.error) throw result.error;
-    const remote = (result.data || []).map(row => ({
-      id: row.id,
-      action: row.action,
-      entityType: row.entity_type,
-      entityId: row.entity_id,
-      beforeData: row.before_data,
-      afterData: row.after_data,
-      metadata: row.metadata || {},
-      actor: row.actor_id || 'ผู้ใช้งาน',
-      createdAt: row.created_at
-    }));
-    if (remote.length) {
-      writeLocal(localAuditKey, remote);
-      if (typeof window.renderAuditLog === 'function') window.renderAuditLog();
+    try {
+      const result = await client.from('audit_logs').select('*').order('created_at', { ascending: false }).limit(200);
+      if (result.error) throw result.error;
+      const remote = (result.data || []).map(row => ({
+        id: row.id,
+        action: row.action,
+        entityType: row.entity_type,
+        entityId: row.entity_id,
+        beforeData: row.before_data,
+        afterData: row.after_data,
+        metadata: row.metadata || {},
+        actor: row.actor_id || 'ผู้ใช้งาน',
+        createdAt: row.created_at
+      }));
+      const local = readLocal(localAuditKey, []);
+      if (remote.length) {
+        const idMap = new Map();
+        local.forEach(e => { if (e?.id) idMap.set(e.id, e); });
+        remote.forEach(e => { if (e?.id && !idMap.has(e.id)) idMap.set(e.id, e); });
+        const merged = Array.from(idMap.values()).sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || ''))).slice(0, 200);
+        writeLocal(localAuditKey, merged);
+        if (typeof window.renderAuditLog === 'function') window.renderAuditLog();
+      }
+    } catch (e) {
+      console.warn('[Supabase Sync] pullAudit:', e.message || e);
     }
   }
 
@@ -627,7 +792,7 @@
       if (document.querySelector('#app-screen')?.classList.contains('is-hidden') === false) {
         hydrate().catch(() => {});
       }
-    }, 2500);
+    }, 30000);
 
     // 3. Sync on tab focus / visibility
     window.addEventListener('focus', () => hydrate().catch(() => {}));
