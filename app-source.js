@@ -3087,56 +3087,10 @@ function saveCashDrawerStore(){
 window.saveCashDrawerStore=saveCashDrawerStore;
 function cashDrawerMoney(value){return money(Math.max(0,Number(value||0)))}
 function cashDrawerDateTime(value){return value?new Date(value).toLocaleString('th-TH',{dateStyle:'medium',timeStyle:'short'}):'-'}
-function cashDrawerExpected(shift){return Math.max(0,Number(shift.openingCash||0)-(shift.cashUses||[]).reduce((sum,item)=>sum+Math.max(0,Number(item.amount||0)),0))}
-function cashDrawerCountTotal(counts={}){return CASH_DRAWER_DENOMINATIONS.reduce((sum,denomination)=>sum+denomination.value*Math.max(0,Number(counts[denomination.value]||0)),0)}
-function cashDrawerDifference(shift){return cashDrawerCountTotal(shift.counts||{})-cashDrawerExpected(shift)}
 function cashDrawerShiftCode(){return `SHIFT-${historyDateKey().replaceAll('-','')}-${String(Date.now()).slice(-4)}`}
-function cashDrawerDenominationInputs(counts={}){return CASH_DRAWER_DENOMINATIONS.map(denomination=>`<label class="cash-denomination"><span>${denomination.label}</span><input type="number" min="0" step="1" value="${Math.max(0,Number(counts[denomination.value]||0))}" data-cash-denom="${denomination.value}" aria-label="${denomination.label} กี่ชิ้น"></label>`).join('')}
-function renderCashDrawer(){
-  const view=$('#view-drawer');
-  if(!view)return;
-  const shift=cashDrawerStore.activeShift,expected=shift?cashDrawerExpected(shift):0,counted=shift?cashDrawerCountTotal(shift.counts||{}):0,difference=counted-expected;
-  const status=shift?'<span class="status-chip success large"><i></i> กะเปิดอยู่</span>':'<span class="status-chip neutral large">ยังไม่เปิดกะ</span>';
-  view.innerHTML=`<div class="page-heading compact"><div><p class="eyebrow">OPERATIONS / CASH DRAWER</p><h2>ลิ้นชักเก็บเงินทอน</h2><p class="muted">เงินทอนแยกจากใบแจ้งหนี้ · ตรวจนับตามชนิดเงินและประวัติกะ</p></div>${status}</div><div class="drawer-grid"><article class="panel drawer-status"><div class="drawer-hero"><span class="drawer-circle"><span class="material-symbols-outlined">payments</span></span><div><small>${shift?'กะที่กำลังดำเนินการ':'สถานะลิ้นชัก'}</small><h3>${esc(shift?.code||'ยังไม่มีรหัสกะ')}</h3><p>${shift?`เปิดโดย ${esc(shift.openedBy)} · ${esc(cashDrawerDateTime(shift.openedAt))}`:'เปิดกะด้วยชื่อและรหัสของผู้รับผิดชอบ'}</p></div></div>${shift?`<div class="drawer-stat-grid"><div><small>เงินตั้งต้น</small><strong>${cashDrawerMoney(shift.openingCash)}</strong></div><div><small>นำออกไปใช้</small><strong>${cashDrawerMoney((shift.cashUses||[]).reduce((sum,item)=>sum+Number(item.amount||0),0))}</strong></div><div><small>ยอดที่ควรเหลือ</small><strong class="accent-text">${cashDrawerMoney(expected)}</strong></div><div><small>นับได้จริง</small><strong class="${difference===0?'positive-text':'warning-text'}">${cashDrawerMoney(counted)}</strong></div></div><div class="drawer-close-auth"><strong>ปิดกะโดยผู้เปิดกะเท่านั้น</strong><label>ชื่อผู้ปิดกะ<input id="drawer-close-name" placeholder="ลงชื่อผู้เปิดกะ"></label><label>รหัสเปิดกะ<input id="drawer-close-pin" type="password" inputmode="numeric" placeholder="กรอกรหัสเดิม"></label><button class="button button-primary full-width" data-cash-action="close"><span class="material-symbols-outlined">lock</span>ปิดกะ</button></div>`:`<div class="drawer-open-auth"><strong>เปิดลิ้นชักเก็บเงิน</strong><label>ชื่อผู้เปิดกะ<input id="drawer-open-name" placeholder="ลงชื่อผู้รับผิดชอบ" autocomplete="off"></label><label>รหัสเปิดกะ<input id="drawer-open-pin" type="password" inputmode="numeric" placeholder="ตั้งรหัสสำหรับปิดกะ" autocomplete="new-password"></label><label>เงินตั้งต้น<input id="drawer-opening-cash" type="number" min="0" step="0.01" value="0" placeholder="0.00"></label><button class="button button-primary full-width" data-cash-action="open"><span class="material-symbols-outlined">lock_open</span>เปิดกะและสร้างรหัสกะ</button></div>`}</article><article class="panel reconciliation"><div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">fact_check</span></span><h3>ตรวจนับเงินในลิ้นชัก</h3></div><span class="status-chip ${difference===0?'success':'warning'}">${shift?(difference===0?'ยอดตรงกัน':'มีส่วนต่าง'): 'รอเปิดกะ'}</span></div>${shift?`<div class="reconcile-row"><span>ยอดที่ควรเหลือ</span><strong>${cashDrawerMoney(expected)}</strong></div><div class="cash-denomination-grid">${cashDrawerDenominationInputs(shift.counts)}</div><div class="reconcile-row"><span>นับได้จริง</span><strong id="drawer-counted-total">${cashDrawerMoney(counted)}</strong></div><div class="reconcile-row difference"><span>ส่วนต่าง</span><strong id="drawer-difference" class="${difference===0?'positive-text':'warning-text'}">${difference<0?'-':''}${cashDrawerMoney(Math.abs(difference))}</strong></div><button class="button button-outline full-width" data-cash-action="save-count">บันทึกผลการนับ</button><div class="drawer-use-form"><strong>กรณีนำเงินออกไปใช้</strong><small>ระบุหมายเหตุและยอดเงิน ระบบจะหักจากยอดที่ควรเหลือ</small><div class="drawer-use-fields"><input id="drawer-use-note" placeholder="หมายเหตุ เช่น ซื้ออุปกรณ์สำนักงาน"><input id="drawer-use-amount" type="number" min="0" step="0.01" placeholder="ยอดเงิน"><button class="button button-soft" data-cash-action="add-use">บันทึกเงินที่นำออก</button></div>${(shift.cashUses||[]).length?`<div class="drawer-use-list">${shift.cashUses.map((item,index)=>`<div><span>${esc(item.note)}</span><strong>${cashDrawerMoney(item.amount)}</strong><button class="icon-button" data-cash-action="remove-use" data-cash-use-index="${index}" aria-label="ลบรายการนำเงินออก"><span class="material-symbols-outlined">delete</span></button></div>`).join('')}</div>`:''}</div>`:'<div class="empty-state"><span class="material-symbols-outlined">point_of_sale</span><p>ยังไม่มีรอบให้ตรวจนับ</p><small>เปิดกะก่อน แล้วจึงนับเหรียญและธนบัตร</small></div>'}</article></div><article class="panel"><div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">history</span></span><h3>ประวัติการเปิด–ปิดกะ</h3></div><span class="count-chip">${cashDrawerStore.history.length} รอบ</span></div>${cashDrawerStore.history.length?`<div class="table-wrap"><table class="cash-drawer-history"><thead><tr><th>รหัสกะ</th><th>ผู้เปิดกะ / เวลา</th><th>ผู้ปิดกะ / เวลา</th><th class="align-right">ยอดเริ่ม</th><th class="align-right">ยอดปิดจริง</th><th class="align-right">ส่วนต่าง</th></tr></thead><tbody>${cashDrawerStore.history.map(item=>`<tr><td class="mono">${esc(item.code)}</td><td><strong>${esc(item.openedBy)}</strong><small class="table-subtext">${esc(cashDrawerDateTime(item.openedAt))}</small></td><td><strong>${esc(item.closedBy||'-')}</strong><small class="table-subtext">${esc(cashDrawerDateTime(item.closedAt))}</small></td><td class="align-right">${cashDrawerMoney(item.openingCash)}</td><td class="align-right">${cashDrawerMoney(item.countedTotal)}</td><td class="align-right ${Number(item.difference||0)===0?'positive-text':'warning-text'}">${Number(item.difference||0)<0?'-':''}${cashDrawerMoney(Math.abs(Number(item.difference||0)))}</td></tr>`).join('')}</tbody></table></div>`:'<div class="empty-state"><span class="material-symbols-outlined">history</span><p>ยังไม่มีประวัติการเปิด–ปิดกะ</p><small>ประวัติจะถูกบันทึกเมื่อปิดกะสำเร็จ</small></div>'}</article>`;
-}
-function cashDrawerReadCounts(){const counts={};$$('[data-cash-denom]').forEach(input=>{counts[input.dataset.cashDenom]=Math.max(0,Math.floor(Number(input.value||0)))});return counts}
-function cashDrawerOpen(){
-  const name=($('#drawer-open-name')?.value||'').trim(),pin=($('#drawer-open-pin')?.value||'').trim(),opening=Math.max(0,Number($('#drawer-opening-cash')?.value||0));
-  if(!name||!pin){showToast('กรุณาลงชื่อและตั้งรหัสเปิดกะ','error');return}
-  if(pin.length<4){showToast('รหัสเปิดกะต้องมีอย่างน้อย 4 หลัก','error');return}
-  cashDrawerStore.activeShift={code:cashDrawerShiftCode(),openedBy:name,pin,openedAt:new Date().toISOString(),openingCash:opening,cashUses:[],counts:{}};
-  saveCashDrawerStore();renderCashDrawer();showToast(`เปิดกะ ${cashDrawerStore.activeShift.code} สำเร็จ`);
-}
-function cashDrawerSaveCount(){
-  const shift=cashDrawerStore.activeShift;if(!shift)return;
-  shift.counts=cashDrawerReadCounts();saveCashDrawerStore();renderCashDrawer();showToast('บันทึกผลการนับเงินแล้ว');
-}
-function cashDrawerAddUse(){
-  const shift=cashDrawerStore.activeShift;if(!shift)return;
-  const note=($('#drawer-use-note')?.value||'').trim(),amount=Math.max(0,Number($('#drawer-use-amount')?.value||0));
-  if(!note||amount<=0){showToast('กรุณาระบุหมายเหตุและยอดเงินที่นำออก','error');return}
-  if(amount>cashDrawerExpected(shift)){showToast('ยอดที่นำออกมากกว่ายอดเงินในลิ้นชัก','error');return}
-  shift.cashUses=[...(shift.cashUses||[]),{note,amount,at:new Date().toISOString()}];saveCashDrawerStore();renderCashDrawer();showToast('บันทึกเงินที่นำออกพร้อมหมายเหตุแล้ว');
-}
-function cashDrawerRemoveUse(index){const shift=cashDrawerStore.activeShift;if(!shift)return;shift.cashUses.splice(Number(index),1);saveCashDrawerStore();renderCashDrawer();showToast('ลบรายการเงินที่นำออกแล้ว')}
-function cashDrawerClose(){
-  const shift=cashDrawerStore.activeShift;if(!shift)return;
-  const name=($('#drawer-close-name')?.value||'').trim(),pin=($('#drawer-close-pin')?.value||'').trim(),counts=shift.counts||{},counted=cashDrawerCountTotal(counts),expected=cashDrawerExpected(shift),difference=counted-expected;
-  if(name!==shift.openedBy||pin!==shift.pin){showToast('ชื่อหรือรหัสไม่ตรงกับผู้เปิดกะ','error');return}
-  if(!shift.lastCountAt){showToast('กรุณาบันทึกผลการนับเงินก่อนปิดกะ','error');return}
-  if(difference!==0){showToast(`ยอดยังไม่ตรงกัน ${difference<0?'-':''}${cashDrawerMoney(Math.abs(difference))} กรุณาตรวจนับหรือบันทึกเงินที่นำออก`,'error');return}
-  const closedAt=new Date().toISOString();cashDrawerStore.history.unshift({...shift,closedBy:name,closedAt,countedTotal:counted,difference});cashDrawerStore.history=cashDrawerStore.history.slice(0,100);cashDrawerStore.activeShift=null;saveCashDrawerStore();renderCashDrawer();showToast(`ปิดกะ ${shift.code} สำเร็จ`);
-}
-function installCashDrawer(){
-  cashDrawerStore=loadCashDrawerStore();
-  const view=$('#view-drawer');if(!view)return;
-  renderCashDrawer();
-  view.addEventListener('input',event=>{if(event.target.matches('[data-cash-denom]')){const shift=cashDrawerStore.activeShift;if(!shift)return;const counts=cashDrawerReadCounts(),total=cashDrawerCountTotal(counts),difference=total-cashDrawerExpected(shift);if($('#drawer-counted-total'))$('#drawer-counted-total').textContent=cashDrawerMoney(total);if($('#drawer-difference')){$('#drawer-difference').textContent=`${difference<0?'-':''}${cashDrawerMoney(Math.abs(difference))}`;$('#drawer-difference').className=difference===0?'positive-text':'warning-text'}}});
-  view.addEventListener('click',event=>{const action=event.target.closest('[data-cash-action]');if(!action)return;event.preventDefault();const type=action.dataset.cashAction;if(type==='open')cashDrawerOpen();if(type==='save-count'){const shift=cashDrawerStore.activeShift;if(shift){shift.counts=cashDrawerReadCounts();shift.lastCountAt=new Date().toISOString();cashDrawerSaveCount()}}if(type==='add-use')cashDrawerAddUse();if(type==='remove-use')cashDrawerRemoveUse(action.dataset.cashUseIndex);if(type==='close')cashDrawerClose()});
-}
-document.addEventListener('DOMContentLoaded',installCashDrawer);
+function cashDrawerCountTotal(counts={}){return CASH_DRAWER_DENOMINATIONS.reduce((sum,denomination)=>sum+denomination.value*Math.max(0,Number(counts[denomination.value]||0)),0)}
 
-/* Cash drawer follow-up rules: PINs stay disabled until Supabase auth is connected. */
+/* Cash drawer V2 rules */
 function cashDrawerV2Expected(shift){
   const used=(shift.cashUses||[]).reduce((sum,item)=>sum+Math.max(0,Number(item.amount||0)),0);
   const returned=(shift.cashReturns||[]).reduce((sum,item)=>sum+Math.max(0,Number(item.amount||0)),0);
@@ -3145,6 +3099,7 @@ function cashDrawerV2Expected(shift){
 function cashDrawerV2Difference(shift){return cashDrawerCountTotal(shift.counts||{})-cashDrawerV2Expected(shift)}
 function cashDrawerV2ReadCounts(){const counts={};$$('[data-cash-drawer-denom]').forEach(input=>{counts[input.dataset.cashDrawerDenom]=Math.max(0,Math.floor(Number(input.value||0)))});return counts}
 function cashDrawerV2DenominationInputs(counts={},ready=true){return CASH_DRAWER_DENOMINATIONS.map(denomination=>`<label class="cash-denomination"><span>${denomination.label}</span><input type="number" min="0" step="1" value="${Math.max(0,Number(counts[denomination.value]||0))}" data-cash-drawer-denom="${denomination.value}" aria-label="${denomination.label} กี่ชิ้น" ${ready?'':'disabled'}></label>`).join('')}
+
 function cashDrawerV2Render(){
   const view=$('#view-drawer');if(!view)return;
   const shift=cashDrawerStore.activeShift,ready=Boolean(shift&&shift.openingCash!==null&&shift.openingCash!==undefined),expected=shift?cashDrawerV2Expected(shift):0,counted=shift?cashDrawerCountTotal(shift.counts||{}):0,difference=counted-expected;

@@ -138,6 +138,7 @@
   const localRoundsKey = 'scenery-closed-rounds';
   const localEditsKey = 'scenery-close-round-detail-edits';
   const localAuditKey = 'scenery-audit-log';
+  const localDrawerKey = 'scenery-cash-drawer';
   const loginEmailKey = 'scenery-last-login-email';
 
   const originals = {
@@ -145,7 +146,8 @@
     saveClosedBookings: window.saveClosedBookings,
     deleteInvoiceHistory: window.deleteInvoiceHistory,
     submitCloseRound: window.submitCloseRound,
-    saveCloseRoundDetailEdit: window.saveCloseRoundDetailEdit
+    saveCloseRoundDetailEdit: window.saveCloseRoundDetailEdit,
+    saveCashDrawerStore: window.saveCashDrawerStore
   };
 
   window.scenerySupabase = {
@@ -181,6 +183,30 @@
   let realtimeClient = null;
   let realtimeChannel = null;
 
+  function applyDrawerPayload(payload) {
+    if (!payload || typeof payload !== 'object') return;
+    window.cashDrawerStore = payload;
+    writeLocal(localDrawerKey, payload);
+
+    // Update nav badge across all views
+    const navBadge = document.querySelector('.nav-item[data-view="drawer"] .nav-badge');
+    if (navBadge) {
+      navBadge.textContent = payload.activeShift ? 'กะเปิด' : 'กะปิด';
+    }
+
+    // Re-render drawer view if open and user not interacting
+    if (typeof window.cashDrawerV2Render === 'function') {
+      const activeEl = document.activeElement;
+      const isTyping = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
+      if (!isTyping) {
+        window.cashDrawerV2Render();
+      }
+    }
+    if (typeof window.renderDashboard === 'function') {
+      window.renderDashboard();
+    }
+  }
+
   function initRealtimeWebSocket() {
     if (!hasConfig || !window.supabase?.createClient) return;
     try {
@@ -213,12 +239,19 @@
         .on('postgres_changes', { event: '*', schema: 'public', table: 'close_round_edits' }, () => {
           console.log('[Realtime] close_round_edits changed on remote device');
           pullEdits();
+          pullDrawer();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, () => {
           console.log('[Realtime] audit_logs changed on remote device');
           pullAudit();
         })
         // Listen for Instant Realtime Broadcasts from other devices
+        .on('broadcast', { event: 'cash_drawer_sync' }, (data) => {
+          console.log('[Realtime Broadcast] Cash drawer instant sync received:', data);
+          if (data?.payload) {
+            applyDrawerPayload(data.payload);
+          }
+        })
         .on('broadcast', { event: 'sync_trigger' }, (payload) => {
           console.log('[Realtime Broadcast] Instant sync received from another device:', payload);
           hydrate();
@@ -232,18 +265,31 @@
   }
 
   // Trigger broadcast to other devices & tabs immediately
-  const broadcastSync = (actionName = 'update') => {
+  const broadcastSync = (actionName = 'update', extraPayload = null) => {
     // 1. Same-device tabs
-    localBroadcast?.postMessage({ type: 'refresh', action: actionName, at: Date.now() });
+    localBroadcast?.postMessage({
+      type: actionName.includes('drawer') ? 'cash_drawer_sync' : 'refresh',
+      action: actionName,
+      payload: extraPayload || window.cashDrawerStore,
+      at: Date.now()
+    });
 
     // 2. Cross-device WebSockets
     try {
       if (realtimeChannel) {
-        realtimeChannel.send({
-          type: 'broadcast',
-          event: 'sync_trigger',
-          payload: { action: actionName, at: Date.now() }
-        });
+        if (actionName.includes('drawer')) {
+          realtimeChannel.send({
+            type: 'broadcast',
+            event: 'cash_drawer_sync',
+            payload: extraPayload || window.cashDrawerStore
+          });
+        } else {
+          realtimeChannel.send({
+            type: 'broadcast',
+            event: 'sync_trigger',
+            payload: { action: actionName, at: Date.now() }
+          });
+        }
       }
     } catch {}
   };
@@ -642,12 +688,50 @@
     }
   }
 
+  async function syncDrawer(storeData) {
+    if (!client) return;
+    try {
+      const data = storeData || window.cashDrawerStore || readLocal(localDrawerKey, null);
+      if (!data) return;
+      const user = await currentUser();
+      const payload = {
+        record_id: '__cash_drawer_store__',
+        payload: data,
+        updated_at: new Date().toISOString(),
+        updated_by: user?.id || null
+      };
+      await client.from('close_round_edits').upsert(payload, { onConflict: 'record_id' });
+      broadcastSync('drawer_update', data);
+    } catch (e) {
+      console.warn('[Supabase Sync] syncDrawer error:', e.message || e);
+    }
+  }
+
+  async function pullDrawer() {
+    if (!client) return;
+    try {
+      const result = await client.from('close_round_edits').select('payload,updated_at').eq('record_id', '__cash_drawer_store__').limit(1);
+      if (result.error) throw result.error;
+      const row = result.data?.[0];
+      if (row && row.payload && typeof row.payload === 'object') {
+        const remoteData = row.payload;
+        const currentData = window.cashDrawerStore || readLocal(localDrawerKey, {});
+        if (JSON.stringify(remoteData) !== JSON.stringify(currentData)) {
+          console.log('[Supabase Sync] Cash drawer synced from remote:', remoteData);
+          applyDrawerPayload(remoteData);
+        }
+      }
+    } catch (e) {
+      console.warn('[Supabase Sync] pullDrawer:', e.message || e);
+    }
+  }
+
   let hydratePromise = null;
   async function hydrate() {
     if (!client) return;
     if (hydratePromise) return hydratePromise;
     hydratePromise = (async () => {
-      const tasks = [pullInvoices(), pullBookings(), pullRounds(), pullAudit(), pullEdits()];
+      const tasks = [pullInvoices(), pullBookings(), pullRounds(), pullAudit(), pullEdits(), pullDrawer()];
       const results = await Promise.allSettled(tasks);
       const failed = results.find(result => result.status === 'rejected');
       if (failed) {
@@ -672,6 +756,7 @@
     const deleteInvoiceHistory = originals.deleteInvoiceHistory || window.deleteInvoiceHistory;
     const submitCloseRound = originals.submitCloseRound || window.submitCloseRound;
     const saveCloseRoundDetailEdit = originals.saveCloseRoundDetailEdit || window.saveCloseRoundDetailEdit;
+    const saveCashDrawerStore = originals.saveCashDrawerStore || window.saveCashDrawerStore;
 
     if (saveInvoiceHistory && !window.saveInvoiceHistory.__supabaseWrapped) {
       const localSave = saveInvoiceHistory;
@@ -742,6 +827,21 @@
       };
       window.saveCloseRoundDetailEdit.__supabaseWrapped = true;
     }
+
+    if (saveCashDrawerStore && !window.saveCashDrawerStore.__supabaseWrapped) {
+      const localSaveDrawer = saveCashDrawerStore;
+      window.saveCashDrawerStore = function () {
+        localSaveDrawer();
+        if (client) {
+          syncDrawer(window.cashDrawerStore)
+            .then(() => broadcastSync('drawer_update', window.cashDrawerStore))
+            .catch(error => console.warn('[Supabase Sync] Sync drawer:', error.message || error));
+        } else {
+          broadcastSync('drawer_update', window.cashDrawerStore);
+        }
+      };
+      window.saveCashDrawerStore.__supabaseWrapped = true;
+    }
   }
 
   function installAuth() {
@@ -782,17 +882,21 @@
   let fastSyncTimer = null;
   function startSyncEngine() {
     // 1. Cross-tab Broadcast receiver
-    localBroadcast?.addEventListener('message', () => {
-      hydrate().catch(() => {});
+    localBroadcast?.addEventListener('message', (event) => {
+      if (event.data?.type === 'cash_drawer_sync' && event.data?.payload) {
+        applyDrawerPayload(event.data.payload);
+      } else {
+        hydrate().catch(() => {});
+      }
     });
 
-    // 2. High-frequency Realtime sync polling (every 2.5s) as bulletproof fallback
+    // 2. High-frequency Realtime sync polling (every 10s) as bulletproof fallback
     clearInterval(fastSyncTimer);
     fastSyncTimer = setInterval(() => {
       if (document.querySelector('#app-screen')?.classList.contains('is-hidden') === false) {
         hydrate().catch(() => {});
       }
-    }, 30000);
+    }, 10000);
 
     // 3. Sync on tab focus / visibility
     window.addEventListener('focus', () => hydrate().catch(() => {}));
