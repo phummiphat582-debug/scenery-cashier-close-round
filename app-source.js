@@ -1777,25 +1777,25 @@ document.addEventListener('DOMContentLoaded',installInvoiceDatePickers);
 
 /* Close round: mirror the source workbook columns while reading finalized invoices for the selected business date. */
 const CLOSE_ROUND_CATEGORIES=[
-  {key:'villa',label:'ค่าวิลล่า',className:'brown'},
-  {key:'extraBed',label:'ที่นอนเสริม',className:'taupe'},
+  {key:'villa',label:'วิลล่า',className:'brown'},
+  {key:'extraBed',label:'เตียงเสริม',className:'taupe'},
   {key:'food',label:'อาหาร',className:'green'},
   {key:'minibar',label:'มินิบาร์',className:'ochre'},
   {key:'htSht',label:'HT/SHT',className:'taupe'},
-  {key:'dogActivity',label:'กิจกรรมชมสุนัข (92)',className:'ochre'},
-  {key:'massage',label:'ค่านวด (0)',className:'brown'},
-  {key:'product',label:'สินค้า (0)',className:'green'},
-  {key:'atv',label:'ATV (0)',className:'ochre'},
-  {key:'ev',label:'ชาร์จ EV (0)',className:'taupe'},
+  {key:'dogActivity',label:'สุนัข',className:'ochre'},
+  {key:'massage',label:'นวด',className:'brown'},
+  {key:'product',label:'สินค้า',className:'green'},
+  {key:'atv',label:'ATV',className:'ochre'},
+  {key:'ev',label:'EV',className:'taupe'},
   {key:'other',label:'อื่นๆ',className:'brown'}
 ];
 const CLOSE_ROUND_PAYMENTS=[
   {key:'cash',label:'เงินสด',className:'cash'},
-  {key:'card',label:'บัตรเครดิต',className:'card'},
-  {key:'qr',label:'QR Code',className:'qr'},
-  {key:'transfer',label:'โอนเงิน SC',className:'deposit'},
+  {key:'card',label:'บัตร',className:'card'},
+  {key:'qr',label:'QR',className:'qr'},
+  {key:'transfer',label:'โอน SC',className:'deposit'},
   {key:'government',label:'รัฐ 50%',className:'deposit'},
-  {key:'tat',label:'ลูกค้าททท.',className:'deposit'},
+  {key:'tat',label:'ททท.',className:'deposit'},
   {key:'noCharge',label:'ไม่เรียกเก็บ',className:'deposit'},
   {key:'pending',label:'ค้างชำระ',className:'pending'}
 ];
@@ -2310,7 +2310,17 @@ function closeRoundRows(records, date){
   }
 
   const addVillaRow = closeRoundAddVillaRow(locked);
-  return baseRowsHtml + extraRowsHtml + addVillaRow;
+  const totalRow = `<tr class="close-round-total-row" style="background:#f2eae1;font-weight:700;border-top:2px solid #8e623a;">
+    <td colspan="5" style="text-align:right;font-weight:800;padding-right:8px;">รวมทั้งหมด</td>
+    ${CLOSE_ROUND_CATEGORIES.map(c => `<td class="align-right strong-number">${closeRoundNumberCell(catTotals[c.key])}</td>`).join('')}
+    <td class="align-right strong-number" style="background:#e8dcce;color:#351d0d;">${closeRoundNumberCell(grandTotal)}</td>
+    <td class="align-right strong-number">${closeRoundNumberCell(grandDeposit)}</td>
+    <td class="align-right strong-number" style="background:#efe1ce;color:#3e240f;">${closeRoundNumberCell(grandOutstanding)}</td>
+    ${CLOSE_ROUND_PAYMENTS.map(p => `<td class="align-right strong-number">${closeRoundNumberCell(payTotals[p.key])}</td>`).join('')}
+    <td></td>
+  </tr>`;
+
+  return baseRowsHtml + extraRowsHtml + totalRow + addVillaRow;
 }
 const closeRoundRowsFromInvoice = closeRoundRows;
 const closeRoundEditableRowsFromInvoice = closeRoundRows;
@@ -2794,7 +2804,7 @@ function renderCloseRound(){
       <button class="button button-primary" id="submit-round" ${closed?'disabled':''}><span class="material-symbols-outlined">${closed?'lock':'lock_clock'}</span>${closed?'รอบถูกล็อกแล้ว':'Submit และ Lock รอบ'}</button>
       <button class="button button-outline" type="button" data-close-round-export="pdf"><span class="material-symbols-outlined">picture_as_pdf</span>PDF</button>
       <button class="button button-outline" type="button" data-close-round-export="excel"><span class="material-symbols-outlined">download</span>Excel</button>
-  </div><div class="round-toolbar panel"><label>Business Date<input id="close-round-date" type="date" value="${esc(date)}"></label><label>รอบการปิด<select id="close-round-shift"><option value="daily">รอบประจำวัน · RECEPTION</option><option value="shift">รอบกะที่เลือกจากลิ้นชัก</option></select></label><div class="round-health"><span class="online-dot"></span><div><strong>${records.length?'ข้อมูลพร้อมตรวจสอบ':'รอข้อมูล Finalized'}</strong><small>${records.length?`${records.length} Invoice · อัปเดตตามวันที่เลือก`:'ยังไม่มีรายการของวันนี้'}</small></div></div></div><div class="round-metrics"><article><small>ยอดรวม (Q)</small><strong>${money(sales)}</strong><span>${records.length} Invoice Finalized</span></article><article><small>ชำระล่วงหน้า / Deposit (R)</small><strong>${money(deposit)}</strong><span>${entries.filter(row=>row.hasData&&row.deposit>0).length} รายการ</span></article><article><small>ยอดเรียกเก็บหน้า Front (S = Q - R)</small><strong>${money(outstanding)}</strong><span class="positive-text">${entries.filter(row=>row.hasData&&row.outstanding>0).length} รายการรับชำระหน้า Front</span></article><article><small>ค้างชำระ / ตรวจสอบ</small><strong class="${pending?'warning-text':'positive-text'}">${money(pending)}</strong><span class="${pending?'warning-text':'positive-text'}">${pending?`${entries.filter(row=>row.hasData&&row.payments?.pending>0).length} รายการรอเรียกเก็บ`:'ชำระครบถ้วนแล้ว (฿0)'}</span></article></div><article class="panel close-round-detail-panel"><div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;"><div style="display:flex;align-items:center;gap:10px;"><span class="title-icon"><span class="material-symbols-outlined">receipt_long</span></span><div><h3 style="margin:0;">รายละเอียดรายการตาม Villa และ Invoice</h3><small style="color:var(--muted);font-size:11px;">28 คอลัมน์ · แยกตามหมวดรายได้และการรับชำระ</small></div></div><div style="display:flex;align-items:center;gap:8px;"><span class="count-chip">${entries.filter(e=>e.hasData).length} รายการมีข้อมูล</span><div class="table-view-toggle-group" style="display:inline-flex;background:#ede4dc;padding:3px;border-radius:8px;gap:2px;"><button type="button" class="view-toggle-btn active" data-view-mode="standard" style="padding:4px 9px;border-radius:6px;border:0;font-size:11.5px;font-weight:600;cursor:pointer;background:#fff;color:var(--brown);box-shadow:0 1px 3px rgba(0,0,0,0.08);display:inline-flex;align-items:center;gap:4px;" title="โหมดสบายตา กว้าง อ่านตัวเลขชัดเจน"><span class="material-symbols-outlined" style="font-size:16px;">table_rows</span><span>สบายตา (กว้าง)</span></button><button type="button" class="view-toggle-btn" data-view-mode="fit" style="padding:4px 9px;border-radius:6px;border:0;font-size:11.5px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);display:inline-flex;align-items:center;gap:4px;" title="โหมดย่อพอดีจอ"><span class="material-symbols-outlined" style="font-size:16px;">fit_screen</span><span>พอดีจอ</span></button><button type="button" class="view-toggle-btn" data-view-mode="fullscreen" style="padding:4px 9px;border-radius:6px;border:0;font-size:11.5px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);display:inline-flex;align-items:center;gap:4px;" title="โหมดขยายเต็มหน้าจอ"><span class="material-symbols-outlined" style="font-size:16px;">fullscreen</span><span>เต็มจอ</span></button></div></div></div><div class="table-wrap close-round-detail-wrap"><table class="close-round-detail-table"><thead><tr><th rowspan="2">Villa Name</th><th rowspan="2">รหัส</th><th rowspan="2">ชื่อลูกค้า</th><th rowspan="2">In</th><th rowspan="2">Out</th>${CLOSE_ROUND_CATEGORIES.map(item=>`<th rowspan="2">${item.label}</th>`).join('')}<th rowspan="2" style="background:#e8dcce;color:#351d0d;">ยอดรวม (Q)</th><th rowspan="2">Deposit (R)</th><th rowspan="2" style="background:#efe1ce;color:#3e240f;">คงเหลือ (S)</th><th colspan="${CLOSE_ROUND_PAYMENTS.length}" style="background:#e4ebf5;color:#203a60;">รายได้หน้า Front (T–AA)</th><th rowspan="2">หมายเหตุ (AB)</th></tr><tr>${CLOSE_ROUND_PAYMENTS.map(item=>`<th>${item.label}</th>`).join('')}</tr></thead><tbody>${closeRoundRows(records,date)}</tbody></table></div></article><article class="panel anomalies"><div class="panel-heading"><div><span class="title-icon alert-icon"><span class="material-symbols-outlined">error</span></span><h3>รายการที่ต้องตรวจสอบ</h3></div><span class="status-chip ${pending>0?'warning':'success'}">${pending>0?`${entries.filter(row=>row.hasData&&row.payments?.pending>0).length} รายการค้างชำระ`:'เรียบร้อย'}</span></div><div class="anomaly-list">${closeRoundAnomalies(records,date)}</div></article>`;
+  </div><div class="round-toolbar panel"><label>Business Date<input id="close-round-date" type="date" value="${esc(date)}"></label><label>รอบการปิด<select id="close-round-shift"><option value="daily">รอบประจำวัน · RECEPTION</option><option value="shift">รอบกะที่เลือกจากลิ้นชัก</option></select></label><div class="round-health"><span class="online-dot"></span><div><strong>${records.length?'ข้อมูลพร้อมตรวจสอบ':'รอข้อมูล Finalized'}</strong><small>${records.length?`${records.length} Invoice · อัปเดตตามวันที่เลือก`:'ยังไม่มีรายการของวันนี้'}</small></div></div></div><div class="round-metrics"><article><small>ยอดรวม (Q)</small><strong>${money(sales)}</strong><span>${records.length} Invoice Finalized</span></article><article><small>ชำระล่วงหน้า / Deposit (R)</small><strong>${money(deposit)}</strong><span>${entries.filter(row=>row.hasData&&row.deposit>0).length} รายการ</span></article><article><small>ยอดเรียกเก็บหน้า Front (S = Q - R)</small><strong>${money(outstanding)}</strong><span class="positive-text">${entries.filter(row=>row.hasData&&row.outstanding>0).length} รายการรับชำระหน้า Front</span></article><article><small>ค้างชำระ / ตรวจสอบ</small><strong class="${pending?'warning-text':'positive-text'}">${money(pending)}</strong><span class="${pending?'warning-text':'positive-text'}">${pending?`${entries.filter(row=>row.hasData&&row.payments?.pending>0).length} รายการรอเรียกเก็บ`:'ชำระครบถ้วนแล้ว (฿0)'}</span></article></div><article class="panel close-round-detail-panel"><div class="panel-heading" style="display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:10px;"><div style="display:flex;align-items:center;gap:10px;"><span class="title-icon"><span class="material-symbols-outlined">receipt_long</span></span><div><h3 style="margin:0;">รายละเอียดรายการตาม Villa และ Invoice</h3><small style="color:var(--muted);font-size:11px;">28 คอลัมน์ · แยกตามหมวดรายได้และการรับชำระ</small></div></div><div style="display:flex;align-items:center;gap:8px;"><span class="count-chip">${entries.filter(e=>e.hasData).length} รายการมีข้อมูล</span><div class="table-view-toggle-group" style="display:inline-flex;background:#ede4dc;padding:3px;border-radius:8px;gap:2px;"><button type="button" class="view-toggle-btn active" data-view-mode="fit" style="padding:4px 9px;border-radius:6px;border:0;font-size:11.5px;font-weight:600;cursor:pointer;background:#fff;color:var(--brown);box-shadow:0 1px 3px rgba(0,0,0,0.08);display:inline-flex;align-items:center;gap:4px;" title="โหมดตรึงพอดีจอ ไม่ต้องเลื่อนซ้ายขวา"><span class="material-symbols-outlined" style="font-size:16px;">fit_screen</span><span>พอดีจอ (ไม่เลื่อน)</span></button><button type="button" class="view-toggle-btn" data-view-mode="standard" style="padding:4px 9px;border-radius:6px;border:0;font-size:11.5px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);display:inline-flex;align-items:center;gap:4px;" title="โหมดสบายตา กว้าง อ่านตัวเลขชัดเจน"><span class="material-symbols-outlined" style="font-size:16px;">table_rows</span><span>สบายตา (กว้าง)</span></button><button type="button" class="view-toggle-btn" data-view-mode="fullscreen" style="padding:4px 9px;border-radius:6px;border:0;font-size:11.5px;font-weight:600;cursor:pointer;background:transparent;color:var(--muted);display:inline-flex;align-items:center;gap:4px;" title="โหมดขยายเต็มหน้าจอ"><span class="material-symbols-outlined" style="font-size:16px;">fullscreen</span><span>เต็มจอ</span></button></div></div></div><div class="table-wrap close-round-detail-wrap"><table class="close-round-detail-table"><thead><tr><th rowspan="2">Villa</th><th rowspan="2">รหัส</th><th rowspan="2">ลูกค้า</th><th rowspan="2">In</th><th rowspan="2">Out</th>${CLOSE_ROUND_CATEGORIES.map(item=>`<th rowspan="2">${item.label}</th>`).join('')}<th rowspan="2" style="background:#e8dcce;color:#351d0d;">รวม (Q)</th><th rowspan="2">มัดจำ (R)</th><th rowspan="2" style="background:#efe1ce;color:#3e240f;">คงเหลือ (S)</th><th colspan="${CLOSE_ROUND_PAYMENTS.length}" style="background:#e4ebf5;color:#203a60;">รับหน้า Front (T–AA)</th><th rowspan="2">หมายเหตุ</th></tr><tr>${CLOSE_ROUND_PAYMENTS.map(item=>`<th>${item.label}</th>`).join('')}</tr></thead><tbody>${closeRoundRows(records,date)}</tbody></table></div></article><article class="panel anomalies"><div class="panel-heading"><div><span class="title-icon alert-icon"><span class="material-symbols-outlined">error</span></span><h3>รายการที่ต้องตรวจสอบ</h3></div><span class="status-chip ${pending>0?'warning':'success'}">${pending>0?`${entries.filter(row=>row.hasData&&row.payments?.pending>0).length} รายการค้างชำระ`:'เรียบร้อย'}</span></div><div class="anomaly-list">${closeRoundAnomalies(records,date)}</div></article>`;
   const codeOptions=document.createElement('datalist');
   codeOptions.id='close-round-villa-code-options';
   codeOptions.innerHTML=CLOSE_ROUND_VILLA_CODES.map(item=>`<option value="${esc(item.value)}">${esc(item.label)}</option>`).join('');
@@ -2821,23 +2831,22 @@ function renderCloseRound(){
       btn.style.color = 'var(--brown)';
       btn.style.boxShadow = '0 1px 3px rgba(0,0,0,0.08)';
 
-      panel.classList.remove('fit-mode', 'fullscreen-mode');
-      if (mode === 'fit') {
-        panel.classList.add('fit-mode');
-        try { localStorage.setItem('scenery-close-round-table-view', 'fit'); } catch(err){}
+      panel.classList.remove('fit-mode', 'fullscreen-mode', 'standard-mode');
+      if (mode === 'standard') {
+        panel.classList.add('standard-mode');
+        try { localStorage.setItem('scenery-close-round-table-view', 'standard'); } catch(err){}
       } else if (mode === 'fullscreen') {
         panel.classList.add('fullscreen-mode');
       } else {
-        try { localStorage.setItem('scenery-close-round-table-view', 'standard'); } catch(err){}
+        panel.classList.add('fit-mode');
+        try { localStorage.setItem('scenery-close-round-table-view', 'fit'); } catch(err){}
       }
     });
   });
   try {
-    const savedMode = localStorage.getItem('scenery-close-round-table-view');
-    if (savedMode === 'fit') {
-      const fitBtn = view.querySelector('.view-toggle-btn[data-view-mode="fit"]');
-      if (fitBtn) fitBtn.click();
-    }
+    const savedMode = localStorage.getItem('scenery-close-round-table-view') || 'fit';
+    const targetBtn = view.querySelector(`.view-toggle-btn[data-view-mode="${savedMode}"]`) || view.querySelector('.view-toggle-btn[data-view-mode="fit"]');
+    if (targetBtn) targetBtn.click();
   } catch(err){}
   if(typeof installCloseRoundDetailTools==='function')installCloseRoundDetailTools();
 }
