@@ -3,7 +3,7 @@ const path = require('path');
 const vm = require('vm');
 
 const root = __dirname;
-const maxBytes = 36000;
+const maxBytes = 40000;
 
 function scanTopLevel(source, mode) {
   const boundaries = [];

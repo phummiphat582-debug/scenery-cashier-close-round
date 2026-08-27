@@ -386,3 +386,97 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
 #view-invoice .preview-totals small{transform:none}
 .pending-collection-section{display:grid;gap:8px;padding:12px;border:1px solid #e0d4cb;border-radius:6px;background:#fffaf7}
 .pending-collection-heading{display:grid;gap:2px}.pending-collection-heading strong{color:var(--brown)}.pending-collection-heading small{color:var(--muted);font-size:11px}
+.pending-collection-row{display:grid;grid-template-columns:minmax(0,1.35fr) minmax(110px,.7fr) minmax(0,1fr);gap:8px;align-items:center;padding:7px 0;border-top:1px solid #eee3dc}
+.pending-collection-name{display:grid;gap:2px;min-width:0}.pending-collection-name strong,.pending-collection-name small{overflow-wrap:anywhere}.pending-collection-name small{color:var(--muted);font-size:10px}
+.pending-collection-row input{width:100%;height:38px;min-height:38px;box-sizing:border-box;border:1px solid #d8cbc1;border-radius:5px;background:#fff;padding:8px;color:var(--ink);min-width:0}
+.settlement-total span{color:var(--ochre)}
+@media print{
+  html,body{width:210mm;min-width:210mm;margin:0;background:#fff}
+  #view-invoice .invoice-preview-stage{width:210mm;padding:0;overflow:visible;background:#fff}
+  #view-invoice .invoice-preview-sheet{position:absolute;left:0;top:0;width:210mm;max-width:210mm;min-width:210mm;height:297mm;min-height:297mm;margin:0;padding:12mm 6mm 10mm;overflow:hidden;box-shadow:none}
+  #view-invoice .preview-meta,#view-invoice .preview-table-wrap,#view-invoice .invoice-preview-table{width:100%;max-width:100%}
+  #view-invoice .preview-table-wrap{overflow:hidden}
+}
+
+/* Separate the item search row from the pricing/category row. */
+#view-invoice .invoice-add-fields{
+  grid-template-columns:minmax(0,1.25fr) minmax(105px,.8fr) minmax(0,1.35fr);
+  grid-template-rows:40px 40px auto;
+  gap:14px;
+  align-items:stretch;
+  padding:0 2px;
+}
+#view-invoice .invoice-add-fields .invoice-search-input{
+  grid-column:1 / 3;
+  grid-row:1;
+  width:100%;
+  min-width:0;
+  box-sizing:border-box;
+  white-space:nowrap;
+  overflow-x:auto;
+  text-overflow:clip;
+}
+#view-invoice .invoice-add-fields #accommodation-rate,
+#view-invoice .invoice-add-fields #addon-rate{grid-column:1;grid-row:2}
+#view-invoice .invoice-add-fields #accommodation-qty,
+#view-invoice .invoice-add-fields #addon-qty{grid-column:2;grid-row:2}
+#view-invoice .invoice-add-fields .invoice-category-input{grid-column:3;grid-row:2}
+#view-invoice .invoice-add-fields>.button{
+  grid-column:3;
+  grid-row:1;
+  justify-self:stretch;
+  width:100%;
+  min-width:0;
+  margin:0;
+}
+#view-invoice .invoice-add-fields>input,
+#view-invoice .invoice-add-fields>select,
+#view-invoice .invoice-add-fields>.button{
+  box-sizing:border-box;
+  min-width:0;
+  max-width:100%;
+  height:40px;
+  min-height:40px;
+}
+@media(max-width:900px){
+  #view-invoice .invoice-add-fields{
+    grid-template-columns:minmax(0,2fr) minmax(120px,1fr);
+    grid-template-rows:40px 40px 40px auto;
+    gap:14px;
+  }
+  #view-invoice .invoice-add-fields .invoice-search-input{grid-column:1;grid-row:1}
+  #view-invoice .invoice-add-fields>.button{grid-column:2;grid-row:1}
+  #view-invoice .invoice-add-fields #accommodation-rate,
+  #view-invoice .invoice-add-fields #addon-rate{grid-column:1;grid-row:2}
+  #view-invoice .invoice-add-fields #accommodation-qty,
+  #view-invoice .invoice-add-fields #addon-qty{grid-column:2;grid-row:2}
+  #view-invoice .invoice-add-fields .invoice-category-input{grid-column:1/-1;grid-row:3}
+}
+@media(max-width:620px){
+  #view-invoice .invoice-add-fields{
+    grid-template-columns:minmax(0,1fr) minmax(100px,1fr);
+    grid-template-rows:40px 40px 40px auto;
+    gap:12px;
+    padding:0;
+  }
+  #view-invoice .invoice-add-fields .invoice-search-input{grid-column:1/-1;grid-row:1}
+  #view-invoice .invoice-add-fields>.button{grid-column:1/-1;grid-row:2}
+  #view-invoice .invoice-add-fields #accommodation-rate,
+  #view-invoice .invoice-add-fields #addon-rate{grid-column:1;grid-row:3}
+  #view-invoice .invoice-add-fields #accommodation-qty,
+  #view-invoice .invoice-add-fields #addon-qty{grid-column:2;grid-row:3}
+  #view-invoice .invoice-add-fields .invoice-category-input{grid-column:1/-1;grid-row:4}
+}
+
+#view-invoice .invoice-category-input{
+  width:100%;
+  min-width:0;
+  height:40px;
+  min-height:40px;
+  box-sizing:border-box;
+  border:1px solid #d8cbc1;
+  border-radius:5px;
+  background:#fff;
+  padding:9px 10px;
+  color:var(--ink);
+}

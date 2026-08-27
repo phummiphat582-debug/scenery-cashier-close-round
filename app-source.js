@@ -2848,6 +2848,14 @@ function renderCloseRound(){
     const targetBtn = view.querySelector(`.view-toggle-btn[data-view-mode="${savedMode}"]`) || view.querySelector('.view-toggle-btn[data-view-mode="fit"]');
     if (targetBtn) targetBtn.click();
   } catch(err){}
+  setTimeout(() => {
+    view.querySelectorAll('.close-round-note-input').forEach(field => {
+      if (field.value && field.value.trim()) {
+        field.style.height = 'auto';
+        field.style.height = `${Math.max(22, field.scrollHeight)}px`;
+      }
+    });
+  }, 0);
   if(typeof installCloseRoundDetailTools==='function')installCloseRoundDetailTools();
 }
 function installCloseRound(){
@@ -2855,9 +2863,15 @@ function installCloseRound(){
   const view=$('#view-close-round');
   if(!view||view.dataset.detailEditsReady)return;
   view.dataset.detailEditsReady='true';
+  const autoResizeNote = field => {
+    if (!field || field.tagName !== 'TEXTAREA') return;
+    field.style.height = 'auto';
+    field.style.height = `${Math.max(22, field.scrollHeight)}px`;
+  };
   const saveField=event=>{
     const field=event.target.closest('[data-close-round-edit]');
     if(!field)return;
+    if(field.classList.contains('close-round-note-input')) autoResizeNote(field);
     saveCloseRoundDetailEdit(field.dataset.recordId,field.dataset.closeRoundEdit,field.value);
   };
   const addVilla=event=>{

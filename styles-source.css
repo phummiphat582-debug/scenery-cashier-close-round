@@ -1077,9 +1077,9 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   min-width:0;
   margin-bottom:20px;
   background:#fff;
-  border:1px solid #dfd3c7;
+  border:1px solid #d8c7b8;
   border-radius:12px;
-  box-shadow:0 4px 16px rgba(70,45,26,.06);
+  box-shadow:0 4px 18px rgba(70,45,26,.06);
   overflow:hidden;
 }
 
@@ -1100,7 +1100,7 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   table-layout:fixed!important;
   border-collapse:collapse!important;
   background:#fff;
-  font-size:9.5px;
+  font-size:9px;
   color:#2e2218;
 }
 
@@ -1115,26 +1115,26 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   word-break:keep-all!important;
   vertical-align:middle;
   text-align:center;
-  line-height:1.1;
-  padding:3px 0.5px!important;
+  line-height:1.15;
+  padding:4px 0.5px!important;
   font-size:8px!important;
   font-weight:700;
-  background:#f2eae1;
+  background:#f4ebe2;
   color:#3c2210;
   border-bottom:1px solid #d4c2b0;
   border-right:1px solid #ded0c1;
   overflow:hidden;
   text-overflow:ellipsis;
   min-width:0!important;
-  letter-spacing:-0.3px;
+  letter-spacing:-0.25px;
 }
 
 #view-close-round .close-round-detail-table thead tr:nth-child(2) th{
-  background:#f8f2ec;
+  background:#f8f3ed;
   color:#553a23;
   font-weight:600;
   font-size:7.5px!important;
-  padding:2px 0.5px!important;
+  padding:3px 0.5px!important;
   border-bottom:2px solid #8e623a;
   letter-spacing:-0.35px;
   white-space:nowrap!important;
@@ -1150,19 +1150,19 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   border-right:1.5px solid #ceb9a5!important;
 }
 #view-close-round .close-round-detail-table thead tr:first-child th:nth-child(1){
-  background:#f2eae1;
+  background:#f4ebe2;
   z-index:25;
 }
 
 #view-close-round .close-round-detail-table td{
   white-space:nowrap!important;
   vertical-align:middle;
-  padding:2.5px 0.5px!important;
-  font-size:8px!important;
-  line-height:1.15;
+  padding:3px 1px!important;
+  font-size:8.5px!important;
+  line-height:1.2;
   font-variant-numeric:tabular-nums;
-  border-bottom:1px solid #ebe0d5;
-  border-right:1px solid #f0e6dc;
+  border-bottom:1px solid #eee4db;
+  border-right:1px solid #f2e9df;
   background:#fff;
   overflow:hidden;
   text-overflow:ellipsis;
@@ -1177,7 +1177,7 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   background:#faf7f4;
 }
 #view-close-round .close-round-detail-table tbody tr:hover td{
-  background:#fdf2e6!important;
+  background:#fef3e7!important;
 }
 
 /* Strict Proportional Widths for All 28 Columns (Total = 100%) */
@@ -1238,30 +1238,34 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
 #view-close-round .close-round-detail-table th:nth-child(27),
 #view-close-round .close-round-detail-table td:nth-child(27){width:3.0%!important;min-width:0!important;text-align:right}
 #view-close-round .close-round-detail-table th:last-child,
-#view-close-round .close-round-detail-table td:last-child{width:18.2%!important;min-width:0!important;text-align:left}
+#view-close-round .close-round-detail-table td:last-child{
+  width:18.2%!important;
+  min-width:0!important;
+  text-align:left;
+  vertical-align:top!important;
+  padding:2px 3px!important;
+}
 
-/* Clean, compact inputs */
-#view-close-round .close-round-code-input,
-#view-close-round .close-round-note-input{
+/* Beautiful Inputs */
+#view-close-round .close-round-code-input{
   box-sizing:border-box;
   width:100%!important;
   min-width:0!important;
-  height:20px!important;
-  min-height:20px!important;
+  height:22px!important;
+  min-height:22px!important;
   padding:1px 4px!important;
-  border:1px solid #dcd1c6;
+  border:1px solid #d8c7b8;
   border-radius:4px;
   background:#fff;
   color:#2e2218;
-  font-size:9px!important;
+  font-size:8.5px!important;
   line-height:1.2;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
   transition:all .15s ease;
 }
-#view-close-round .close-round-code-input:focus,
-#view-close-round .close-round-note-input:focus{
+#view-close-round .close-round-code-input:focus{
   border-color:var(--brown);
   box-shadow:0 0 0 2px rgba(138,93,50,.18);
   outline:0;
@@ -1269,8 +1273,47 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   z-index:20;
   position:relative;
 }
+
+/* Auto-expanding Note Textarea */
 #view-close-round .close-round-note-input{
+  box-sizing:border-box;
+  width:100%!important;
+  min-width:0!important;
+  height:22px;
+  min-height:22px;
+  max-height:200px;
+  padding:2px 5px!important;
+  border:1px solid #d8c7b8;
+  border-radius:4px;
+  background:#fff;
+  color:#2e2218;
+  font-size:9px!important;
+  font-family:inherit;
+  line-height:1.3;
   resize:none;
+  overflow-y:hidden;
+  white-space:pre-wrap;
+  word-break:break-word;
+  transition:border-color .15s ease,box-shadow .15s ease;
+  display:block;
+}
+#view-close-round .close-round-note-input:focus{
+  border-color:var(--brown);
+  box-shadow:0 2px 10px rgba(138,93,50,.22);
+  outline:0;
+  background:#fff;
+  z-index:25;
+  position:relative;
+  overflow-y:auto;
+}
+
+#view-close-round .close-round-total-row td{
+  background:#efe4d6!important;
+  font-weight:700!important;
+  border-top:2px solid #8e623a!important;
+  border-bottom:2px solid #8e623a!important;
+  font-size:8.5px!important;
+  color:#2f1c0e;
 }
 
 /* Wide Mode (เมื่อกดเลือก สบายตา กว้าง) */
