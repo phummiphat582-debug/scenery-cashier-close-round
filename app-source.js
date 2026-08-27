@@ -3679,28 +3679,31 @@ function closeRoundConditionCategoryKey(line){
     return 'product';
   }
 
-  // 8. Food & Beverages / BBQ / Food Packages (รายการที่เป็นอาหารทั้งหมดในใบแจ้งหนี้ รวมถึงแพ็กเกจที่เป็นอาหาร)
+  // 8. Food & Beverages / BBQ / Food Packages / Picnic / Shabu (รายการที่เป็นอาหารทั้งหมดในใบแจ้งหนี้ รวมถึงแพ็กเกจที่เป็นอาหาร)
   // 8.1 หมวด Food_Beverage และ BBQ ทุกรายการ
   if (/food ?&? ?beverage|food beverage|อาหารและเครื่องดื่ม|อาหาร|bbq|บาร์บีคิว/.test(category)) return 'food';
 
-  // 8.2 ตระกร้าปิคนิค (ตระกร้าปิคนิค Defender, ATV เช้า/บ่าย ฯลฯ)
-  if (/ปิคนิค|picnic|ตระกร้า/.test(name)) return 'food';
+  // 8.2 ตระกร้าปิคนิค / ปิกนิก (ตระกร้าปิคนิค Defender, ATV เช้า/บ่าย ฯลฯ ทุกหมวด)
+  if (/ปิ[คก]นิก|picnic|ต[ระ]*กร้า|ตะหน้า/.test(name)) return 'food';
 
-  // 8.3 หมวด Complimentary รายการอาหาร ขนม นม เบเกอรี่
+  // 8.3 ชาบู / Shabu (Rainy Season Free ชาบู หมู/เนื้อ, ชาบูหมู, ชาบูเนื้อ ทุกหมวด)
+  if (/ชาบู|shabu/.test(name)) return 'food';
+
+  // 8.4 หมวด Complimentary รายการอาหาร ขนม นม เบเกอรี่
   if (/complimentary/.test(category) || /complimentary/.test(name)) {
     if (/waffle|วาฟเฟิล|cake|เค้ก|muesli|มูสลี่|yogurt|โยเกิร์ต|croissant|ครัวซองต์|milk|นม|อาหาร|food|ขนม/.test(name)) {
       return 'food';
     }
   }
 
-  // 8.4 หมวด Package ทุกรายการที่เป็นอาหาร (ชาบูหมู/เนื้อ, ชุดอาหารไทย/ยุโรป, BBQ package, Dinner voucher, ฯลฯ)
+  // 8.5 หมวด Package ทุกรายการที่เป็นอาหาร (ชุดอาหารไทย/ยุโรป, BBQ package, Dinner voucher, ฯลฯ)
   if (/package/.test(category) || /package/.test(name)) {
-    if (/dinner|lunch|breakfast|ชาบู|shabu|หมู|เนื้อ|ไก่|food|meal|bbq|บาร์บีคิว|buffet|บุฟเฟต์|ปิคนิค|picnic|waffle|cake|muesli|yogurt|croissant|milk|fondue|sausage|wings|marshmallow|ปิ้งย่าง|อาหาร|voucher|ชุดอาหาร|เซตอาหาร|steak|สเต็ก/i.test(name)) {
+    if (/dinner|lunch|breakfast|ชาบู|shabu|หมู|เนื้อ|ไก่|food|meal|bbq|บาร์บีคิว|buffet|บุฟเฟต์|ปิ[คก]นิก|picnic|waffle|cake|muesli|yogurt|croissant|milk|fondue|sausage|wings|marshmallow|ปิ้งย่าง|อาหาร|voucher|ชุดอาหาร|เซตอาหาร|steak|สเต็ก/i.test(name)) {
       return 'food';
     }
   }
 
-  // 8.5 ตรวจจับคีย์เวิร์ดอาหารและบาร์บีคิวทั่วไปในรายการ
+  // 8.6 ตรวจจับคีย์เวิร์ดอาหารและบาร์บีคิวทั่วไปในรายการ
   if (/ชาบู|shabu|บาร์บีคิว|อาหารเย็น|อาหารเช้า|อาหารกลางวัน|พิซซ่า|pizza|fondue|german sausage|buffalo wings|marshmallow|vegetable set|chicken set|pork set|meat set/i.test(name)) {
     return 'food';
   }
