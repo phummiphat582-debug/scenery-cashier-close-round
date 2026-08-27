@@ -3643,29 +3643,82 @@ function closeRoundDiscountOnly(record){
   return closeRoundLineDiscountTotal(record);
 }
 
-/* Exact mapping from หน้าปิดรอบ เงื่อนไข.txt. */
+/* Exact mapping from หน้าปิดรอบ เงื่อนไข.txt with full food & food-package coverage. */
 function closeRoundConditionCategoryKey(line){
-  const category=String(line?.category||'').toLowerCase().replace(/_/g,' '),name=String(line?.name||'').toLowerCase(),text=`${category} ${name}`;
-  const foodComplimentary=/happy birthday waffle \(22\)|happy anniversary waffle \(22\)|muesli \(22\)|yogurt \(22\)|croissant \(22\)|milk \(22\)/i.test(name);
-  const foodPackage=/e-?voucher(?: dinner)?\s*(?:600|800|900|1,?200)\s*ba(?:ht|th)(?:\s*\(22\))?/i.test(name);
-  const foodBbq=/german sausage|buffalo wings set|vegetable set|service charge 10%|chocolate fondue set|marshmallow set/i.test(name);
-  if(/extra.?bed|ที่นอนเสริม/.test(text))return 'extraBed';
-  if(category==='minibar'||/minibar|มินิบาร์/.test(text))return 'minibar';
-  if(/เครื่องดื่มและเบเกอรี่/.test(name))return 'other';
-  if(/afternoon tea|afternoon_tea/.test(text))return 'htSht';
-  if(/กิจกรรมชมสุนัขที่?123ไร่|dog|สุนัข|ชมโชว์/.test(text))return 'dogActivity';
-  if(/souvenir|souvinir|สินค้า|ของที่ระลึก/.test(text))return 'product';
-  if(/miscellaneous/.test(category)&&/ev|ชาร์จ/.test(text))return 'ev';
-  if(/atv/.test(text))return 'atv';
-  if(/activity|activities|กิจกรรม/.test(category)&&/massage|นวด/.test(text))return 'massage';
-  if(foodComplimentary||foodPackage||foodBbq||/food ?&? ?beverage|food beverage|อาหาร|เครื่องดื่ม/.test(category))return 'food';
-  if(/package/.test(category)&&foodPackage)return 'food';
-  if(/เครื่องดื่มและเบเกอรี่|complimentary|ชดเชย|happy birthday|happy anniversary|hbd|anniversary/.test(text))return 'other';
-  if(foodComplimentary||foodPackage||foodBbq||/food ?&? ?beverage|food beverage|อาหาร/.test(category))return 'food';
-  if(/package/.test(category)&&foodPackage)return 'food';
-  if(/complimentary|ชดเชย|happy birthday|happy anniversary|hbd|anniversary/.test(text))return 'other';
-  if(/accommodation|villa|วิลล่า|ห้องพัก|ค่าวิลล่า|ค่าบ้าน|บ้านพัก|ค่าที่พัก|ที่พัก|pangola|hamata|barbados|merino|corriedale|corredale|katahdin|mulato|napier|setaria|alfalfa|rapunzel|แพงโกล่า|ฮามาต้า|บาร์บาโดส|เมอริโน่|คอร์ริเดล|คาทาดิน|มูลาโต้|เนเปียร์|เซทาเรีย|อัลฟัลฟ่า|ราพันเซล/.test(text)||/jacuzzi|bathtub|bath ?tub/.test(category))return 'villa';
-  if(/เครื่องดื่มและเบเกอรี่/.test(text))return 'other';
+  const rawCat = String(line?.category || '').trim();
+  const rawName = String(line?.name || '').trim();
+  const category = rawCat.toLowerCase().replace(/_/g, ' ');
+  const name = rawName.toLowerCase();
+  const text = `${category} ${name}`;
+
+  // 1. Extra Bed (ที่นอนเสริม)
+  if (/extra.?bed|เตียงเสริม|ที่นอนเสริม|ที่นอน|extra.?person/.test(text)) return 'extraBed';
+
+  // 2. Minibar (มินิบาร์)
+  if (category === 'minibar' || /minibar|มินิบาร์/.test(category)) return 'minibar';
+
+  // 3. HT / SHT (Afternoon Tea)
+  if (/afternoon tea|afternoon_tea|high tea|high_tea|ht_sht|ht\/sht/.test(category) ||
+      /\b(?:afternoon tea|high tea|ht\s*\/?\s*sht)\b/.test(name) ||
+      /\b(?:ht|sht)\s*(?:800|900|1,?200)\b/.test(name) ||
+      /^เครื่องดื่มและเบเกอรี\s+ราคา\s*888/i.test(name)) {
+    return 'htSht';
+  }
+
+  // 4. Dog Activity (กิจกรรมชมสุนัข 123 ไร่)
+  if (/กิจกรรมชมสุนัข|ชมสุนัข|สุนัข|dog|ชมโชว์/.test(text) || category.includes('กิจกรรมชมสุนัข')) return 'dogActivity';
+
+  // 5. Massage (ค่านวด)
+  if ((/activit|กิจกรรม/.test(category) && /massage|นวด/.test(text)) || /นวดแผนไทย|นวดน้ำมัน|นวดฝ่าเท้า|นวดแก้อาการ|นวดคอ|นวดประคบ|นวด/.test(name)) return 'massage';
+
+  // 6. EV Charging (ชาร์จ EV)
+  if ((/miscellaneous|เบ็ดเตล็ด/.test(category) || category === 'ev') && (/\bev\b|ชาร์จ/i.test(name) || /charge\s*ev|ev\s*charger|หัว\s*[abc]/i.test(name)) && !/voucher/i.test(name)) return 'ev';
+
+  // 7. Souvenir / Products (สินค้า)
+  if (/souvenir|souvinir|สินค้า|ของที่ระลึก/.test(category) || /สินค้าที่ระลึก|โลชั่นลาโนลีน|ครีมอาบน้ำ|ชาโรสวนิลา|ที่เป่าฟอง|หมอนรองคอ|ไม้ปัดขนแกะ|ชาถัวดาว|welcome drink|สารบำรุงดิน|นมอัดเม็ด|placenta|หมวกหน้าแกะ|พรมขนแกะ|พวงกุญแจ|ตุ๊กตา|ผ้าห่มขนแกะ|กระเป๋า|แกะคอโยก|ดินสอหัวแกะ|ผ้าขนหนู|พรมเช็ดเท้า|ถุงเท้า|เสื้อตอปก|ผ้าพันคอ|เตาปิ้งย่างใหญ่/i.test(name)) {
+    return 'product';
+  }
+
+  // 8. Food & Beverages / BBQ / Food Packages (รายการที่เป็นอาหารทั้งหมดในใบแจ้งหนี้ รวมถึงแพ็กเกจที่เป็นอาหาร)
+  // 8.1 หมวด Food_Beverage และ BBQ ทุกรายการ
+  if (/food ?&? ?beverage|food beverage|อาหารและเครื่องดื่ม|อาหาร|bbq|บาร์บีคิว/.test(category)) return 'food';
+
+  // 8.2 ตระกร้าปิคนิค (ตระกร้าปิคนิค Defender, ATV เช้า/บ่าย ฯลฯ)
+  if (/ปิคนิค|picnic|ตระกร้า/.test(name)) return 'food';
+
+  // 8.3 หมวด Complimentary รายการอาหาร ขนม นม เบเกอรี่
+  if (/complimentary/.test(category) || /complimentary/.test(name)) {
+    if (/waffle|วาฟเฟิล|cake|เค้ก|muesli|มูสลี่|yogurt|โยเกิร์ต|croissant|ครัวซองต์|milk|นม|อาหาร|food|ขนม/.test(name)) {
+      return 'food';
+    }
+  }
+
+  // 8.4 หมวด Package ทุกรายการที่เป็นอาหาร (ชาบูหมู/เนื้อ, ชุดอาหารไทย/ยุโรป, BBQ package, Dinner voucher, ฯลฯ)
+  if (/package/.test(category) || /package/.test(name)) {
+    if (/dinner|lunch|breakfast|ชาบู|shabu|หมู|เนื้อ|ไก่|food|meal|bbq|บาร์บีคิว|buffet|บุฟเฟต์|ปิคนิค|picnic|waffle|cake|muesli|yogurt|croissant|milk|fondue|sausage|wings|marshmallow|ปิ้งย่าง|อาหาร|voucher|ชุดอาหาร|เซตอาหาร|steak|สเต็ก/i.test(name)) {
+      return 'food';
+    }
+  }
+
+  // 8.5 ตรวจจับคีย์เวิร์ดอาหารและบาร์บีคิวทั่วไปในรายการ
+  if (/ชาบู|shabu|บาร์บีคิว|อาหารเย็น|อาหารเช้า|อาหารกลางวัน|พิซซ่า|pizza|fondue|german sausage|buffalo wings|marshmallow|vegetable set|chicken set|pork set|meat set/i.test(name)) {
+    return 'food';
+  }
+
+  // 9. ATV (กิจกรรม ATV ยกเว้นที่เป็นตระกร้าอาหารปิคนิคที่ถูกจัดเข้า food ไปแล้ว)
+  if (/atv/.test(text)) return 'atv';
+
+  // 10. Villa / Accommodation (ค่าวิลล่า)
+  if (line?.type === 'accommodation' ||
+      /accommodation|villa|วิลล่า|ห้องพัก|ค่าวิลล่า|ค่าบ้าน|บ้านพัก|ค่าที่พัก|ที่พัก|bathtub_deluxe|jacuzzi_deluxe|jacuzzi|bathtub|bath ?tub/.test(category) ||
+      /pangola|hamata|barbados|merino|corriedale|corredale|katahdin|mulato|napier|setaria|alfalfa|rapunzel|แพงโกล่า|ฮามาต้า|บาร์บาโดส|เมอริโน่|คอร์ริเดล|คาทาดิน|มูลาโต้|เนเปียร์|เซทาเรีย|อัลฟัลฟ่า|ราพันเซล|ruzi|pre-wedding/i.test(name)) {
+    return 'villa';
+  }
+
+  // 11. Drinks & Bakery (เครื่องดื่มและเบเกอรี่ - Grandma's Cafe) -> other
+  if (/เครื่องดื่มและเบเกอรี่/.test(category) || /เครื่องดื่มและเบเกอรี่/.test(name)) return 'other';
+
+  // 12. Miscellaneous / Compensation / Other
   return 'other';
 }
 const closeRoundRecordModelBeforeExactConditions=closeRoundRecordModel;
