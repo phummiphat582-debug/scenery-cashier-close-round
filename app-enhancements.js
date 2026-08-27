@@ -546,11 +546,13 @@
     }
 
     const lines = Array.isArray(record.lines) ? record.lines : [];
-    const accommLines = lines.filter(l => 
-      l.type === 'accommodation' || 
-      /villa|ห้องพัก|วิลล่า|accommodation/i.test(l.category || '') ||
-      VILLA_BASE_LIST.some(v => (l.name || '').includes(v))
-    );
+    const accommLines = lines.filter(l => {
+      const name = String(l?.name || '').trim();
+      const cat = String(l?.category || '').trim();
+      const text = `${name} ${cat}`.toLowerCase();
+      if (/extra\s*bed|เตียงเสริม|ที่นอนเสริม|waffle|cake|muesli|yogurt|croissant|milk|bbq|food|package|voucher|coupon|dinner|lunch|breakfast|afternoon|souvenir|activity|massage|atv|ev\b|keycard|ice|น้ำแข็ง|ชาบู|shabu|ปิ[คก]นิก|picnic|ต[ระ]*กร้า/i.test(text)) return false;
+      return /villa|ห้องพัก|วิลล่า|accommodation/i.test(cat) || VILLA_BASE_LIST.some(v => name.includes(v)) || /^(?:villa\s*)?\d{2,3}/i.test(name);
+    });
 
     const mainCheckIn = record.checkIn || record.docDate || record.businessDate || '';
     const mainCheckOut = record.checkOut || addDaysToDate(mainCheckIn, 1);

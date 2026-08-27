@@ -3579,9 +3579,7 @@ document.addEventListener('DOMContentLoaded',renderCloseRoundSystemData);
 /* Keep legacy accommodation records from falling into the Other bucket. */
 const closeRoundCategoryKeyBeforeLegacyFix=closeRoundCategoryKey;
 closeRoundCategoryKey=function(line){
-  const text=`${line?.category||''} ${line?.name||''}`.toLowerCase();
-  if(line?.type==='accommodation'||/accommodation|villa|วิลล่า|ห้องพัก|ค่าวิลล่า|ค่าบ้าน|บ้านพัก|ค่าที่พัก|ที่พัก|jacuzzi|bathtub|bath ?tub|pangola|hamata|barbados|merino|corriedale|corredale|katahdin|mulato|napier|setaria|alfalfa|rapunzel|แพงโกล่า|ฮามาต้า|บาร์บาโดส|เมอริโน่|คอร์ริเดล|คาทาดิน|มูลาโต้|เนเปียร์|เซทาเรีย|อัลฟัลฟ่า|ราพันเซล/.test(text))return /extra.?bed|ที่นอนเสริม/.test(text)?'extraBed':'villa';
-  return closeRoundCategoryKeyBeforeLegacyFix(line);
+  return closeRoundConditionCategoryKey(line);
 };
 const closeRoundRecordModelBeforeLegacyFix=closeRoundRecordModel;
 closeRoundRecordModel=function(record){
