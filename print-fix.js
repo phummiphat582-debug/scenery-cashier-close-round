@@ -86,16 +86,17 @@
         : record || {}
     ));
     const total = (key) => models.reduce((sum, row) => sum + Number(row[key] || 0), 0);
-    const format = (value) => normalizePrintNumber(typeof money === 'function'
-      ? money(value)
-      : Number(value || 0).toLocaleString('th-TH', { minimumFractionDigits: 2 }));
+    const format = (value) => {
+      const num = Number(value || 0);
+      return num.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    };
     const channels = [
       ['เงินสด', 'cash'],
       ['บัตรเครดิต', 'card'],
       ['QR Code', 'qr'],
       ['โอนเงิน SC', 'transfer'],
       ['รัฐ 50%', 'government'],
-      ['ททท.', 'tat'],
+      ['ลูกค้า ททท.', 'tat'],
       ['ไม่เรียกเก็บ', 'noCharge'],
       ['ค้างชำระ', 'pending'],
     ];
@@ -106,14 +107,58 @@
     const sales = total('total');
     const deposit = total('deposit');
     const frontIncome = Math.max(0, sales - deposit);
-    const line = (label, value) => `<p><span>${label}</span> ${format(value)}</p>`;
-    return '<section class="close-round-print-summary">'
-      + '<p class="close-round-print-summary-heading"><strong>สรุปรวม</strong></p>'
-      + line('รวม', sales)
-      + line('หักค่าบ้านพักชำระล่วงหน้า', deposit)
-      + line('รวมรายได้หน้า Front วันนี้', frontIncome)
-      + channels.map(([label, key]) => line(label, channelTotal(key))).join('')
-      + '</section>';
+    const pendingVal = channelTotal('pending');
+
+    return `
+      <section class="close-round-print-summary-container">
+        <div class="print-signoff-block">
+          <div class="signoff-box">
+            <div class="signoff-title">ผู้จัดทำรายงาน (Receptionist)</div>
+            <div class="signoff-dotted-line"></div>
+            <div class="signoff-meta">วันที่ ......./......./............ เวลา ................ น.</div>
+          </div>
+          <div class="signoff-box">
+            <div class="signoff-title">ผู้ตรวจสอบ (หัวหน้าแผนก / ฝ่ายบัญชี)</div>
+            <div class="signoff-dotted-line"></div>
+            <div class="signoff-meta">วันที่ ......./......./............</div>
+          </div>
+        </div>
+
+        <div class="print-summary-cards-block">
+          <div class="print-summary-card payment-card">
+            <div class="card-header">ช่องทางรับชำระหน้า Front</div>
+            <div class="card-body-grid">
+              ${channels.map(([label, key]) => {
+                const isPending = key === 'pending';
+                const isNoCharge = key === 'noCharge';
+                const val = channelTotal(key);
+                const extraClass = isPending ? ' badge-pending' : (isNoCharge ? ' badge-nocharge' : '');
+                const style = (isPending && val > 0) ? 'color:#a83232;font-weight:700;' : '';
+                return `<div class="card-row${extraClass}"><span>${label}</span><strong style="${style}">${format(val)}</strong></div>`;
+              }).join('')}
+            </div>
+          </div>
+
+          <div class="print-summary-card income-card">
+            <div class="card-header">สรุปยอดรายได้และรับชำระ</div>
+            <div class="card-table-rows">
+              <div class="income-row">
+                <span>รวมยอดรายได้ (Q)</span>
+                <strong>${format(sales)}</strong>
+              </div>
+              <div class="income-row text-deposit">
+                <span>หัก Deposit (R)</span>
+                <strong>${format(deposit)}</strong>
+              </div>
+              <div class="income-row front-income-row">
+                <span>รวมรับชำระหน้า Front (S = Q - R)</span>
+                <strong class="val-front">${format(frontIncome)}</strong>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+    `;
   }
 
   function printCloseRoundDetailA4() {
@@ -146,12 +191,32 @@
       .close-round-detail-table tbody tr{break-inside:avoid;page-break-inside:avoid}
       .close-round-detail-table .close-round-print-value{display:inline;white-space:pre-wrap;overflow-wrap:anywhere;word-break:break-word}
       .close-round-detail-table .total-row td{font-weight:700;background:#faf1ec}
-      .close-round-print-summary{width:284.3mm;margin-top:3mm;padding-top:2mm;border-top:1.5px solid #6e442d;font-size:8px;line-height:1.35;break-inside:avoid;page-break-inside:avoid}
-      .close-round-print-summary p{margin:0 0 1mm;font-size:8px;line-height:1.35}
-      .close-round-print-summary p:last-child{margin-bottom:0}
-      .close-round-print-summary .close-round-print-summary-heading{margin-bottom:1.5mm;color:#6e442d;font-weight:700}
-      .close-round-print-summary span{color:#66584e}
-      .close-round-print-summary strong{font-size:9px}
+      .close-round-print-summary-container{width:284.3mm;margin-top:2.5mm;padding-top:2mm;border-top:1.5px solid #6e442d;display:flex;justify-content:space-between;align-items:stretch;gap:3.5mm;break-inside:avoid;page-break-inside:avoid;font-family:Arial,"Noto Sans",Tahoma,sans-serif}
+      .print-signoff-block{flex:1 1 85mm;max-width:92mm;display:flex;flex-direction:column;justify-content:space-between;background:#fdfcfb;border:1px solid #dfcfbe;border-radius:4px;padding:2mm 2.5mm}
+      .signoff-box{margin-bottom:1.5mm}
+      .signoff-box:last-child{margin-bottom:0}
+      .signoff-title{font-size:6.8px;font-weight:700;color:#553e2d;margin-bottom:3.2mm}
+      .signoff-dotted-line{border-bottom:1px dashed #b5a394;height:1px;margin-bottom:1mm}
+      .signoff-meta{font-size:5.8px;color:#7a6b5e}
+      .print-summary-cards-block{flex:1.8 1 185mm;display:flex;gap:3mm}
+      .print-summary-card{border:1px solid #dfcfbe;border-radius:4px;background:#ffffff;overflow:hidden;display:flex;flex-direction:column}
+      .print-summary-card.payment-card{flex:1.2}
+      .print-summary-card.income-card{flex:1}
+      .print-summary-card .card-header{background:#f5ece2;color:#5a3617;font-size:6.8px;font-weight:700;padding:1mm 2mm;border-bottom:1px solid #dfcfbe;text-align:center;letter-spacing:-0.1px}
+      .card-body-grid{display:grid;grid-template-columns:1fr 1fr;padding:1.2mm 1.8mm;gap:.8mm 2mm;font-size:6.2px;line-height:1.2}
+      .card-row{display:flex;justify-content:space-between;align-items:center;border-bottom:1px dotted #ede4db;padding-bottom:.4mm}
+      .card-row span{color:#5e5044}
+      .card-row strong{color:#2c2017;font-size:6.5px;font-weight:600}
+      .card-row.badge-nocharge{background:#fdfaf7;border-radius:2px;padding:.3mm .8mm}
+      .card-row.badge-pending{background:#fdf5f4;border-radius:2px;padding:.3mm .8mm}
+      .card-table-rows{display:flex;flex-direction:column;justify-content:space-between;height:100%;padding:1.2mm 1.8mm;font-size:6.5px}
+      .income-row{display:flex;justify-content:space-between;align-items:center;padding:.8mm .6mm;border-bottom:1px solid #eee5dd}
+      .income-row span{color:#4e4034}
+      .income-row strong{font-size:7px;font-weight:700;color:#2c2017}
+      .income-row.text-deposit span,.income-row.text-deposit strong{color:#a04e0e}
+      .income-row.front-income-row{background:#f7ede3;border:1px solid #dfcfbe;border-radius:3px;margin-top:.8mm;padding:1.2mm 1.6mm}
+      .income-row.front-income-row span{font-weight:700;color:#5a3617;font-size:6.8px}
+      .income-row.front-income-row strong{font-size:8px;font-weight:800;color:#5a3617}
     `;
 
     const frame = document.createElement('iframe');

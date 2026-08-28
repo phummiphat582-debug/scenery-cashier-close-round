@@ -116,3 +116,153 @@
     page-break-after:avoid!important;
   }
 }
+
+.close-round-print-summary-container {
+  width: 100%;
+  margin-top: 10px;
+  padding-top: 10px;
+  border-top: 1.5px solid #6e442d;
+  display: flex;
+  justify-content: space-between;
+  align-items: stretch;
+  gap: 14px;
+  break-inside: avoid;
+  page-break-inside: avoid;
+  font-family: 'Noto Sans', Arial, sans-serif;
+}
+.print-signoff-block {
+  flex: 1 1 300px;
+  max-width: 360px;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  background: #fdfcfb;
+  border: 1px solid #dfcfbe;
+  border-radius: 6px;
+  padding: 8px 12px;
+}
+.signoff-box {
+  margin-bottom: 8px;
+}
+.signoff-box:last-child {
+  margin-bottom: 0;
+}
+.signoff-title {
+  font-size: 11px;
+  font-weight: 700;
+  color: #553e2d;
+  margin-bottom: 12px;
+}
+.signoff-dotted-line {
+  border-bottom: 1px dashed #b5a394;
+  height: 1px;
+  margin-bottom: 4px;
+}
+.signoff-meta {
+  font-size: 10px;
+  color: #7a6b5e;
+}
+.print-summary-cards-block {
+  flex: 1.8 1 500px;
+  display: flex;
+  gap: 12px;
+}
+.print-summary-card {
+  border: 1px solid #dfcfbe;
+  border-radius: 6px;
+  background: #ffffff;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+.print-summary-card.payment-card {
+  flex: 1.2;
+}
+.print-summary-card.income-card {
+  flex: 1;
+}
+.print-summary-card .card-header {
+  background: #f5ece2;
+  color: #5a3617;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 10px;
+  border-bottom: 1px solid #dfcfbe;
+  text-align: center;
+}
+.card-body-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  padding: 6px 8px;
+  gap: 4px 8px;
+  font-size: 11px;
+  line-height: 1.25;
+}
+.card-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  border-bottom: 1px dotted #ede4db;
+  padding-bottom: 2px;
+}
+.card-row span {
+  color: #5e5044;
+}
+.card-row strong {
+  color: #2c2017;
+  font-size: 11px;
+  font-weight: 600;
+}
+.card-row.badge-nocharge {
+  background: #fdfaf7;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.card-row.badge-pending {
+  background: #fdf5f4;
+  border-radius: 3px;
+  padding: 1px 4px;
+}
+.card-table-rows {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  height: 100%;
+  padding: 6px 8px;
+  font-size: 11px;
+}
+.income-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 2px;
+  border-bottom: 1px solid #eee5dd;
+}
+.income-row span {
+  color: #4e4034;
+}
+.income-row strong {
+  font-size: 12px;
+  font-weight: 700;
+  color: #2c2017;
+}
+.income-row.text-deposit span, .income-row.text-deposit strong {
+  color: #a04e0e;
+}
+.income-row.front-income-row {
+  background: #f7ede3;
+  border: 1px solid #dfcfbe;
+  border-radius: 4px;
+  margin-top: 4px;
+  padding: 6px 8px;
+}
+.income-row.front-income-row span {
+  font-weight: 700;
+  color: #5a3617;
+  font-size: 11px;
+}
+.income-row.front-income-row strong {
+  font-size: 13px;
+  font-weight: 800;
+  color: #5a3617;
+}

@@ -2439,25 +2439,54 @@ function closeRoundBottomSummaryHtml(entries) {
 
   const pending = activeList.reduce((sum, e) => sum + (Number(e.payments?.pending || 0) || Number(e.outstanding || 0)), 0);
 
-  return `<div class="close-round-bottom-summary-wrap" style="display:flex;justify-content:flex-end;margin-top:8px;">
-    <table class="close-round-bottom-summary-table" style="width:280px;border-collapse:collapse;font-size:10px;line-height:1.15;border:1px solid #d2c2b4;background:#fff;border-radius:4px;overflow:hidden;">
-      <tbody>
-        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#493c31;font-weight:600;">รวม</td><td style="padding:3px 8px;text-align:right;font-weight:700;color:#2c2017;">${closeRoundMoneyCell(totalSales)}</td></tr>
-        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#55483d;">หักค่าบ้านพักชำระล่วงหน้า</td><td style="padding:3px 8px;text-align:right;color:#b25e16;font-weight:600;">${closeRoundMoneyCell(totalDeposit)}</td></tr>
-        <tr style="border-bottom:1.5px solid #8a5d32;background:#f5eee6;"><td style="padding:4px 8px;font-weight:700;color:#5a3617;">รวมรายได้หน้า Front วันนี้</td><td style="padding:4px 8px;text-align:right;font-weight:700;color:#5a3617;font-size:11px;">${closeRoundMoneyCell(frontIncome)}</td></tr>
-        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">เงินสด</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.cash)}</td></tr>
-        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">บัตรเครดิต</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.card)}</td></tr>
-        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">QR Code</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.qr)}</td></tr>
-        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">โอนเงิน SC</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.transfer)}</td></tr>
-        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">รัฐ 50%</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.government)}</td></tr>
-        <tr style="border-bottom:1px solid #eee5dd;"><td style="padding:3px 8px;color:#66584e;">ททท.</td><td style="padding:3px 8px;text-align:right;font-weight:600;">${closeRoundMoneyCell(payTotals.tat)}</td></tr>
-        <tr style="background:#faf7f4;">
-          <td style="padding:3px 8px;color:#66584e;">ไม่เรียกเก็บ: <strong style="color:#2c2017;">${closeRoundMoneyCell(payTotals.noCharge)}</strong></td>
-          <td style="padding:3px 8px;text-align:right;color:#a83232;">ค้างชำระ: <strong style="color:#a83232;">${closeRoundMoneyCell(pending)}</strong></td>
-        </tr>
-      </tbody>
-    </table>
-  </div>`;
+  return `<section class="close-round-print-summary-container">
+    <div class="print-signoff-block">
+      <div class="signoff-box">
+        <div class="signoff-title">ผู้จัดทำรายงาน (Receptionist)</div>
+        <div class="signoff-dotted-line"></div>
+        <div class="signoff-meta">วันที่ ......./......./............ เวลา ................ น.</div>
+      </div>
+      <div class="signoff-box">
+        <div class="signoff-title">ผู้ตรวจสอบ (หัวหน้าแผนก / ฝ่ายบัญชี)</div>
+        <div class="signoff-dotted-line"></div>
+        <div class="signoff-meta">วันที่ ......./......./............</div>
+      </div>
+    </div>
+
+    <div class="print-summary-cards-block">
+      <div class="print-summary-card payment-card">
+        <div class="card-header">ช่องทางรับชำระหน้า Front</div>
+        <div class="card-body-grid">
+          ${CLOSE_ROUND_PAYMENTS.map(p => {
+            const isPending = p.key === 'pending';
+            const isNoCharge = p.key === 'noCharge';
+            const val = payTotals[p.key];
+            const extraClass = isPending ? ' badge-pending' : (isNoCharge ? ' badge-nocharge' : '');
+            const style = (isPending && val > 0) ? 'color:#a83232;font-weight:700;' : '';
+            return `<div class="card-row${extraClass}"><span>${esc(p.label)}</span><strong style="${style}">${closeRoundMoneyCell(val) || '0.00'}</strong></div>`;
+          }).join('')}
+        </div>
+      </div>
+
+      <div class="print-summary-card income-card">
+        <div class="card-header">สรุปยอดรายได้และรับชำระ</div>
+        <div class="card-table-rows">
+          <div class="income-row">
+            <span>รวมยอดรายได้ (Q)</span>
+            <strong>${closeRoundMoneyCell(totalSales) || '0.00'}</strong>
+          </div>
+          <div class="income-row text-deposit">
+            <span>หัก Deposit (R)</span>
+            <strong>${closeRoundMoneyCell(totalDeposit) || '0.00'}</strong>
+          </div>
+          <div class="income-row front-income-row">
+            <span>รวมรับชำระหน้า Front (S = Q - R)</span>
+            <strong class="val-front">${closeRoundMoneyCell(frontIncome) || '0.00'}</strong>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>`;
 }
 
 function closeRoundPrintSummaryMarkup(records){
@@ -3124,20 +3153,32 @@ function printCloseRoundDetailOnePage(){
     .close-round-print-density-compact{font-size:4.7px}
     .close-round-print-density-dense{font-size:4.35px;line-height:1.02}
     .close-round-print-density-dense th,.close-round-print-density-dense td{padding:.5px .6px}
-    .close-round-print-summary{display:flex;flex-wrap:wrap;gap:1.2mm;margin-top:2.2mm;padding-top:1.2mm;border-top:1.5px solid #6e442d;font-size:6px;line-height:1.1}
-    .close-round-print-summary>div{flex:1 1 24mm;min-width:24mm;border:1px solid #b9a99d;padding:1mm;text-align:center}
-    .close-round-print-summary>div.close-round-print-summary-heading{flex:0 0 100%;border:0;padding:0;text-align:left;font-weight:700;font-size:7px;color:#6e442d}
-    .close-round-print-summary span,.close-round-print-summary strong{display:block}
-    .close-round-print-summary span{font-size:5.5px;color:#66584e}
-    .close-round-print-summary strong{font-size:7px;margin-top:.5mm}
-    .close-round-detail-table{font-size:5.7px}
-    .close-round-print-density-compact{font-size:5.7px}
-    .close-round-print-density-dense{font-size:5.4px;line-height:1.02}
-    .close-round-print-summary{font-size:5.2px}
-    .close-round-print-summary span{font-size:4.8px}
-    .close-round-print-summary strong{font-size:6px}
-    .close-round-print-summary>div.close-round-print-summary-heading{font-size:5.8px}
-    .close-round-print-summary p{margin:0;font-size:5.8px;line-height:1.2}
+    .close-round-print-summary-container{width:287mm;margin-top:2.5mm;padding-top:2mm;border-top:1.5px solid #6e442d;display:flex;justify-content:space-between;align-items:stretch;gap:3.5mm;break-inside:avoid;page-break-inside:avoid;font-family:Arial,"Noto Sans",Tahoma,sans-serif}
+    .print-signoff-block{flex:1 1 85mm;max-width:92mm;display:flex;flex-direction:column;justify-content:space-between;background:#fdfcfb;border:1px solid #dfcfbe;border-radius:4px;padding:2mm 2.5mm}
+    .signoff-box{margin-bottom:1.5mm}
+    .signoff-box:last-child{margin-bottom:0}
+    .signoff-title{font-size:6.8px;font-weight:700;color:#553e2d;margin-bottom:3.2mm}
+    .signoff-dotted-line{border-bottom:1px dashed #b5a394;height:1px;margin-bottom:1mm}
+    .signoff-meta{font-size:5.8px;color:#7a6b5e}
+    .print-summary-cards-block{flex:1.8 1 185mm;display:flex;gap:3mm}
+    .print-summary-card{border:1px solid #dfcfbe;border-radius:4px;background:#ffffff;overflow:hidden;display:flex;flex-direction:column}
+    .print-summary-card.payment-card{flex:1.2}
+    .print-summary-card.income-card{flex:1}
+    .print-summary-card .card-header{background:#f5ece2;color:#5a3617;font-size:6.8px;font-weight:700;padding:1mm 2mm;border-bottom:1px solid #dfcfbe;text-align:center;letter-spacing:-0.1px}
+    .card-body-grid{display:grid;grid-template-columns:1fr 1fr;padding:1.2mm 1.8mm;gap:.8mm 2mm;font-size:6.2px;line-height:1.2}
+    .card-row{display:flex;justify-content:space-between;align-items:center;border-bottom:1px dotted #ede4db;padding-bottom:.4mm}
+    .card-row span{color:#5e5044}
+    .card-row strong{color:#2c2017;font-size:6.5px;font-weight:600}
+    .card-row.badge-nocharge{background:#fdfaf7;border-radius:2px;padding:.3mm .8mm}
+    .card-row.badge-pending{background:#fdf5f4;border-radius:2px;padding:.3mm .8mm}
+    .card-table-rows{display:flex;flex-direction:column;justify-content:space-between;height:100%;padding:1.2mm 1.8mm;font-size:6.5px}
+    .income-row{display:flex;justify-content:space-between;align-items:center;padding:.8mm .6mm;border-bottom:1px solid #eee5dd}
+    .income-row span{color:#4e4034}
+    .income-row strong{font-size:7px;font-weight:700;color:#2c2017}
+    .income-row.text-deposit span,.income-row.text-deposit strong{color:#a04e0e}
+    .income-row.front-income-row{background:#f7ede3;border:1px solid #dfcfbe;border-radius:3px;margin-top:.8mm;padding:1.2mm 1.6mm}
+    .income-row.front-income-row span{font-weight:700;color:#5a3617;font-size:6.8px}
+    .income-row.front-income-row strong{font-size:8px;font-weight:800;color:#5a3617}
   `;
   frame.srcdoc=`<!doctype html><html><head><meta charset="utf-8"><title>รายละเอียดปิดรอบ ${esc(date)}</title><style>${printCss}</style></head><body><div class="sheet">${layout.outerHTML}</div></body></html>`;
   document.body.append(frame);
