@@ -671,7 +671,17 @@ document.addEventListener('DOMContentLoaded',()=>{const refresh=event=>{if(!even
 function installEditableLineCategories(){[{type:'accommodation',id:'accommodation-category',values:['Accommodation','Inclusive Package','Package','Extra Bed','Complimentary']},{type:'addon',id:'addon-category',values:['Food & Beverage','BBQ','Minibar','Souvenir','Activities','Miscellaneous','Other Expenses']}].forEach(({type,id,values})=>{const select=$(`#${type}-select`),fields=select?.parentElement;if(!fields||$(`#${id}`))return;const input=document.createElement('input');input.id=id;input.type='text';input.className='invoice-category-input';input.placeholder='หมวด / พิมพ์หรือเลือก';input.setAttribute('list',`${id}-options`);input.setAttribute('aria-label',`หมวด ${type}`);const list=document.createElement('datalist');list.id=`${id}-options`;values.forEach(value=>{const option=document.createElement('option');option.value=value;list.appendChild(option)});fields.insertBefore(input,fields.querySelector('.button'));fields.appendChild(list)})}
 function enableEditableLineCategories(){
   installEditableLineCategories()
-  addLine=function(type){const select=type==='accommodation'?$('#accommodation-select'):$('#addon-select'),search=$(`#${type==='accommodation'?'accommodation':'addon'}-search`),categoryEl=type==='accommodation'?$('#accommodation-category'):$('#addon-category'),rateEl=type==='accommodation'?$('#accommodation-rate'):$('#addon-rate'),qtyEl=type==='accommodation'?$('#accommodation-qty'):$('#addon-qty'),items=type==='accommodation'?accommodationItems:addonItems,selected=items[Number(select?.value)],typed=cleanEnglishText(search?.value?.trim()||''),item=selected||(!typed?null:{name:typed,category:type==='accommodation'?'Accommodation':'Miscellaneous',rate:Math.max(0,Number(rateEl?.value||0)),custom:true});if(!item){showToast('กรุณาเลือกรายการหรือพิมพ์รายการใหม่ก่อนเพิ่ม','error');return}const category=cleanEnglishText(categoryEl?.value?.trim()||item.category||(type==='accommodation'?'Accommodation':'Miscellaneous'));state.invoiceLines.push({type,name:item.name,category,sourceIndex:selected?Number(select.value):null,rate:Math.max(0,Number(rateEl?.value||item.rate||0)),deposit:0,depositMethod:'เงินสด',qty:Math.max(1,Number(qtyEl?.value||1)),discountRate:0,discountAmount:0,pendingCollection:0,pendingNote:''});if(select)select.value='';if(rateEl)rateEl.value='';if(qtyEl)qtyEl.value='1';if(search)search.value='';if(categoryEl)categoryEl.value='';renderFormLines();calculateInvoice();showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`)}
+  addLine=function(type){
+    const select=type==='accommodation'?$('#accommodation-select'):$('#addon-select'),search=$(`#${type==='accommodation'?'accommodation':'addon'}-search`),categoryEl=type==='accommodation'?$('#accommodation-category'):$('#addon-category'),rateEl=type==='accommodation'?$('#accommodation-rate'):$('#addon-rate'),qtyEl=type==='accommodation'?$('#accommodation-qty'):$('#addon-qty'),items=type==='accommodation'?accommodationItems:addonItems,selected=items[Number(select?.value)],typed=cleanEnglishText(search?.value?.trim()||''),item=selected||(!typed?null:{name:typed,category:type==='accommodation'?'Accommodation':'Miscellaneous',rate:Math.max(0,Number(rateEl?.value||0)),custom:true});
+    if(!item){showToast('กรุณาเลือกรายการหรือพิมพ์รายการใหม่ก่อนเพิ่ม','error');return}
+    const category=cleanEnglishText(categoryEl?.value?.trim()||item.category||(type==='accommodation'?'Accommodation':'Miscellaneous'));
+    let rate=Math.max(0,Number(rateEl?.value||item.rate||0)),qty=Math.max(1,Number(qtyEl?.value||1));
+    if(!rate && /ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name) && /atv|100/i.test(item.name)) rate = 100;
+    const isBasket100 = (/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name)) && (rate === 100 || /100/.test(item.name) || (/atv/i.test(item.name) && !/defender|500/i.test(item.name)));
+    const initialDiscount = isBasket100 ? (rate * qty) : 0;
+    state.invoiceLines.push({type,name:item.name,category,sourceIndex:selected?Number(select.value):null,rate,deposit:0,depositMethod:'เงินสด',qty,discountRate:0,discountAmount:initialDiscount,pendingCollection:0,pendingNote:''});
+    if(select)select.value='';if(rateEl)rateEl.value='';if(qtyEl)qtyEl.value='1';if(search)search.value='';if(categoryEl)categoryEl.value='';renderFormLines();calculateInvoice();showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`);
+  }
   installEditableLineCategories()
 }
 document.addEventListener('DOMContentLoaded',()=>enableEditableLineCategories());
@@ -1554,9 +1564,12 @@ function installInvoiceAddSelectionFix(){
     }
     if(!item){showToast('กรุณาเลือกรายการหรือพิมพ์รายการใหม่ก่อนเพิ่ม','error');return}
     const category=cleanEnglishText(categoryEl?.value?.trim()||item.category||(type==='accommodation'?'Accommodation':'Miscellaneous'));
-    const rate=Math.max(0,Number(rateEl?.value||item.rate||0)),qty=Math.max(1,Number(qtyEl?.value||1));
+    let rate=Math.max(0,Number(rateEl?.value||item.rate||0)),qty=Math.max(1,Number(qtyEl?.value||1));
+    if(!rate && /ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name) && /atv|100/i.test(item.name)) rate = 100;
+    const isBasket100 = (/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name)) && (rate === 100 || /100/.test(item.name) || (/atv/i.test(item.name) && !/defender|500/i.test(item.name)));
+    const initialDiscount = isBasket100 ? (rate * qty) : 0;
     if(item.custom&&!customItems[type].some(saved=>normalize(saved.name)===normalize(item.name))){customItems[type].push({name:item.name,category,rate});saveCustomItems();ensureCustomOptions(type)}
-    state.invoiceLines.push({type,name:item.name,category,sourceIndex:index,rate,deposit:0,depositMethod:'เงินสด',qty,discountRate:0,discountAmount:0,pendingCollection:0,pendingNote:''});
+    state.invoiceLines.push({type,name:item.name,category,sourceIndex:index,rate,deposit:0,depositMethod:'เงินสด',qty,discountRate:0,discountAmount:initialDiscount,pendingCollection:0,pendingNote:''});
     if(select)select.value='';if(rateEl)rateEl.value='';if(qtyEl)qtyEl.value='1';if(search)search.value='';if(categoryEl)categoryEl.value='';refreshSuggestions(type);renderFormLines();if(typeof calculateInvoice==='function')calculateInvoice();showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`);
   };
 }
@@ -3713,6 +3726,22 @@ const CLOSE_ROUND_LOCKED_RULES=Object.freeze({
   noChargeAmount:'invoice.discount',
   totalAmount:'sum(category.gross)'
 });
+function closeRoundBasketNoChargeTotal(record){
+  const lines=Array.isArray(record?.lines)?record.lines:[];
+  return lines.reduce((sum,line)=>{
+    const text=`${line?.category||''} ${line?.name||''}`.toLowerCase();
+    const isBasket=/ต[ระ]*กร้า|ปิ[คก]นิก|picnic|basket/i.test(text);
+    const rate=Number(line?.rate||0);
+    const gross=Math.max(0,Number(line?.qty||1)*rate);
+    if(isBasket&&(gross===100||rate===100||/100/.test(text)||(/atv/i.test(text)&&!/defender|500/i.test(text)))){
+      const lineDisc=Math.max(0,gross-closeRoundLineNet(line));
+      if(lineDisc<gross){
+        return sum+(gross-lineDisc);
+      }
+    }
+    return sum;
+  },0);
+}
 function closeRoundDeclaredDiscount(record){
   const payload=record?.payload&&typeof record.payload==='object'?record.payload:null;
   const source=payload&&Object.prototype.hasOwnProperty.call(payload,'discount')?payload:record;
@@ -3728,8 +3757,8 @@ function closeRoundLineDiscountTotal(record){
 }
 function closeRoundDiscountOnly(record){
   const declared=closeRoundDeclaredDiscount(record);
-  if(declared!==null)return declared;
-  return closeRoundLineDiscountTotal(record);
+  const baseDiscount=declared!==null?declared:closeRoundLineDiscountTotal(record);
+  return baseDiscount+closeRoundBasketNoChargeTotal(record);
 }
 
 /* Exact mapping from หน้าปิดรอบ เงื่อนไข.txt with full food & food-package coverage. */
@@ -3838,16 +3867,12 @@ closeRoundRecordModel=function(record){
     grossBy[key]+=gross;categories[key]+=gross;lineDiscountTotal+=Math.max(0,gross-net);
   });
   const declaredDiscount=Math.max(0,closeRoundDeclaredDiscount(record)??0);
-  // A payment row named "No Charge" can contain the invoice total in older
-  // records.  It is not a discount source, so never copy that raw payment
-  // amount into the Close Round No Charge column.  Use only the discount
-  // recorded on the invoice, plus discounts calculable from its lines.
-  // Locked rule: No Charge is the declared invoice discount. Line discounts
-  // are only a fallback for legacy records that have no invoice discount.
-  const totalDiscount=closeRoundDeclaredDiscount(record)===null?lineDiscountTotal:declaredDiscount;
+  const baseDiscount=closeRoundDeclaredDiscount(record)===null?lineDiscountTotal:declaredDiscount;
+  const totalDiscount=baseDiscount+closeRoundBasketNoChargeTotal(record);
   if(!lines.length&&model.categories.villa){categories.villa=Math.max(0,Number(model.categories.villa||0));}
   model.categories=categories;
   if(model.payments)model.payments.noCharge=totalDiscount;
+  model.outstanding=Math.max(0,Number(model.total||0)-totalDiscount-Number(model.deposit||0));
   return model;
 };
 

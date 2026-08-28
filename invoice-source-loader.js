@@ -145,7 +145,11 @@
       const fillKnownRate = () => {
         const group = selectedGroup();
         const item = group?.items.find(entry => entry.name.toLowerCase() === itemInput.value.trim().toLowerCase());
-        if (item && rateEl) rateEl.value = item.rate || '';
+        if (item && rateEl) {
+          rateEl.value = item.rate || '';
+        } else if (rateEl && !rateEl.value && /ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(itemInput.value) && /atv|100/i.test(itemInput.value)) {
+          rateEl.value = '100';
+        }
       };
       categoryEl.addEventListener('change', refreshItems);
       itemInput.addEventListener('input', fillKnownRate);
@@ -158,7 +162,8 @@
         if (!name) { showToast('กรุณาเลือกรายการหรือพิมพ์รายการใหม่ก่อนเพิ่ม', 'error'); return; }
         let item = group.items.find(entry => entry.name.toLowerCase() === name.toLowerCase());
         if (!item) {
-          item = { name, rate: numberFrom(rateEl?.value), category: group.category, custom: true };
+          const defaultRate = (/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(name) && /atv|100/i.test(name)) ? 100 : numberFrom(rateEl?.value);
+          item = { name, rate: defaultRate, category: group.category, custom: true };
           group.items.push(item);
           const custom = readCustom().filter(entry => !(entry.type === config.type && entry.category === group.category && entry.name.toLowerCase() === name.toLowerCase()));
           custom.push({ type: config.type, category: group.category, name, rate: item.rate });
@@ -168,7 +173,10 @@
         const amount = numberFrom(rateEl?.value || item.rate);
         const lines = window.sceneryAppState?.invoiceLines;
         if (!lines) return;
-        lines.push({ type: config.type, name: item.name, category: group.category, sourceIndex: null, rate: amount, deposit: 0, depositMethod: 'เงินสด', qty: Math.max(1, numberFrom(qtyEl?.value || 1)), discountRate: 0, discountAmount: 0, pendingCollection: 0, pendingNote: '' });
+        const qty = Math.max(1, numberFrom(qtyEl?.value || 1));
+        const isBasket100 = (/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name)) && (amount === 100 || /100/.test(item.name) || /atv/i.test(item.name));
+        const initialDiscount = isBasket100 ? (amount * qty) : 0;
+        lines.push({ type: config.type, name: item.name, category: group.category, sourceIndex: null, rate: amount, deposit: 0, depositMethod: 'เงินสด', qty, discountRate: 0, discountAmount: initialDiscount, pendingCollection: 0, pendingNote: '' });
         categoryEl.value = '';
         itemInput.value = '';
         if (rateEl) rateEl.value = '';
