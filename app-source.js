@@ -2792,10 +2792,10 @@ function formatCloseRoundThaiDate(dateStr){
   const thMonths=['มกราคม','กุมภาพันธ์','มีนาคม','เมษายน','พฤษภาคม','มิถุนายน','กรกฎาคม','สิงหาคม','กันยายน','ตุลาคม','พฤศจิกายน','ธันวาคม'];
   return `ประจำวันที่ ${d.getDate()} ${thMonths[d.getMonth()]} ${d.getFullYear()+543}`;
 }
-function renderCloseRound(){
+function renderCloseRound(force = false){
   const view=$('#view-close-round');if(!view)return;
   const activeEl = document.activeElement;
-  if (activeEl && view.contains(activeEl) && ['INPUT', 'TEXTAREA', 'SELECT'].includes(activeEl.tagName)) {
+  if (!force && activeEl && view.contains(activeEl) && activeEl.hasAttribute('data-close-round-edit')) {
     return;
   }
   const oldPanel = view.querySelector('.close-round-detail-panel');
@@ -2842,7 +2842,20 @@ function renderCloseRound(){
   codeOptions.id='close-round-villa-code-options';
   codeOptions.innerHTML=CLOSE_ROUND_VILLA_CODES.map(item=>`<option value="${esc(item.value)}">${esc(item.label)}</option>`).join('');
   view.append(codeOptions);
-  $('#close-round-date')?.addEventListener('change',event=>{event.target.dataset.userSelected='true';renderCloseRound()});
+  const dateInput = $('#close-round-date');
+  if (dateInput) {
+    dateInput.addEventListener('change', event => {
+      event.target.dataset.userSelected = 'true';
+      renderCloseRound(true);
+    });
+    dateInput.addEventListener('input', event => {
+      if (event.target.value && event.target.value.length === 10) {
+        event.target.dataset.userSelected = 'true';
+        renderCloseRound(true);
+      }
+    });
+  }
+  $('#close-round-shift')?.addEventListener('change', () => renderCloseRound(true));
   $('#submit-round')?.addEventListener('click',()=>openModal('ยืนยัน Submit และ Lock รอบ','<p>เมื่อยืนยันแล้ว รอบนี้จะถูกล็อกและไม่ควรแก้ไขรายการย้อนหลังโดยตรง</p><p class="muted">กรุณาตรวจสอบยอดค้างชำระและรายการผิดปกติก่อนส่งฝ่ายบัญชี</p>','<button class="button button-outline" data-close-modal>ยกเลิก</button><button class="button button-primary" data-submit-round>ยืนยัน Submit และ Lock</button>'));
   view.querySelector('[data-close-round-export="pdf"]')?.addEventListener('click',()=>printCloseRoundDetailOnePage());
   view.querySelector('[data-close-round-export="excel"]')?.addEventListener('click',()=>closeRoundSinglePageExcel(records,date));
