@@ -71,7 +71,7 @@
   }
 
   function optionList(group) {
-    return group.map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}${item.rate ? ` — ฿${item.rate.toLocaleString('th-TH')}` : ''}</option>`).join('');
+    return group.map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}${item.rate ? ` — ${item.rate.toLocaleString('th-TH')}` : ''}</option>`).join('');
   }
 
   function replaceWithClone(element) {
