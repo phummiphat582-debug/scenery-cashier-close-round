@@ -699,10 +699,8 @@
 #view-close-round .close-round-detail-table th{text-align:center!important;vertical-align:middle!important}
 
 #view-close-round .close-round-detail-table th:nth-child(1),
-#view-close-round .close-round-detail-table td:nth-child(1){width:4.8%!important;min-width:0!important}
-#view-close-round .close-round-detail-table td:nth-child(1){text-align:left;font-weight:700;padding-left:6px!important}
+#view-close-round .close-round-detail-table td:nth-child(1){width:4.5%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(1){text-align:left;font-weight:700;padding-left:5px!important}
 
 #view-close-round .close-round-detail-table th:nth-child(2),
-#view-close-round .close-round-detail-table td:nth-child(2){width:3.0%!important;min-width:0!important}
-#view-close-round .close-round-detail-table td:nth-child(2){text-align:center}
-
+#view-close-round .close-round-detail-table td:nth-child(2){width:8.0%!important;min-width:0!important}

@@ -1,21 +1,23 @@
+#view-close-round .close-round-detail-table td:nth-child(2){text-align:left;padding:2px 3px!important}
+
 #view-close-round .close-round-detail-table th:nth-child(3),
-#view-close-round .close-round-detail-table td:nth-child(3){width:6.2%!important;min-width:0!important}
-#view-close-round .close-round-detail-table td:nth-child(3){text-align:left;padding-left:5px!important}
+#view-close-round .close-round-detail-table td:nth-child(3){width:5.5%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(3){text-align:left;padding-left:4px!important}
 
 #view-close-round .close-round-detail-table th:nth-child(4),
 #view-close-round .close-round-detail-table td:nth-child(4),
 #view-close-round .close-round-detail-table th:nth-child(5),
-#view-close-round .close-round-detail-table td:nth-child(5){width:2.0%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(5){width:1.8%!important;min-width:0!important}
 #view-close-round .close-round-detail-table td:nth-child(4),
 #view-close-round .close-round-detail-table td:nth-child(5){text-align:center}
 
 #view-close-round .close-round-detail-table th:nth-child(n+6):nth-child(-n+16),
-#view-close-round .close-round-detail-table td:nth-child(n+6):nth-child(-n+16){width:2.8%!important;min-width:0!important}
-#view-close-round .close-round-detail-table td:nth-child(n+6):nth-child(-n+16){text-align:right;padding-right:4px!important}
+#view-close-round .close-round-detail-table td:nth-child(n+6):nth-child(-n+16){width:2.7%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(n+6):nth-child(-n+16){text-align:right;padding-right:3px!important}
 
 #view-close-round .close-round-detail-table th:nth-child(17),
 #view-close-round .close-round-detail-table td:nth-child(17){
-  width:3.8%!important;
+  width:3.6%!important;
   min-width:0!important;
 }
 #view-close-round .close-round-detail-table th:nth-child(17){
@@ -28,22 +30,22 @@
   background:#f7f0e7;
   font-weight:700;
   color:#3e220e;
-  padding-right:4px!important;
+  padding-right:3px!important;
 }
 
 #view-close-round .close-round-detail-table th:nth-child(18),
 #view-close-round .close-round-detail-table td:nth-child(18){
-  width:3.4%!important;
+  width:3.2%!important;
   min-width:0!important;
 }
 #view-close-round .close-round-detail-table td:nth-child(18){
   text-align:right;
-  padding-right:4px!important;
+  padding-right:3px!important;
 }
 
 #view-close-round .close-round-detail-table th:nth-child(19),
 #view-close-round .close-round-detail-table td:nth-child(19){
-  width:3.6%!important;
+  width:3.4%!important;
   min-width:0!important;
 }
 #view-close-round .close-round-detail-table th:nth-child(19){
@@ -58,40 +60,40 @@
   font-weight:700;
   color:#73461e;
   border-right:1.5px solid #d8c3b0!important;
-  padding-right:4px!important;
+  padding-right:3px!important;
 }
 
 #view-close-round .close-round-detail-table th:nth-child(20),
-#view-close-round .close-round-detail-table td:nth-child(20){width:2.8%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(20){width:2.6%!important;min-width:0!important}
 #view-close-round .close-round-detail-table th:nth-child(21),
-#view-close-round .close-round-detail-table td:nth-child(21){width:2.8%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(21){width:2.6%!important;min-width:0!important}
 #view-close-round .close-round-detail-table th:nth-child(22),
-#view-close-round .close-round-detail-table td:nth-child(22){width:2.5%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(22){width:2.4%!important;min-width:0!important}
 #view-close-round .close-round-detail-table th:nth-child(23),
-#view-close-round .close-round-detail-table td:nth-child(23){width:2.8%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(23){width:2.6%!important;min-width:0!important}
 #view-close-round .close-round-detail-table th:nth-child(24),
-#view-close-round .close-round-detail-table td:nth-child(24){width:2.8%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(24){width:2.6%!important;min-width:0!important}
 #view-close-round .close-round-detail-table th:nth-child(25),
-#view-close-round .close-round-detail-table td:nth-child(25){width:2.5%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(25){width:2.4%!important;min-width:0!important}
 #view-close-round .close-round-detail-table th:nth-child(26),
-#view-close-round .close-round-detail-table td:nth-child(26){width:3.0%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(26){width:2.8%!important;min-width:0!important}
 #view-close-round .close-round-detail-table th:nth-child(27),
-#view-close-round .close-round-detail-table td:nth-child(27){width:3.0%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(27){width:2.8%!important;min-width:0!important}
 
 #view-close-round .close-round-detail-table td:nth-child(n+20):nth-child(-n+27){
   text-align:right;
-  padding-right:4px!important;
+  padding-right:3px!important;
 }
 
 #view-close-round .close-round-detail-table th:last-child,
 #view-close-round .close-round-detail-table td:last-child{
-  width:18.2%!important;
+  width:14.7%!important;
   min-width:0!important;
 }
 #view-close-round .close-round-detail-table td:last-child{
   text-align:left;
   vertical-align:top!important;
-  padding:2px 6px 2px 4px!important;
+  padding:2px 5px 2px 4px!important;
 }
 
 /* Beautiful Inputs */
@@ -101,13 +103,15 @@
   min-width:0!important;
   height:22px!important;
   min-height:22px!important;
-  padding:1px 4px!important;
+  padding:1px 5px!important;
   border:1px solid #d8c7b8;
   border-radius:4px;
   background:#fff;
   color:#2e2218;
   font-size:8.5px!important;
+  font-weight:600;
   line-height:1.2;
+  text-align:left;
   overflow:hidden;
   text-overflow:ellipsis;
   white-space:nowrap;
