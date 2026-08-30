@@ -15,7 +15,7 @@
       rate = numberFrom(price[1]);
       name = name.slice(0, price.index).trim();
     }
-    name = name.replace(/\s+เด้ง$/, '').trim();
+    name = name.replace(/\s*(?:เด้งราคา|เพิ่มราคา|เด้ง)\b/g, '').replace(/\s{2,}/g, ' ').trim();
     return name ? { name, rate } : null;
   }
 

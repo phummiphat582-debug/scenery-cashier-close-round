@@ -33,7 +33,7 @@
 
 หมวด Extra_Bed
 มีรายการดังนี้
-Extra Bed เด้งราคา 1,000 
+Extra Bed ราคา 1,000 
 2 Extra Bed ราคา 2,000 
 3 Extra Bed ราคา3,000 
 4 Extra Bed ราคา 4,000 
