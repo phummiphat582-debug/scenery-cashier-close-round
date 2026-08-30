@@ -2020,36 +2020,65 @@ function extractInvoiceStays(record) {
   const mainCheckOut = record.checkOut || addDaysToDateStr(mainCheckIn, 1);
   const mainVilla = matchVillaFromText(record.villa) || (villaLines[0] ? matchVillaFromText(villaLines[0].name) : '') || '';
 
-  if (villaLines.length <= 1) {
-    return [{
-      stayIndex: 1,
-      isSplitStay: false,
-      villa: mainVilla,
-      villaCode: record.villaCode || '',
-      customer: record.customer || '',
-      checkIn: mainCheckIn,
-      checkOut: mainCheckOut,
-      rate: Number(record.total || 0),
-      deposit: Number(record.deposit || 0),
-      netTotal: Number(record.total || 0),
-      record: record
-    }];
+  const hasExplicitSplitStay = Array.isArray(record.lines) && record.lines.some(l => l.isSplitStay || l.splitStay);
+
+  if (!hasExplicitSplitStay) {
+    if (villaLines.length <= 1) {
+      return [{
+        stayIndex: 1,
+        isSplitStay: false,
+        villa: mainVilla,
+        villaCode: record.villaCode || '',
+        customer: record.customer || '',
+        checkIn: mainCheckIn,
+        checkOut: mainCheckOut,
+        rate: Number(record.total || 0),
+        deposit: Number(record.deposit || 0),
+        netTotal: Number(record.total || 0),
+        record: record
+      }];
+    }
+
+    return villaLines.map((line, index) => {
+      const lineVilla = matchVillaFromText(line.name) || matchVillaFromText(line.villa) || (index === 0 ? mainVilla : '');
+      const lineNights = Math.max(1, Number(line.qty || 1));
+      const lineIn = line.checkIn || mainCheckIn;
+      const lineOut = line.checkOut || mainCheckOut;
+      const lineRate = Number(line.rate || 0) * lineNights;
+      const lineDeposit = Number(line.deposit || 0);
+
+      return {
+        stayIndex: index + 1,
+        isSplitStay: false,
+        villa: lineVilla || mainVilla,
+        villaCode: line.villaCode || (index === 0 ? (record.villaCode || '') : ''),
+        customer: record.customer || '',
+        checkIn: lineIn,
+        checkOut: lineOut,
+        rate: lineRate,
+        deposit: lineDeposit,
+        line: line,
+        record: record,
+        parentVilla: ''
+      };
+    });
   }
 
   let currentIn = mainCheckIn;
   return villaLines.map((line, index) => {
+    const isSplit = Boolean(line.isSplitStay || line.splitStay || index > 0);
     const lineVilla = matchVillaFromText(line.name) || matchVillaFromText(line.villa) || (index === 0 ? mainVilla : `Villa ${index + 1}`);
     const lineNights = Math.max(1, Number(line.qty || 1));
     const lineIn = line.checkIn || currentIn;
     const lineOut = line.checkOut || addDaysToDateStr(lineIn, lineNights);
-    currentIn = lineOut;
+    if (isSplit) currentIn = lineOut;
 
     const lineRate = Number(line.rate || 0) * lineNights;
     const lineDeposit = Number(line.deposit || 0);
 
     return {
       stayIndex: index + 1,
-      isSplitStay: index > 0,
+      isSplitStay: isSplit && index < villaLines.length - 1,
       villa: lineVilla,
       villaCode: line.villaCode || (index === 0 ? (record.villaCode || '') : ''),
       customer: record.customer || '',
@@ -2093,38 +2122,95 @@ function closeRoundTemplateEntries(records, selectedDate){
   activeRecords.forEach(record => {
     const stays = extractInvoiceStays(record);
     const model = closeRoundRecordModel(record);
+    const hasExplicitSplitStay = Array.isArray(record.lines) && record.lines.some(l => l.isSplitStay || l.splitStay);
 
-    if (!stays || stays.length <= 1) {
-      const mainVilla = (stays && stays[0] && stays[0].villa) ? stays[0].villa : (model.villa || record.villa || '');
-      const stay = {
-        villa: mainVilla || 'Walk-in / อื่นๆ',
-        villaCode: record.villaCode || '',
-        customer: record.customer || 'ลูกค้าทั่วไป',
-        checkIn: formatDayOnly(record.checkIn || record.docDate),
-        checkOut: formatDayOnly(record.checkOut || record.checkIn || record.docDate),
-        categories: model.categories || {},
-        total: Number(model.total || 0),
-        deposit: Number(model.deposit || 0),
-        outstanding: Number(model.outstanding || 0),
-        payments: model.payments || {},
-        remark: record.remark || record.pendingCollectionNote || '',
-        recordId: record.id || record.reference || '',
-        record: record,
-        isSplitStay: false
-      };
-      const vKey = closeRoundVillaTemplateKey(mainVilla);
-      if (mainVilla && vKey && CLOSE_ROUND_SOURCE_VILLAS.some(v => closeRoundVillaTemplateKey(v) === vKey)) {
-        if (!staysByVillaKey.has(vKey)) staysByVillaKey.set(vKey, []);
-        staysByVillaKey.get(vKey).push(stay);
+    if (!hasExplicitSplitStay) {
+      if (!stays || stays.length <= 1) {
+        const mainVilla = (stays && stays[0] && stays[0].villa) ? stays[0].villa : (model.villa || record.villa || '');
+        const stay = {
+          villa: mainVilla || 'Walk-in / อื่นๆ',
+          villaCode: record.villaCode || '',
+          customer: record.customer || 'ลูกค้าทั่วไป',
+          checkIn: formatDayOnly(record.checkIn || record.docDate),
+          checkOut: formatDayOnly(record.checkOut || record.checkIn || record.docDate),
+          categories: model.categories || {},
+          total: Number(model.total || 0),
+          deposit: Number(model.deposit || 0),
+          outstanding: Number(model.outstanding || 0),
+          payments: model.payments || {},
+          remark: record.remark || record.pendingCollectionNote || '',
+          recordId: record.id || record.reference || '',
+          record: record,
+          isSplitStay: false
+        };
+        const vKey = closeRoundVillaTemplateKey(mainVilla);
+        if (mainVilla && vKey && CLOSE_ROUND_SOURCE_VILLAS.some(v => closeRoundVillaTemplateKey(v) === vKey)) {
+          if (!staysByVillaKey.has(vKey)) staysByVillaKey.set(vKey, []);
+          staysByVillaKey.get(vKey).push(stay);
+        } else {
+          // รายการอื่นที่สร้างใบแจ้งหนี้ ที่ไม่ใช่บ้านพักใน 11 รายการ -> ไปอยู่เพิ่มเติม
+          continuationStays.push(stay);
+        }
       } else {
-        // รายการอื่นที่สร้างใบแจ้งหนี้ ที่ไม่ใช่บ้านพัก -> ไปอยู่เพิ่มเติม
-        continuationStays.push(stay);
+        // Multiple villa lines from Accommodation & Inclusive Package -> map directly to 11 main villas
+        stays.forEach((stay, idx) => {
+          const stayVilla = stay.villa || model.villa || record.villa || '';
+          const vKey = closeRoundVillaTemplateKey(stayVilla);
+          const isFirst = idx === 0;
+
+          const categories = {};
+          CLOSE_ROUND_CATEGORIES.forEach(cat => {
+            if (cat.key === 'villa') {
+              categories[cat.key] = Number(stay.rate || 0);
+            } else if (isFirst) {
+              categories[cat.key] = model.categories[cat.key] || 0;
+            } else {
+              categories[cat.key] = 0;
+            }
+          });
+
+          const stayTotal = Object.values(categories).reduce((sum, v) => sum + Number(v || 0), 0) || Number(stay.rate || 0);
+          const stayDeposit = isFirst ? Number(model.deposit || 0) : Number(stay.deposit || 0);
+          const stayOutstanding = Math.max(0, stayTotal - stayDeposit);
+
+          const payments = {};
+          CLOSE_ROUND_PAYMENTS.forEach(pay => {
+            if (isFirst) {
+              payments[pay.key] = model.payments[pay.key] || 0;
+            } else {
+              payments[pay.key] = pay.key === 'cash' ? stayOutstanding : 0;
+            }
+          });
+
+          const stayRow = {
+            villa: stayVilla,
+            villaCode: stay.villaCode || record.villaCode || '',
+            customer: record.customer || '',
+            checkIn: formatDayOnly(stay.checkIn || record.checkIn),
+            checkOut: formatDayOnly(stay.checkOut || record.checkOut),
+            categories: categories,
+            total: Number(stayTotal),
+            deposit: Number(stayDeposit),
+            outstanding: Number(stayOutstanding),
+            payments: payments,
+            remark: record.remark || '',
+            recordId: record.id || record.reference || '',
+            record: record,
+            isSplitStay: false
+          };
+
+          if (stayVilla && vKey && CLOSE_ROUND_SOURCE_VILLAS.some(v => closeRoundVillaTemplateKey(v) === vKey)) {
+            if (!staysByVillaKey.has(vKey)) staysByVillaKey.set(vKey, []);
+            staysByVillaKey.get(vKey).push(stayRow);
+          } else {
+            continuationStays.push(stayRow);
+          }
+        });
       }
     } else {
-      // Multiple stays in invoice: คืนล่าสุด (Last stay) -> ตารางหลัก 02-013; คืนแรก/คืนก่อนหน้า -> เพิ่มเติม
+      // Multiple stays from explicit + พักต่อคืนที่ 2 (คนละบ้าน)
       stays.forEach((stay, idx) => {
         const isLatest = idx === stays.length - 1;
-        const isFirst = idx === 0;
         const stayRate = Number(stay.rate || 0);
         const stayDeposit = Number(stay.deposit || (isLatest ? model.deposit : 0));
         const stayOutstanding = Math.max(0, stayRate - stayDeposit);
