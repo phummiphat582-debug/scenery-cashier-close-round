@@ -136,6 +136,8 @@
 
   const client = restClient;
   const localHistoryKey = 'scenery-invoice-history';
+  const localDraftsKey = 'scenery-invoice-drafts';
+  const localDeletedDraftsKey = 'scenery-deleted-draft-ids';
   const localBookingsKey = 'scenery-closed-bookings';
   const localRoundsKey = 'scenery-closed-rounds';
   const localEditsKey = 'scenery-close-round-detail-edits';
@@ -146,6 +148,8 @@
     saveInvoiceHistory: window.saveInvoiceHistory,
     saveClosedBookings: window.saveClosedBookings,
     deleteInvoiceHistory: window.deleteInvoiceHistory,
+    saveInvoiceDraft: window.saveInvoiceDraft,
+    deleteInvoiceDraft: window.deleteInvoiceDraft,
     submitCloseRound: window.submitCloseRound,
     saveCloseRoundDetailEdit: window.saveCloseRoundDetailEdit
   };
@@ -205,6 +209,9 @@
       realtimeChannel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_history' }, () => {
           pullInvoices();
+        })
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_drafts' }, () => {
+          pullDrafts();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'closed_bookings' }, () => {
           pullBookings();
@@ -352,6 +359,17 @@
     }
   }
 
+  function getDeletedDraftIds() {
+    return new Set(readLocal(localDeletedDraftsKey, []));
+  }
+  function recordDeletedDraftId(id) {
+    const list = readLocal(localDeletedDraftsKey, []);
+    if (!list.includes(String(id))) {
+      list.push(String(id));
+      writeLocal(localDeletedDraftsKey, list);
+    }
+  }
+
   async function deleteInvoiceRemote(id) {
     recordDeletedInvoiceId(id);
     if (!client) return;
@@ -368,6 +386,78 @@
     broadcastSync('invoice_delete');
   }
 
+  async function upsertDrafts(records) {
+    if (!client) return;
+    const user = await currentUser();
+    const rows = (records || []).map(d => ({
+      id: String(d.id || `DF-${Date.now()}`),
+      reference: d.reference || d.fields?.folio || null,
+      customer: d.customer || d.fields?.customer || '',
+      payload: d,
+      created_by: user?.id || null,
+      updated_at: new Date().toISOString()
+    }));
+    if (rows.length) {
+      const result = await client.from('invoice_drafts').upsert(rows, { onConflict: 'id' });
+      if (result.error) {
+        console.warn('[Supabase Sync] Upsert drafts error:', result.error.message);
+        throw result.error;
+      }
+      broadcastSync('draft_upsert');
+    }
+  }
+
+  async function deleteDraftRemote(id) {
+    recordDeletedDraftId(id);
+    if (!client) return;
+    try {
+      await client.from('invoice_drafts').delete().eq('id', String(id));
+    } catch (e) {
+      console.warn('[Supabase Sync] Delete draft error:', e.message || e);
+    }
+    broadcastSync('draft_delete');
+  }
+
+  async function pullDrafts() {
+    if (!client) return;
+    const result = await client.from('invoice_drafts').select('*').order('created_at', { ascending: false });
+    if (result.error) {
+      console.warn('[Supabase Sync] Pull drafts warning:', result.error.message);
+      return;
+    }
+    const deletedIds = getDeletedDraftIds();
+    const remote = (result.data || [])
+      .filter(row => !deletedIds.has(String(row.id)))
+      .map(row => {
+        const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+        return {
+          ...payload,
+          id: row.id,
+          reference: row.reference || payload.reference || row.id,
+          customer: row.customer || payload.customer || '-',
+          savedAt: payload.savedAt || (row.created_at ? new Date(row.created_at).toLocaleString('th-TH') : new Date().toLocaleString('th-TH'))
+        };
+      });
+
+    const local = readLocal(localDraftsKey, []);
+    const remoteIds = new Set(remote.map(r => String(r.id)));
+    const missingInRemote = local.filter(l => l && l.id && !remoteIds.has(String(l.id)) && !deletedIds.has(String(l.id)));
+    if (missingInRemote.length > 0) {
+      upsertDrafts(missingInRemote).catch(() => {});
+    }
+
+    const merged = [...remote, ...missingInRemote.filter(item => !remote.some(r => String(r.id) === String(item.id)))];
+    if (JSON.stringify(merged) !== JSON.stringify(local)) {
+      writeLocal(localDraftsKey, merged);
+      if (window.sceneryAppState) window.sceneryAppState.drafts = merged;
+      triggerUIRefresh();
+    }
+  }
+
+  window.scenerySupabase.saveDraftRemote = record => upsertDrafts([record]).catch(e => console.warn('Save draft remote:', e));
+  window.scenerySupabase.deleteDraftRemote = id => deleteDraftRemote(id).catch(e => console.warn('Delete draft remote:', e));
+  window.scenerySupabase.pullDrafts = pullDrafts;
+
   // Refresh UI dynamically without full page reload
   function triggerUIRefresh() {
     const activeEl = document.activeElement;
@@ -380,6 +470,38 @@
     }
     if (typeof window.renderAuditLog === 'function') window.renderAuditLog();
     if (typeof window.renderBookingRecords === 'function') window.renderBookingRecords();
+
+    // Dynamically refresh draft picker modal if open
+    const draftPickerList = document.querySelector('.draft-picker-list');
+    if (draftPickerList) {
+      const drafts = typeof window.loadInvoiceDrafts === 'function' ? window.loadInvoiceDrafts() : readLocal(localDraftsKey, []);
+      draftPickerList.innerHTML = drafts.map((draft, index) => {
+        const totalAmount = Number(draft.total || (draft.lines || []).reduce((s, l) => s + Math.max(0, Number(l.qty || 0) * Number(l.rate || 0)), 0));
+        const itemCount = (draft.lines || []).length;
+        const draftKey = draft.id || index;
+        return `
+          <div class="draft-picker-row" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border:1px solid #e7ded6;border-radius:8px;gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <strong style="color:var(--primary);font-size:13px;">${draft.reference || draft.id}</strong>
+                <span class="status-chip draft" style="font-size:10px;padding:2px 6px;">แบบร่าง</span>
+              </div>
+              <div style="font-size:13px;color:#2c2017;margin-top:3px;">
+                <strong>${draft.customer || '-'}</strong> ${draft.villa ? '(' + draft.villa + ')' : ''} · <span class="muted">${itemCount} รายการ</span>
+              </div>
+              <small class="muted" style="font-size:11px;display:block;margin-top:2px;">บันทึกเมื่อ: ${draft.savedAt || '-'}</small>
+            </div>
+            <div style="text-align:right;white-space:nowrap;">
+              <div style="font-weight:700;color:#2c2017;font-size:14px;margin-bottom:6px;">${typeof window.money === 'function' ? window.money(totalAmount) : totalAmount}</div>
+              <div style="display:flex;gap:6px;justify-content:flex-end;">
+                <button class="button button-primary action-small" type="button" data-draft-load="${draftKey}">เปิด</button>
+                <button class="button button-danger action-small" type="button" data-draft-delete="${draftKey}" aria-label="ลบแบบร่าง"><span class="material-symbols-outlined" style="font-size:16px;">delete</span></button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('') || '<div class="empty-state"><span class="material-symbols-outlined">description</span><p>ยังไม่มีแบบร่าง</p></div>';
+    }
   }
 
   function updateOnlineStatusIndicator(isOnline, detail = '') {
@@ -577,7 +699,7 @@
     if (!client) return;
     if (hydratePromise) return hydratePromise;
     hydratePromise = (async () => {
-      const tasks = [pullInvoices(), pullBookings(), pullRounds(), pullAudit(), pullEdits()];
+      const tasks = [pullInvoices(), pullDrafts(), pullBookings(), pullRounds(), pullAudit(), pullEdits()];
       const results = await Promise.allSettled(tasks);
       const failed = results.find(result => result.status === 'rejected');
       if (failed) {
@@ -603,6 +725,8 @@
     const saveInvoiceHistory = originals.saveInvoiceHistory || window.saveInvoiceHistory;
     const saveClosedBookings = originals.saveClosedBookings || window.saveClosedBookings;
     const deleteInvoiceHistory = originals.deleteInvoiceHistory || window.deleteInvoiceHistory;
+    const saveInvoiceDraft = originals.saveInvoiceDraft || window.saveInvoiceDraft;
+    const deleteInvoiceDraft = originals.deleteInvoiceDraft || window.deleteInvoiceDraft;
     const submitCloseRound = originals.submitCloseRound || window.submitCloseRound;
     const saveCloseRoundDetailEdit = originals.saveCloseRoundDetailEdit || window.saveCloseRoundDetailEdit;
 
@@ -643,6 +767,42 @@
         }
       };
       window.deleteInvoiceHistory.__supabaseWrapped = true;
+    }
+
+    if (saveInvoiceDraft && !window.saveInvoiceDraft.__supabaseWrapped) {
+      const localSave = saveInvoiceDraft;
+      window.saveInvoiceDraft = function () {
+        localSave();
+        if (client) {
+          const drafts = readLocal(localDraftsKey, []);
+          if (drafts.length) {
+            upsertDrafts([drafts[0]])
+              .then(() => broadcastSync('draft_add'))
+              .catch(error => console.warn('[Supabase Sync] Upsert draft:', error.message || error));
+          }
+        }
+      };
+      window.saveInvoiceDraft.__supabaseWrapped = true;
+    }
+
+    if (deleteInvoiceDraft && !window.deleteInvoiceDraft.__supabaseWrapped) {
+      const localDelete = deleteInvoiceDraft;
+      window.deleteInvoiceDraft = function (indexOrId) {
+        const drafts = readLocal(localDraftsKey, []);
+        let targetId = null;
+        if (typeof indexOrId === 'number' || (!isNaN(Number(indexOrId)) && drafts[Number(indexOrId)])) {
+          targetId = drafts[Number(indexOrId)]?.id;
+        } else {
+          targetId = String(indexOrId);
+        }
+        localDelete(indexOrId);
+        if (client && targetId) {
+          deleteDraftRemote(targetId)
+            .then(() => broadcastSync('draft_delete'))
+            .catch(error => console.warn('[Supabase Sync] Delete draft remote:', error.message || error));
+        }
+      };
+      window.deleteInvoiceDraft.__supabaseWrapped = true;
     }
 
     if (submitCloseRound && !window.submitCloseRound.__supabaseWrapped) {

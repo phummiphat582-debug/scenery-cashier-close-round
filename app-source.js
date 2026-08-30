@@ -24,7 +24,7 @@ function renderDashboard(){
   const today=typeof historyDateKey==='function'?historyDateKey():new Date().toISOString().slice(0,10);
   const totalSales=records.reduce((sum,r)=>sum+Number(r.total||0),0);
   const totalPending=records.reduce((sum,r)=>sum+(typeof historyPendingTotal==='function'?historyPendingTotal(r):Number(r.pendingTotal||0)),0);
-  const drafts=state.drafts||[];
+  const drafts=typeof loadInvoiceDrafts==='function'?loadInvoiceDrafts():(state.drafts||[]);
 
   const metricCards=document.querySelectorAll('#view-dashboard .metric-card');
   if(metricCards[0]){const strong=metricCards[0].querySelector('strong');if(strong)strong.textContent=money(totalSales)}
@@ -66,7 +66,20 @@ function renderDashboard(){
 
   const draftList=$('#draft-list');
   if(draftList){
-    draftList.innerHTML=drafts.length?drafts.map(d=>`<div class="draft-item"><div class="draft-top"><strong>${esc(d.id)}</strong><small>${esc(d.time)}</small></div><p>${esc(d.label)}</p><div class="draft-bottom"><span class="amount">${money(d.total)}</span><button class="text-button" data-view="invoice">แก้ไข</button></div></div>`).join(''):'<div class="empty-state"><p class="muted">ไม่มีใบแจ้งหนี้แบบร่าง</p></div>';
+    draftList.innerHTML=drafts.length?drafts.slice(0,6).map((d,index)=>{
+      const totalAmount=Number(d.total||(d.lines||[]).reduce((sum,l)=>sum+Math.max(0,Number(l.qty||0)*Number(l.rate||0)),0));
+      const customerText=d.customer?(d.customer+(d.villa?' · '+d.villa:'')):(d.label||'รายการแบบร่าง');
+      const timeDisplay=d.savedAt||d.time||'-';
+      const draftKey=d.id||index;
+      return `<div class="draft-item">
+        <div class="draft-top"><strong>${esc(d.reference||d.id)}</strong><small>${esc(timeDisplay)}</small></div>
+        <p>${esc(customerText)}</p>
+        <div class="draft-bottom">
+          <span class="amount">${money(totalAmount)}</span>
+          <button class="text-button" type="button" data-draft-load="${esc(draftKey)}">เปิดแก้ไข</button>
+        </div>
+      </div>`;
+    }).join(''):'<div class="empty-state"><p class="muted">ไม่มีใบแจ้งหนี้แบบร่าง</p></div>';
   }
 }
 function renderHistory(){const b=$('#history-body');if(!b)return;const q=($('#history-search')?.value||'').trim().toLowerCase(),rows=state.invoices.filter(i=>`${i.id} ${i.customer}`.toLowerCase().includes(q));b.innerHTML=rows.map(i=>`<tr><td>${esc(i.id)}</td><td><strong>${esc(i.customer)}</strong><small class="table-subtext">${esc(i.time)} น.</small></td><td>17 ก.ค. 2026</td><td class="align-right strong-number">${money(i.total)}</td><td>${i.status==='ชำระแล้ว'?'<span class="positive-text">ครบถ้วน</span>':'<span class="warning-text">ค้างชำระ</span>'}</td><td><span class="status-chip ${i.statusClass}">${esc(i.status)}</span></td><td><button class="button button-outline action-small" data-action="detail" data-id="${esc(i.id)}">เปิดบิล</button></td></tr>`).join('')||'<tr><td colspan="7"><div class="empty-state"><span class="material-symbols-outlined">search_off</span><p>ไม่พบรายการ</p></div></td></tr>'}
@@ -582,12 +595,147 @@ async function finalizeInvoice(){
   showToast(`บันทึกใบแจ้งหนี้ ${s.reference} (${s.customer}) และลงตารางปิดรอบแล้ว`);
   if(typeof renderCloseRound==='function')renderCloseRound();
 }
-function loadInvoiceDrafts(){try{return JSON.parse(localStorage.getItem('scenery-invoice-drafts')||'[]')}catch{return[]}}
-function saveInvoiceDraft(){const drafts=loadInvoiceDrafts(),fields={};['folio','customer','check-in','check-out','no-of-night','remark','doc-date','discount-scope','discount-all-rate','villa','cashier'].forEach(id=>{if($(`#${id}`))fields[id]=$(`#${id}`).value});drafts.unshift({id:`DF-${Date.now()}`,reference:fields.folio||'-',customer:fields.customer||'-',savedAt:new Date().toLocaleString('th-TH'),fields,lines:state.invoiceLines.map(l=>({...l})),payments:state.payments.map(p=>({...p}))});try{localStorage.setItem('scenery-invoice-drafts',JSON.stringify(drafts.slice(0,50)));showToast('บันทึกใบแจ้งหนี้แบบร่างแล้ว')}catch{showToast('บันทึกแบบร่างไม่สำเร็จ','error')}}
-function loadInvoiceDraft(index){const draft=loadInvoiceDrafts()[Number(index)];if(!draft)return;Object.entries(draft.fields||{}).forEach(([id,value])=>{if($(`#${id}`))$(`#${id}`).value=value});state.invoiceLines=(draft.lines||[]).map(l=>({...l,depositMethod:l.depositMethod||'เงินสด'}));state.payments=(draft.payments||[]).map(p=>({...p}));state.invoiceClosed=false;state.closedInvoiceSnapshot=null;state.pendingCollectionTotal=0;state.pendingCollectionNote='';$$('.invoice-search-input').forEach(input=>{const select=$(`#${input.dataset.source}`),option=[...select.options].find(o=>o.value===String(state.invoiceLines.find(l=>l.type===(input.dataset.source==='accommodation-select'?'accommodation':'addon'))?.sourceIndex||''));if(option)input.value=option.textContent});$('#modal-root').innerHTML='';renderFormLines();renderPayments();setInvoicePage('form');showToast('เปิดแบบร่างแล้ว')}
-function openDraftPicker(){const drafts=loadInvoiceDrafts(),body=drafts.length?`<div class="draft-picker-list">${drafts.map((draft,index)=>`<div class="draft-picker-row"><div><strong>${esc(draft.reference)}</strong><small>${esc(draft.customer)} · ${esc(draft.savedAt)}</small></div><button class="button button-outline action-small" type="button" data-draft-load="${index}">เปิด</button><button class="icon-button" type="button" data-draft-delete="${index}" aria-label="ลบแบบร่าง"><span class="material-symbols-outlined">delete</span></button></div>`).join('')}</div>`:'<div class="empty-state"><p>ยังไม่มีแบบร่าง</p><small>บันทึกข้อมูลไว้เพื่อกลับมาเพิ่มรายการภายหลัง</small></div>';openModal('แบบร่างใบแจ้งหนี้',body,'<button class="button button-outline" data-close-modal>ปิด</button>')}
+function loadInvoiceDrafts(){
+  try{
+    const raw=localStorage.getItem('scenery-invoice-drafts');
+    if(!raw)return [];
+    const list=JSON.parse(raw);
+    return Array.isArray(list)?list:[];
+  }catch{
+    return [];
+  }
+}
+window.loadInvoiceDrafts=loadInvoiceDrafts;
+
+function saveInvoiceDraft(){
+  const drafts=loadInvoiceDrafts();
+  const fields={};
+  ['folio','customer','check-in','check-out','no-of-night','remark','doc-date','discount-scope','discount-all-rate','villa','villa-code','cashier'].forEach(id=>{
+    if($(`#${id}`))fields[id]=$(`#${id}`).value;
+  });
+  const lines=state.invoiceLines.map(l=>({...l}));
+  const payments=state.payments.map(p=>({...p}));
+  const total=lines.reduce((sum,l)=>sum+Math.max(0,Number(l.qty||0)*Number(l.rate||0)),0);
+  const draftId=`DF-${Date.now()}`;
+  const newDraft={
+    id: draftId,
+    reference: fields.folio||(fields.customer?`DF-${Date.now().toString().slice(-6)}`:'-'),
+    customer: fields.customer||'-',
+    villa: fields.villa||'',
+    savedAt: new Date().toLocaleString('th-TH'),
+    total,
+    fields,
+    lines,
+    payments
+  };
+  drafts.unshift(newDraft);
+  try{
+    localStorage.setItem('scenery-invoice-drafts',JSON.stringify(drafts.slice(0,50)));
+    showToast('บันทึกใบแจ้งหนี้แบบร่างแล้ว (Realtime Sync)');
+  }catch{
+    showToast('บันทึกแบบร่างไม่สำเร็จ','error');
+  }
+  if(window.scenerySupabase?.saveDraftRemote){
+    window.scenerySupabase.saveDraftRemote(newDraft);
+  }
+  if(typeof renderDashboard==='function')renderDashboard();
+}
+window.saveInvoiceDraft=saveInvoiceDraft;
+
+function loadInvoiceDraft(indexOrId){
+  const drafts=loadInvoiceDrafts();
+  const draft=(typeof indexOrId==='number'||(!isNaN(Number(indexOrId))&&drafts[Number(indexOrId)]))?drafts[Number(indexOrId)]:drafts.find(d=>String(d.id)===String(indexOrId));
+  if(!draft){
+    showToast('ไม่พบข้อมูลแบบร่างนี้','error');
+    return;
+  }
+  Object.entries(draft.fields||{}).forEach(([id,value])=>{
+    if($(`#${id}`)) $(`#${id}`).value=value;
+  });
+  state.invoiceLines=(draft.lines||[]).map(l=>({...l,depositMethod:l.depositMethod||'เงินสด'}));
+  state.payments=(draft.payments||[]).map(p=>({...p}));
+  state.invoiceClosed=false;
+  state.closedInvoiceSnapshot=null;
+  state.pendingCollectionTotal=0;
+  state.pendingCollectionNote='';
+  $$('.invoice-search-input').forEach(input=>{
+    const select=$(`#${input.dataset.source}`);
+    const option=[...select.options].find(o=>o.value===String(state.invoiceLines.find(l=>l.type===(input.dataset.source==='accommodation-select'?'accommodation':'addon'))?.sourceIndex||''));
+    if(option)input.value=option.textContent;
+  });
+  $('#modal-root').innerHTML='';
+  renderFormLines();
+  renderPayments();
+  setView('invoice');
+  setInvoicePage('form');
+  showToast(`เปิดแบบร่าง "${draft.reference||draft.id}" เรียบร้อยแล้ว`);
+}
+window.loadInvoiceDraft=loadInvoiceDraft;
+
+function deleteInvoiceDraft(indexOrId){
+  const drafts=loadInvoiceDrafts();
+  let deletedId=null;
+  if(typeof indexOrId==='number'||(!isNaN(Number(indexOrId))&&drafts[Number(indexOrId)])){
+    const idx=Number(indexOrId);
+    if(drafts[idx]){
+      deletedId=drafts[idx].id;
+      drafts.splice(idx,1);
+    }
+  }else{
+    deletedId=String(indexOrId);
+    const idx=drafts.findIndex(d=>String(d.id)===deletedId);
+    if(idx!==-1){
+      drafts.splice(idx,1);
+    }
+  }
+  localStorage.setItem('scenery-invoice-drafts',JSON.stringify(drafts));
+  if(deletedId&&window.scenerySupabase?.deleteDraftRemote){
+    window.scenerySupabase.deleteDraftRemote(deletedId);
+  }
+  if(typeof renderDashboard==='function')renderDashboard();
+  openDraftPicker();
+  showToast('ลบแบบร่างแล้ว');
+}
+window.deleteInvoiceDraft=deleteInvoiceDraft;
+
+function openDraftPicker(){
+  const drafts=loadInvoiceDrafts();
+  const body=drafts.length?`
+    <div class="draft-picker-list" style="display:flex;flex-direction:column;gap:8px;max-height:65vh;overflow:auto;">
+      ${drafts.map((draft,index)=>{
+        const totalAmount=Number(draft.total||(draft.lines||[]).reduce((s,l)=>s+Math.max(0,Number(l.qty||0)*Number(l.rate||0)),0));
+        const itemCount=(draft.lines||[]).length;
+        const draftKey=draft.id||index;
+        return `
+          <div class="draft-picker-row" style="display:flex;align-items:center;justify-content:space-between;padding:12px 14px;background:#fff;border:1px solid #e7ded6;border-radius:8px;gap:12px;">
+            <div style="flex:1;min-width:0;">
+              <div style="display:flex;align-items:center;gap:8px;">
+                <strong style="color:var(--primary);font-size:13px;">${esc(draft.reference||draft.id)}</strong>
+                <span class="status-chip draft" style="font-size:10px;padding:2px 6px;">แบบร่าง</span>
+              </div>
+              <div style="font-size:13px;color:#2c2017;margin-top:3px;">
+                <strong>${esc(draft.customer||'-')}</strong> ${draft.villa?`(${esc(draft.villa)})`:''} · <span class="muted">${itemCount} รายการ</span>
+              </div>
+              <small class="muted" style="font-size:11px;display:block;margin-top:2px;">บันทึกเมื่อ: ${esc(draft.savedAt||'-')}</small>
+            </div>
+            <div style="text-align:right;white-space:nowrap;">
+              <div style="font-weight:700;color:#2c2017;font-size:14px;margin-bottom:6px;">${money(totalAmount)}</div>
+              <div style="display:flex;gap:6px;justify-content:flex-end;">
+                <button class="button button-primary action-small" type="button" data-draft-load="${esc(draftKey)}">เปิด</button>
+                <button class="button button-danger action-small" type="button" data-draft-delete="${esc(draftKey)}" aria-label="ลบแบบร่าง"><span class="material-symbols-outlined" style="font-size:16px;">delete</span></button>
+              </div>
+            </div>
+          </div>
+        `;
+      }).join('')}
+    </div>
+  `:'<div class="empty-state"><span class="material-symbols-outlined">description</span><p>ยังไม่มีแบบร่าง</p><small>บันทึกข้อมูลไว้เพื่อกลับมาเพิ่มรายการภายหลัง</small></div>';
+  openModal('แบบร่างใบแจ้งหนี้ (Realtime Sync)',body,'<button class="button button-outline" data-close-modal>ปิด</button>');
+}
+window.openDraftPicker=openDraftPicker;
+
 function installInvoiceTools(){const actions=$('#view-invoice .heading-actions');if(!actions||$('#save-invoice-draft'))return;const save=document.createElement('button');save.id='save-invoice-draft';save.type='button';save.className='button button-soft';save.innerHTML='<span class="material-symbols-outlined">save</span>บันทึกแบบร่าง';const open=document.createElement('button');open.id='open-invoice-drafts';open.type='button';open.className='button button-outline';open.innerHTML='<span class="material-symbols-outlined">folder_open</span>แบบร่าง';actions.insertBefore(save,actions.firstChild);actions.insertBefore(open,actions.children[1]||null);save.addEventListener('click',saveInvoiceDraft);open.addEventListener('click',openDraftPicker)}
-buildInvoiceWorkspace();installDepositHeaders();installSearchableItemFields();installPreviewPaymentMeta();installInvoiceTools();state.invoiceClosed=false;document.addEventListener('input',event=>{if(event.target.matches('.line-deposit')){const line=state.invoiceLines[Number(event.target.dataset.lineIndex)];if(line){line.deposit=Math.max(0,Number(event.target.value||0));calculateInvoice()}}if(event.target.matches('[data-settlement-index][data-settlement-field="amount"]')){settlementRows[Number(event.target.dataset.settlementIndex)].amount=Number(event.target.value||0);updateSettlementTotal()}});document.addEventListener('change',event=>{if(event.target.matches('.line-deposit-method')){const line=state.invoiceLines[Number(event.target.dataset.lineIndex)];if(line)line.depositMethod=event.target.value;renderInvoicePreview()}if(event.target.matches('[data-settlement-index][data-settlement-field="method"]')){settlementRows[Number(event.target.dataset.settlementIndex)].method=event.target.value;updateSettlementTotal()}});document.addEventListener('click',event=>{const remove=event.target.closest('.remove-form-line');if(!remove)return;event.preventDefault();event.stopPropagation();const index=Number(remove.dataset.lineIndex);if(!Number.isInteger(index)||!state.invoiceLines[index])return;state.invoiceLines.splice(index,1);renderFormLines();showToast('ลบรายการออกจากใบแจ้งหนี้แล้ว')},true);document.addEventListener('click',event=>{const addSettlement=event.target.closest('[data-settlement-add]');if(addSettlement){event.preventDefault();settlementRows.push({method:'เงินสด',amount:0});renderSettlementRows();updateSettlementTotal();return}const removeSettlement=event.target.closest('[data-settlement-remove]');if(removeSettlement){event.preventDefault();settlementRows.splice(Number(removeSettlement.dataset.settlementRemove),1);if(!settlementRows.length)settlementRows.push({method:'เงินสด',amount:0});renderSettlementRows();updateSettlementTotal();return}if(event.target.closest('[data-settlement-confirm]')){event.preventDefault();finalizeInvoice();return}const loadDraft=event.target.closest('[data-draft-load]');if(loadDraft){event.preventDefault();loadInvoiceDraft(loadDraft.dataset.draftLoad);return}const deleteDraft=event.target.closest('[data-draft-delete]');if(deleteDraft){event.preventDefault();const drafts=loadInvoiceDrafts();drafts.splice(Number(deleteDraft.dataset.draftDelete),1);localStorage.setItem('scenery-invoice-drafts',JSON.stringify(drafts));openDraftPicker()}});document.addEventListener('DOMContentLoaded',()=>{renderDashboard();renderHistory();renderBookingRecords();renderFormLines();renderPayments();wireEvents()});
+buildInvoiceWorkspace();installDepositHeaders();installSearchableItemFields();installPreviewPaymentMeta();installInvoiceTools();state.invoiceClosed=false;document.addEventListener('input',event=>{if(event.target.matches('.line-deposit')){const line=state.invoiceLines[Number(event.target.dataset.lineIndex)];if(line){line.deposit=Math.max(0,Number(event.target.value||0));calculateInvoice()}}if(event.target.matches('[data-settlement-index][data-settlement-field="amount"]')){settlementRows[Number(event.target.dataset.settlementIndex)].amount=Number(event.target.value||0);updateSettlementTotal()}});document.addEventListener('change',event=>{if(event.target.matches('.line-deposit-method')){const line=state.invoiceLines[Number(event.target.dataset.lineIndex)];if(line)line.depositMethod=event.target.value;renderInvoicePreview()}if(event.target.matches('[data-settlement-index][data-settlement-field="method"]')){settlementRows[Number(event.target.dataset.settlementIndex)].method=event.target.value;updateSettlementTotal()}});document.addEventListener('click',event=>{const remove=event.target.closest('.remove-form-line');if(!remove)return;event.preventDefault();event.stopPropagation();const index=Number(remove.dataset.lineIndex);if(!Number.isInteger(index)||!state.invoiceLines[index])return;state.invoiceLines.splice(index,1);renderFormLines();showToast('ลบรายการออกจากใบแจ้งหนี้แล้ว')},true);document.addEventListener('click',event=>{const addSettlement=event.target.closest('[data-settlement-add]');if(addSettlement){event.preventDefault();settlementRows.push({method:'เงินสด',amount:0});renderSettlementRows();updateSettlementTotal();return}const removeSettlement=event.target.closest('[data-settlement-remove]');if(removeSettlement){event.preventDefault();settlementRows.splice(Number(removeSettlement.dataset.settlementRemove),1);if(!settlementRows.length)settlementRows.push({method:'เงินสด',amount:0});renderSettlementRows();updateSettlementTotal();return}if(event.target.closest('[data-settlement-confirm]')){event.preventDefault();finalizeInvoice();return}const loadDraft=event.target.closest('[data-draft-load]');if(loadDraft){event.preventDefault();loadInvoiceDraft(loadDraft.dataset.draftLoad);return}const deleteDraft=event.target.closest('[data-draft-delete]');if(deleteDraft){event.preventDefault();deleteInvoiceDraft(deleteDraft.dataset.draftDelete);return}});document.addEventListener('DOMContentLoaded',()=>{renderDashboard();renderHistory();renderBookingRecords();renderFormLines();renderPayments();wireEvents()});
 
 function roundMetricValue(index){const value=$$('#view-close-round .round-metrics article')[index]?.querySelector('strong')?.textContent||'0';return Number(value.replace(/[^0-9.-]/g,''))||0}
 function loadClosedRounds(){try{return JSON.parse(localStorage.getItem('scenery-closed-rounds')||'[]')}catch{return[]}}
