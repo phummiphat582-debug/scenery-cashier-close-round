@@ -266,3 +266,167 @@
   font-weight: 800;
   color: #5a3617;
 }
+
+/* =========================================================================
+   UNIFORM INVOICE FONT SIZES (ขนาดตัวหนังสือเท่ากันทั้งใบแจ้งหนี้)
+   ========================================================================= */
+.invoice-preview-sheet,
+#view-invoice .invoice-preview-sheet,
+.history-information-bill {
+  font-family: Arial, "Noto Sans", Tahoma, sans-serif !important;
+  font-size: 11px !important;
+  color: #1e1c1a !important;
+}
+
+/* 1. Header Company & Title */
+.invoice-preview-sheet .preview-company,
+.invoice-preview-sheet .preview-company p,
+.invoice-preview-sheet .preview-company div,
+.invoice-preview-sheet .preview-title div,
+.invoice-preview-sheet .preview-title span,
+.invoice-preview-sheet .preview-title strong,
+#view-invoice .preview-company,
+#view-invoice .preview-company p,
+#view-invoice .preview-company div,
+#view-invoice .preview-title div,
+#view-invoice .preview-title span,
+#view-invoice .preview-title strong {
+  font-size: 11px !important;
+  line-height: 1.45 !important;
+}
+
+.invoice-preview-sheet .preview-title h1,
+#view-invoice .preview-title h1 {
+  font-size: 34px !important;
+  line-height: 1 !important;
+}
+
+/* 2. Metadata Block */
+.invoice-preview-sheet .preview-meta,
+.invoice-preview-sheet .preview-meta > div,
+.invoice-preview-sheet .preview-meta span,
+.invoice-preview-sheet .preview-meta strong,
+.invoice-preview-sheet .preview-reference-payment-row,
+.invoice-preview-sheet .preview-reference-payment-row > div,
+.invoice-preview-sheet .preview-reference-payment-row span,
+.invoice-preview-sheet .preview-reference-payment-row strong,
+#view-invoice .preview-meta,
+#view-invoice .preview-meta > div,
+#view-invoice .preview-meta span,
+#view-invoice .preview-meta strong,
+#view-invoice .preview-reference-payment-row,
+#view-invoice .preview-reference-payment-row > div,
+#view-invoice .preview-reference-payment-row span,
+#view-invoice .preview-reference-payment-row strong {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+/* 3. Table Headers, Cells, Blank Rows & Section Banners */
+.invoice-preview-sheet .invoice-preview-table,
+.invoice-preview-sheet .invoice-preview-table thead,
+.invoice-preview-sheet .invoice-preview-table thead tr,
+.invoice-preview-sheet .invoice-preview-table thead th,
+.invoice-preview-sheet .invoice-preview-table tbody,
+.invoice-preview-sheet .invoice-preview-table tbody tr,
+.invoice-preview-sheet .invoice-preview-table tbody td,
+.invoice-preview-sheet .invoice-preview-table .bill-section-row td,
+.invoice-preview-sheet .invoice-preview-table .blank-line td,
+.invoice-preview-sheet .invoice-pending,
+.invoice-preview-sheet .invoice-overpaid,
+.invoice-preview-sheet .invoice-discount-rate,
+.invoice-preview-sheet .invoice-discount-amount,
+.invoice-preview-sheet .line-gross,
+#view-invoice .invoice-preview-table,
+#view-invoice .invoice-preview-table thead,
+#view-invoice .invoice-preview-table thead tr,
+#view-invoice .invoice-preview-table thead th,
+#view-invoice .invoice-preview-table tbody,
+#view-invoice .invoice-preview-table tbody tr,
+#view-invoice .invoice-preview-table tbody td,
+#view-invoice .invoice-preview-table .bill-section-row td,
+#view-invoice .invoice-preview-table .blank-line td,
+#view-invoice .invoice-pending,
+#view-invoice .invoice-overpaid,
+#view-invoice .invoice-discount-rate,
+#view-invoice .invoice-discount-amount,
+#view-invoice .line-gross {
+  font-size: 11px !important;
+  line-height: 1.35 !important;
+}
+
+/* 4. Footer Agreement, Signatures, Notes & Totals */
+.invoice-preview-sheet .preview-footer,
+.invoice-preview-sheet .preview-agreement,
+.invoice-preview-sheet .signature-row,
+.invoice-preview-sheet .signature-row span,
+.invoice-preview-sheet .preview-pending-notes,
+.invoice-preview-sheet .preview-pending-notes *,
+.invoice-preview-sheet .preview-totals,
+.invoice-preview-sheet .preview-totals > div,
+.invoice-preview-sheet .preview-totals span,
+.invoice-preview-sheet .preview-totals strong,
+.invoice-preview-sheet .preview-totals small,
+#view-invoice .preview-footer,
+#view-invoice .preview-agreement,
+#view-invoice .signature-row,
+#view-invoice .signature-row span,
+#view-invoice .preview-pending-notes,
+#view-invoice .preview-pending-notes *,
+#view-invoice .preview-totals,
+#view-invoice .preview-totals > div,
+#view-invoice .preview-totals span,
+#view-invoice .preview-totals strong,
+#view-invoice .preview-totals small {
+  font-size: 11px !important;
+  line-height: 1.4 !important;
+}
+
+@media print {
+  .invoice-preview-sheet,
+  #view-invoice .invoice-preview-sheet,
+  .history-information-bill,
+  .invoice-preview-sheet .preview-company,
+  .invoice-preview-sheet .preview-company p,
+  .invoice-preview-sheet .preview-title div,
+  .invoice-preview-sheet .preview-title span,
+  .invoice-preview-sheet .preview-title strong,
+  .invoice-preview-sheet .preview-meta span,
+  .invoice-preview-sheet .preview-meta strong,
+  .invoice-preview-sheet .preview-reference-payment-row span,
+  .invoice-preview-sheet .preview-reference-payment-row strong,
+  .invoice-preview-sheet .invoice-preview-table th,
+  .invoice-preview-sheet .invoice-preview-table td,
+  .invoice-preview-sheet .invoice-preview-table .bill-section-row td,
+  .invoice-preview-sheet .preview-agreement,
+  .invoice-preview-sheet .signature-row,
+  .invoice-preview-sheet .signature-row span,
+  .invoice-preview-sheet .preview-totals,
+  .invoice-preview-sheet .preview-totals > div,
+  .invoice-preview-sheet .preview-totals span,
+  .invoice-preview-sheet .preview-totals strong,
+  .invoice-preview-sheet .preview-totals small,
+  #view-invoice .preview-company,
+  #view-invoice .preview-company p,
+  #view-invoice .preview-title div,
+  #view-invoice .preview-title span,
+  #view-invoice .preview-title strong,
+  #view-invoice .preview-meta span,
+  #view-invoice .preview-meta strong,
+  #view-invoice .preview-reference-payment-row span,
+  #view-invoice .preview-reference-payment-row strong,
+  #view-invoice .invoice-preview-table th,
+  #view-invoice .invoice-preview-table td,
+  #view-invoice .invoice-preview-table .bill-section-row td,
+  #view-invoice .preview-agreement,
+  #view-invoice .signature-row,
+  #view-invoice .signature-row span,
+  #view-invoice .preview-totals,
+  #view-invoice .preview-totals > div,
+  #view-invoice .preview-totals span,
+  #view-invoice .preview-totals strong,
+  #view-invoice .preview-totals small {
+    font-size: 11px !important;
+  }
+}
+
