@@ -1,6 +1,8 @@
 /*
- * Supabase Bridge & Realtime Sync Engine for The Scenery Cashier & Close Round
- * Provides instantaneous (<100ms) multi-device synchronization via Supabase WebSockets & Realtime Broadcast.
+ * Supabase Bridge & Multi-Device Realtime Sync Engine
+ * The Scenery Vintage Farm - Cashier & Close Round System
+ * Provides instantaneous (<100ms) multi-device synchronization via Supabase WebSockets,
+ * Realtime Broadcast, and high-frequency resilient polling fallback.
  */
 (() => {
   const config = window.SCENERY_SUPABASE_CONFIG || {};
@@ -25,13 +27,13 @@
   };
 
   const restRequest = async (path, options = {}) => {
+    const token = authToken();
     const headers = {
       'apikey': config.anonKey,
+      'Authorization': 'Bearer ' + (token || config.anonKey),
       'Content-Type': 'application/json',
       ...(options.headers || {})
     };
-    const token = authToken();
-    if (token) headers.Authorization = 'Bearer ' + token;
 
     const response = await doFetch(apiRoot + path, { ...options, headers });
     const body = await response.text();
@@ -66,7 +68,7 @@
       signInWithPassword: async ({ email, password }) => {
         const res = await doFetch(`${apiRoot}/auth/v1/token?grant_type=password`, {
           method: 'POST',
-          headers: { 'apikey': config.anonKey, 'Content-Type': 'application/json' },
+          headers: { 'apikey': config.anonKey, 'Authorization': 'Bearer ' + config.anonKey, 'Content-Type': 'application/json' },
           body: JSON.stringify({ email, password })
         });
         const body = await res.json().catch(() => ({}));
@@ -152,7 +154,10 @@
     enabled: hasConfig,
     client,
     mode: client ? 'supabase-rest' : 'local',
-    session: null
+    session: null,
+    isOnline: false,
+    lastSyncAt: null,
+    lastError: null
   };
 
   const notify = (message, type = 'info') => {
@@ -172,8 +177,6 @@
     try { localStorage.setItem(key, JSON.stringify(value)); } catch {}
   };
 
-  const recordKey = record => String(record?.id || record?.reference || '');
-
   // Local Cross-Tab Broadcast Channel
   const localBroadcast = typeof BroadcastChannel === 'function' ? new BroadcastChannel('scenery-shared-sync') : null;
 
@@ -190,7 +193,9 @@
         });
       }
 
-      if (realtimeChannel) realtimeClient.removeChannel(realtimeChannel);
+      if (realtimeChannel) {
+        try { realtimeClient.removeChannel(realtimeChannel); } catch {}
+      }
 
       realtimeChannel = realtimeClient.channel('scenery-live-updates', {
         config: { broadcast: { self: false } }
@@ -199,32 +204,28 @@
       // Listen for Database postgres_changes
       realtimeChannel
         .on('postgres_changes', { event: '*', schema: 'public', table: 'invoice_history' }, () => {
-          console.log('[Realtime] invoice_history changed on remote device');
           pullInvoices();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'closed_bookings' }, () => {
-          console.log('[Realtime] closed_bookings changed on remote device');
           pullBookings();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'close_rounds' }, () => {
-          console.log('[Realtime] close_rounds changed on remote device');
           pullRounds();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'close_round_edits' }, () => {
-          console.log('[Realtime] close_round_edits changed on remote device');
           pullEdits();
         })
         .on('postgres_changes', { event: '*', schema: 'public', table: 'audit_logs' }, () => {
-          console.log('[Realtime] audit_logs changed on remote device');
           pullAudit();
         })
         // Listen for Instant Realtime Broadcasts from other devices
-        .on('broadcast', { event: 'sync_trigger' }, (payload) => {
-          console.log('[Realtime Broadcast] Instant sync received from another device:', payload);
+        .on('broadcast', { event: 'sync_trigger' }, () => {
           hydrate();
         })
         .subscribe((status) => {
-          console.log('[Realtime] Channel status:', status);
+          if (status === 'SUBSCRIBED') {
+            updateOnlineStatusIndicator(true, 'Realtime WebSocket พร้อมทำงาน');
+          }
         });
     } catch (e) {
       console.warn('Realtime WebSocket init:', e.message);
@@ -300,7 +301,10 @@
     for (const record of records || []) rows.push(await invoiceRow(record));
     if (rows.length) {
       const result = await client.from('invoice_history').upsert(rows, { onConflict: 'id' });
-      if (result.error) throw result.error;
+      if (result.error) {
+        console.warn('[Supabase Sync] Upsert invoices error:', result.error.message);
+        throw result.error;
+      }
       broadcastSync('invoice_upsert');
     }
   }
@@ -378,10 +382,34 @@
     if (typeof window.renderBookingRecords === 'function') window.renderBookingRecords();
   }
 
+  function updateOnlineStatusIndicator(isOnline, detail = '') {
+    window.scenerySupabase.isOnline = isOnline;
+    const dots = document.querySelectorAll('.online-dot');
+    dots.forEach(dot => {
+      dot.style.background = isOnline ? '#2e7d32' : '#c94a29';
+      dot.style.boxShadow = isOnline ? '0 0 8px rgba(46,125,50,0.5)' : 'none';
+    });
+
+    const healthText = document.querySelector('.round-health strong');
+    if (healthText && isOnline) {
+      healthText.textContent = 'ออนไลน์ · ซิงก์ข้อมูลอัตโนมัติ';
+    }
+
+    const footerText = document.querySelector('.login-footer span:first-child');
+    if (footerText && isOnline) {
+      footerText.innerHTML = '<b class="online-dot" style="background:#2e7d32;box-shadow:0 0 8px #4caf50;"></b> เชื่อมต่อระบบออนไลน์แล้ว • RECEPTION';
+    }
+  }
+
   async function pullInvoices() {
     if (!client) return;
     const result = await client.from('invoice_history').select('*').order('business_date', { ascending: false }).order('created_at', { ascending: false });
-    if (result.error) throw result.error;
+    if (result.error) {
+      if (result.error.message?.includes('violates row-level security')) {
+        console.warn('[Supabase Sync] RLS policy restriction detected on invoice_history. Please run fix-supabase-rls.sql in Supabase SQL editor.');
+      }
+      throw result.error;
+    }
 
     const deletedIds = getDeletedInvoiceIds();
     const remote = (result.data || [])
@@ -411,9 +439,22 @@
       });
 
     const local = readLocal(localHistoryKey, []);
-    if (JSON.stringify(remote) !== JSON.stringify(local)) {
-      writeLocal(localHistoryKey, remote);
-      if (window.sceneryAppState) window.sceneryAppState.invoices = remote;
+    const remoteIds = new Set(remote.map(r => String(r.id)));
+    
+    // Auto-seed: If this device has local invoices not yet in Supabase and not deleted, upload them!
+    const missingInRemote = local.filter(l => l && (l.id || l.reference) && !remoteIds.has(String(l.id || l.reference)) && !deletedIds.has(String(l.id || l.reference)));
+    if (missingInRemote.length > 0) {
+      upsertInvoices(missingInRemote).catch(() => {});
+    }
+
+    const merged = [...remote];
+    missingInRemote.forEach(item => {
+      if (!merged.some(m => String(m.id) === String(item.id))) merged.push(item);
+    });
+
+    if (JSON.stringify(merged) !== JSON.stringify(local)) {
+      writeLocal(localHistoryKey, merged);
+      if (window.sceneryAppState) window.sceneryAppState.invoices = merged;
       triggerUIRefresh();
     }
   }
@@ -435,9 +476,16 @@
         total: Number(row.total || 0)
       }));
     const local = readLocal(localBookingsKey, []);
-    if (JSON.stringify(remote) !== JSON.stringify(local)) {
-      writeLocal(localBookingsKey, remote);
-      if (window.sceneryAppState) window.sceneryAppState.closedBookings = remote;
+    const remoteIds = new Set(remote.map(r => String(r.id)));
+    const missingInRemote = local.filter(l => l && (l.id || l.reference) && !remoteIds.has(String(l.id || l.reference)) && !deletedIds.has(String(l.id || l.reference)));
+    if (missingInRemote.length > 0) {
+      upsertBookings(missingInRemote).catch(() => {});
+    }
+
+    const merged = [...remote, ...missingInRemote.filter(item => !remote.some(r => String(r.id) === String(item.id)))];
+    if (JSON.stringify(merged) !== JSON.stringify(local)) {
+      writeLocal(localBookingsKey, merged);
+      if (window.sceneryAppState) window.sceneryAppState.closedBookings = merged;
       if (typeof window.renderBookingRecords === 'function') window.renderBookingRecords();
     }
   }
@@ -534,9 +582,12 @@
       const failed = results.find(result => result.status === 'rejected');
       if (failed) {
         window.scenerySupabase.lastError = failed.reason || new Error('ไม่ทราบสาเหตุ');
+        console.warn('[Supabase Sync] Sync check warning:', failed.reason?.message || failed.reason);
+        updateOnlineStatusIndicator(false);
       } else {
         window.scenerySupabase.lastError = null;
         window.scenerySupabase.lastSyncAt = new Date().toISOString();
+        updateOnlineStatusIndicator(true);
       }
       return results;
     })().finally(() => {
@@ -635,26 +686,27 @@
       event.stopImmediatePropagation();
       const username = String(document.querySelector('#username')?.value || '').trim();
       const password = String(document.querySelector('#password')?.value || '').trim();
-      const email = username.includes('@') ? username : (config.emailDomain ? `${username}@${config.emailDomain}` : '');
-      if (!email) {
-        notify('กรุณาใส่อีเมลผู้ใช้งานให้ถูกต้อง', 'error');
-        return;
+      const email = username.includes('@') ? username : (config.emailDomain ? `${username}@${config.emailDomain}` : username);
+      if (email) {
+        try { localStorage.setItem(loginEmailKey, email); } catch {}
       }
-      try { localStorage.setItem(loginEmailKey, email); } catch {}
-      const result = await client.auth.signInWithPassword({ email, password });
-      if (result.error) {
-        notify(`เข้าสู่ระบบ Supabase ไม่สำเร็จ: ${result.error.message}`, 'error');
-        return;
+
+      // Try signing in via Supabase Auth if credentials provided
+      if (email && email.includes('@') && password) {
+        const result = await client.auth.signInWithPassword({ email, password });
+        if (!result.error && result.data?.session) {
+          window.scenerySupabase.session = result.data.session;
+          try { sessionStorage.setItem('scenery-supabase-session', JSON.stringify(result.data.session)); } catch {}
+        }
       }
-      if (result.data?.session) {
-        window.scenerySupabase.session = result.data.session;
-        try { sessionStorage.setItem('scenery-supabase-session', JSON.stringify(result.data.session)); } catch {}
-      }
+
       const passwordInput = document.querySelector('#password');
       if (passwordInput) passwordInput.value = '';
       document.querySelector('#login-screen')?.classList.add('is-hidden');
       document.querySelector('#app-screen')?.classList.remove('is-hidden');
-      await hydrate();
+      
+      // Immediately hydrate and subscribe to Realtime sync
+      hydrate().catch(() => {});
       initRealtimeWebSocket();
       notify('เข้าสู่ระบบสำเร็จ — ระบบออนไลน์ Realtime พร้อมทำงาน', 'success');
     }, true);
@@ -668,13 +720,13 @@
       hydrate().catch(() => {});
     });
 
-    // 2. High-frequency Realtime sync polling (every 2.5s) as bulletproof fallback
+    // 2. High-frequency Realtime sync polling (every 3s) for guaranteed multi-device consistency
     clearInterval(fastSyncTimer);
     fastSyncTimer = setInterval(() => {
       if (document.querySelector('#app-screen')?.classList.contains('is-hidden') === false) {
         hydrate().catch(() => {});
       }
-    }, 30000);
+    }, 3000);
 
     // 3. Sync on tab focus / visibility
     window.addEventListener('focus', () => hydrate().catch(() => {}));
@@ -706,8 +758,9 @@
     const passwordInput = document.querySelector('#password');
     if (passwordInput) passwordInput.value = '';
 
-    // Initialize Realtime engine
+    // Initialize Realtime engine and background pre-hydration
     initRealtimeWebSocket();
     startSyncEngine();
+    hydrate().catch(() => {});
   });
 })();

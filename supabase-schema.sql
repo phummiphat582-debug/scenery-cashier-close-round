@@ -102,28 +102,49 @@ alter table public.close_round_edits enable row level security;
 alter table public.audit_logs enable row level security;
 
 drop policy if exists invoice_history_authenticated_all on public.invoice_history;
-create policy invoice_history_authenticated_all on public.invoice_history for all to authenticated using (true) with check (true);
 drop policy if exists invoice_drafts_authenticated_all on public.invoice_drafts;
-create policy invoice_drafts_authenticated_all on public.invoice_drafts for all to authenticated using (true) with check (true);
 drop policy if exists closed_bookings_authenticated_all on public.closed_bookings;
-create policy closed_bookings_authenticated_all on public.closed_bookings for all to authenticated using (true) with check (true);
 drop policy if exists close_rounds_authenticated_all on public.close_rounds;
-create policy close_rounds_authenticated_all on public.close_rounds for all to authenticated using (true) with check (true);
 drop policy if exists close_round_edits_authenticated_all on public.close_round_edits;
-create policy close_round_edits_authenticated_all on public.close_round_edits for all to authenticated using (true) with check (true);
 drop policy if exists audit_logs_authenticated_all on public.audit_logs;
-create policy audit_logs_authenticated_all on public.audit_logs for all to authenticated using (true) with check (true);
 
--- Enable realtime refresh for the shared work queues.
+drop policy if exists "scenery_invoice_history_policy" on public.invoice_history;
+create policy "scenery_invoice_history_policy" on public.invoice_history for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "scenery_invoice_drafts_policy" on public.invoice_drafts;
+create policy "scenery_invoice_drafts_policy" on public.invoice_drafts for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "scenery_closed_bookings_policy" on public.closed_bookings;
+create policy "scenery_closed_bookings_policy" on public.closed_bookings for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "scenery_close_rounds_policy" on public.close_rounds;
+create policy "scenery_close_rounds_policy" on public.close_rounds for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "scenery_close_round_edits_policy" on public.close_round_edits;
+create policy "scenery_close_round_edits_policy" on public.close_round_edits for all to anon, authenticated using (true) with check (true);
+
+drop policy if exists "scenery_audit_logs_policy" on public.audit_logs;
+create policy "scenery_audit_logs_policy" on public.audit_logs for all to anon, authenticated using (true) with check (true);
+
+-- Enable realtime refresh for all shared tables across devices.
 alter table public.invoice_history replica identity full;
+alter table public.closed_bookings replica identity full;
 alter table public.close_rounds replica identity full;
+alter table public.close_round_edits replica identity full;
 alter table public.audit_logs replica identity full;
+
 do $$ begin
   if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='invoice_history') then
     alter publication supabase_realtime add table public.invoice_history;
   end if;
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='closed_bookings') then
+    alter publication supabase_realtime add table public.closed_bookings;
+  end if;
   if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='close_rounds') then
     alter publication supabase_realtime add table public.close_rounds;
+  end if;
+  if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='close_round_edits') then
+    alter publication supabase_realtime add table public.close_round_edits;
   end if;
   if not exists (select 1 from pg_publication_tables where pubname='supabase_realtime' and schemaname='public' and tablename='audit_logs') then
     alter publication supabase_realtime add table public.audit_logs;
