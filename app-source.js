@@ -20,8 +20,15 @@ function showToast(message,type='success'){const region=$('#toast-region');if(!r
 function setView(view){state.currentView=view;$$('.view').forEach(s=>s.classList.toggle('active',s.id===`view-${view}`));$$('.nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===view));$('#sidebar')?.classList.remove('open');if(view==='dashboard'&&typeof renderDashboard==='function')renderDashboard();if(view==='master')renderBookingRecords();if(view==='close-round'&&typeof renderCloseRound==='function')renderCloseRound();if(view==='drawer'&&typeof cashDrawerV2Render==='function')cashDrawerV2Render();if(view==='history'){if(typeof renderInvoiceHistoryAllRecords==='function')renderInvoiceHistoryAllRecords();else if(typeof renderHistory==='function')renderHistory();}}
 function setInvoicePage(page){state.invoicePage=page;$$('.invoice-page').forEach(s=>s.classList.toggle('active',s.dataset.invoicePage===page));$$('.invoice-page-tab').forEach(b=>b.classList.toggle('active',b.dataset.invoicePage===page));if(page==='preview')renderInvoicePreview()}
 function renderDashboard(){
-  const records=typeof loadInvoiceHistory==='function'?loadInvoiceHistory():(state.invoices||[]);
+  const allRecords=typeof loadInvoiceHistory==='function'?loadInvoiceHistory():(state.invoices||[]);
   const today=typeof historyDateKey==='function'?historyDateKey():new Date().toISOString().slice(0,10);
+  const records=allRecords
+    .map(r=>typeof normalizeHistoryRecord==='function'?normalizeHistoryRecord(r):r)
+    .filter(r=>{
+      if(!r||r.status==='Void')return false;
+      const bDate=typeof normalizeDateKey==='function'?normalizeDateKey(r.businessDate||r.docDate):(r.businessDate||r.docDate);
+      return bDate===today;
+    });
   const totalSales=records.reduce((sum,r)=>sum+Number(r.total||0),0);
   const totalPending=records.reduce((sum,r)=>sum+(typeof historyPendingTotal==='function'?historyPendingTotal(r):Number(r.pendingTotal||0)),0);
   const drafts=typeof loadInvoiceDrafts==='function'?loadInvoiceDrafts():(state.drafts||[]);
@@ -36,13 +43,14 @@ function renderDashboard(){
   if(lastUpdated){
     const now=new Date();
     const timeStr=now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-    lastUpdated.textContent=`ข้อมูลล่าสุดเมื่อ: วันนี้ | ${timeStr} น. · ข้อมูลจริง ${records.length} รายการ`;
+    const todayDisplay=typeof historyDisplayDate==='function'?historyDisplayDate(today):today;
+    lastUpdated.textContent=`ข้อมูลประจำวันที่: ${todayDisplay} | ${timeStr} น. · ข้อมูลจริง ${records.length} รายการ`;
   }
 
   const d=$('#dashboard-invoices');
   if(d){
     if(!records.length){
-      d.innerHTML='<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ยังไม่มีใบแจ้งหนี้</p><small>สร้างใบแจ้งหนี้ใหม่เพื่อบันทึกรายการ</small></div></td></tr>';
+      d.innerHTML='<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ยังไม่มีใบแจ้งหนี้ของวันนี้</p><small>สร้างใบแจ้งหนี้ใหม่เพื่อบันทึกรายการ</small></div></td></tr>';
     }else{
       d.innerHTML=records.slice(0,8).map(i=>{
         const status=typeof historyStatus==='function'?historyStatus(i):{label:i.status||'ชำระแล้ว',className:i.statusClass||'status-paid'};
@@ -2148,32 +2156,15 @@ function closeRoundPaymentKey(method){
 function closeRoundRecords(date){
   const target=normalizeDateKey(date||closeRoundSelectedDate());
   const historyList=typeof loadInvoiceHistory==='function'?loadInvoiceHistory():[];
-  const bookingsList=typeof loadClosedBookings==='function'?loadClosedBookings():(state.closedBookings||[]);
-  const stateInvoices=state.invoices||[];
 
-  const map=new Map();
-  historyList.forEach(item=>{
-    const id=String(item.id||item.reference||'');
-    if(id)map.set(id,item);
-  });
-  bookingsList.forEach(item=>{
-    const id=String(item.id||item.reference||'');
-    if(id&&!map.has(id))map.set(id,item);
-  });
-  stateInvoices.forEach(item=>{
-    const id=String(item.id||item.reference||'');
-    if(id&&!map.has(id))map.set(id,item);
-  });
-
-  return Array.from(map.values()).filter(record=>{
-    if(!record||record.status==='Void')return false;
-    const bDate=normalizeDateKey(record.businessDate);
-    const dDate=normalizeDateKey(record.docDate);
-    const cDate=normalizeDateKey(record.checkIn);
-    const fDate=normalizeDateKey(record.finalizedAt);
-    const dateField=normalizeDateKey(record.date);
-    return bDate===target||dDate===target||cDate===target||fDate===target||dateField===target;
-  });
+  return historyList
+    .map(item=>typeof normalizeHistoryRecord==='function'?normalizeHistoryRecord(item):item)
+    .filter(record=>{
+      if(!record||record.status==='Void')return false;
+      const bDate=normalizeDateKey(record.businessDate);
+      const dDate=normalizeDateKey(record.docDate);
+      return (bDate===target||(!bDate&&dDate===target));
+    });
 }
 function closeRoundRecordModel(record){
   const categories=Object.fromEntries(CLOSE_ROUND_CATEGORIES.map(item=>[item.key,0]));
@@ -3222,11 +3213,10 @@ function renderCloseRound(force = false){
   const closed=loadClosedRounds().some(row=>row.businessDate===date&&row.status==='Submitted');
 
   const allHistory=typeof loadInvoiceHistory==='function'?loadInvoiceHistory():[];
-  const allBookings=typeof loadClosedBookings==='function'?loadClosedBookings():[];
   const dateCounts=new Map();
-  [...allHistory,...allBookings].forEach(r=>{
+  allHistory.forEach(r=>{
     if(!r||r.status==='Void')return;
-    const d=normalizeDateKey(r.businessDate||r.docDate||r.checkIn||r.finalizedAt);
+    const d=normalizeDateKey(r.businessDate||r.docDate);
     if(d)dateCounts.set(d,(dateCounts.get(d)||0)+1);
   });
   const availableDatesList=Array.from(dateCounts.entries()).sort((a,b)=>b[0].localeCompare(a[0]));
