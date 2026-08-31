@@ -1281,11 +1281,34 @@ function historyStatus(record){
   return pending>0?{label:'ค้างชำระ',className:'status-pending'}:{label:'ชำระแล้ว',className:'status-paid'};
 }
 function normalizeHistoryRecord(record){
-  const total=Math.max(0,Number(record.netTotal??(Number(record.total||0)-Number(record.discount||0)))||0);
-  const pendingTotal=historyPendingTotal(record);
-  const status=historyStatus({...record,pendingTotal});
-  const staff=staffDisplayName(record.cashier||record.preparer||record.closedBy||record.user);
-  return {...record,id:record.id||record.reference||`INV-${Date.now()}`,reference:record.reference||record.id||'',businessDate:record.businessDate||historyDateKey(),time:record.time||'ไม่ระบุเวลา',cashier:staff,preparer:staff,total,netTotal:total,pendingTotal,status:status.label,statusClass:status.className};
+  const lines = Array.isArray(record.lines) ? record.lines : [];
+  const lineDeposits = lines.reduce((sum, line) => sum + Math.max(0, Number(line.deposit || 0)), 0);
+  const lineSubtotal = lines.reduce((sum, line) => sum + Math.max(0, Number(line.qty || 1) * Number(line.rate || 0)), 0);
+  const discount = Math.max(0, Number(record.discount || 0));
+  const total = lineSubtotal || Math.max(0, Number(record.total || 0));
+  const deposit = Number(record.deposit || 0) || lineDeposits;
+  const netTotal = Math.max(0, total - discount);
+  const outstanding = Math.max(0, netTotal - deposit);
+  const pendingTotal = historyPendingTotal(record);
+  const status = historyStatus({ ...record, pendingTotal });
+  const staff = staffDisplayName(record.cashier || record.preparer || record.closedBy || record.user);
+  return {
+    ...record,
+    id: record.id || record.reference || `INV-${Date.now()}`,
+    reference: record.reference || record.id || '',
+    businessDate: record.businessDate || historyDateKey(),
+    time: record.time || 'ไม่ระบุเวลา',
+    cashier: staff,
+    preparer: staff,
+    total,
+    discount,
+    deposit,
+    netTotal,
+    outstanding,
+    pendingTotal,
+    status: status.label,
+    statusClass: status.className
+  };
 }
 function historyDisplayDate(key){
   const date=new Date(`${key}T00:00:00`);
@@ -1738,24 +1761,32 @@ function historyInvoiceDetailBody(record){
     const rateDiscount=Math.min(100,Math.max(0,Number(line.discountRate||0)));
     const fixedDiscount=Math.max(0,Number(line.discountAmount||0));
     const discount=Math.min(gross,gross*rateDiscount/100+fixedDiscount);
-    return '<tr><td>'+esc(line.category||'-')+'</td><td>'+esc(line.name||'-')+'</td><td class="align-center">'+Number(line.qty||0)+'</td><td class="align-right">'+invoiceMoney(line.rate)+'</td><td class="align-right">'+invoiceMoney(discount)+'</td><td class="align-right">'+invoiceMoney(line.deposit)+'</td><td class="align-right strong-number">'+invoiceMoney(Math.max(0,gross-discount))+'</td></tr>';
+    const lineDeposit=Math.max(0,Number(line.deposit||0));
+    return '<tr><td>'+esc(line.category||'-')+'</td><td>'+esc(line.name||'-')+'</td><td class="align-center">'+Number(line.qty||0)+'</td><td class="align-right">'+invoiceMoney(line.rate)+'</td><td class="align-right">'+invoiceMoney(discount)+'</td><td class="align-right">'+invoiceMoney(lineDeposit)+'</td><td class="align-right strong-number">'+invoiceMoney(Math.max(0,gross-discount-lineDeposit))+'</td></tr>';
   }).join('');
   const paymentRows=(Array.isArray(record.payments)?record.payments:[]).filter(payment=>Number(payment.amount||0)>0).map(payment=>'<div><span>'+esc(payment.method||'-')+'</span><strong>'+invoiceMoney(payment.amount)+'</strong></div>').join('')||'<div><span>-</span><strong>'+invoiceMoney(0)+'</strong></div>';
-  const subtotal=lines.reduce((sum,line)=>sum+Math.max(0,Number(line.qty||0)*Number(line.rate||0)),0);
+  const subtotal=lines.reduce((sum,line)=>sum+Math.max(0,Number(line.qty||0)*Number(line.rate||0)),0) || Math.max(0,Number(record.total||0));
+  const discount=Math.max(0,Number(record.discount||0));
+  const lineDeposits=lines.reduce((sum,line)=>sum+Math.max(0,Number(line.deposit||0)),0);
+  const deposit=Number(record.deposit||0) || lineDeposits;
+  const netTotal=Math.max(0,subtotal-discount);
+  const outstanding=Math.max(0,netTotal-deposit);
   const pending=historyPendingTotal(record);
-  const outstanding=Math.max(0,Number(record.total||0)-Number(record.deposit||0));
-  return '<div class="history-invoice-form"><div class="form-grid three"><label>เลข Invoice<input value="'+esc(record.id||record.reference||'')+'" disabled></label><label>ลูกค้า / บริษัท<input value="'+esc(record.customer||'')+'" disabled></label><label>Villa / Room<input value="'+esc(record.villa||'')+'" disabled></label><label>Check-in<input value="'+esc(record.checkIn||'')+'" disabled></label><label>Check-out<input value="'+esc(record.checkOut||'')+'" disabled></label><label>วันที่เอกสาร<input value="'+esc(record.businessDate||record.docDate||'')+'" disabled></label><label>จำนวนคืน<input value="'+esc(record.nights||'')+'" disabled></label><label class="span-two">หมายเหตุ<input value="'+esc(record.remark||record.pendingCollectionNote||'')+'" disabled></label></div><div class="table-wrap"><table><thead><tr><th>หมวด</th><th>รายการ</th><th>จำนวน</th><th class="align-right">Rate</th><th class="align-right">ส่วนลด</th><th class="align-right">Deposit</th><th class="align-right">ยอดสุทธิ</th></tr></thead><tbody>'+lineRows+'</tbody></table></div><div class="history-payment-list"><h4>ช่องทางชำระเงิน</h4>'+paymentRows+'</div><div class="history-invoice-totals"><div><span>ยอดก่อนส่วนลด</span><strong>'+invoiceMoney(subtotal)+'</strong></div><div><span>ส่วนลด</span><strong>'+invoiceMoney(record.discount)+'</strong></div><div><span>Deposit รวม</span><strong>'+invoiceMoney(record.deposit)+'</strong></div><div><span>ยอดค้างชำระ</span><strong>'+invoiceMoney(outstanding)+'</strong></div><div><span>ยอดรอเก็บ</span><strong>'+invoiceMoney(pending)+'</strong></div><div class="total-row"><span>ยอดสุทธิ</span><strong>'+invoiceMoney(record.total)+'</strong></div></div></div>';
+  return '<div class="history-invoice-form"><div class="form-grid three"><label>เลข Invoice<input value="'+esc(record.id||record.reference||'')+'" disabled></label><label>ลูกค้า / บริษัท<input value="'+esc(record.customer||'')+'" disabled></label><label>Villa / Room<input value="'+esc(record.villa||'')+'" disabled></label><label>Check-in<input value="'+esc(record.checkIn||'')+'" disabled></label><label>Check-out<input value="'+esc(record.checkOut||'')+'" disabled></label><label>วันที่เอกสาร<input value="'+esc(record.businessDate||record.docDate||'')+'" disabled></label><label>จำนวนคืน<input value="'+esc(record.nights||'')+'" disabled></label><label class="span-two">หมายเหตุ<input value="'+esc(record.remark||record.pendingCollectionNote||'')+'" disabled></label></div><div class="table-wrap"><table><thead><tr><th>หมวด</th><th>รายการ</th><th>จำนวน</th><th class="align-right">Rate</th><th class="align-right">ส่วนลด</th><th class="align-right">Deposit</th><th class="align-right">ยอดสุทธิ</th></tr></thead><tbody>'+lineRows+'</tbody></table></div><div class="history-payment-list"><h4>ช่องทางชำระเงิน</h4>'+paymentRows+'</div><div class="history-invoice-totals"><div><span>ยอดก่อนส่วนลด (Total)</span><strong>'+invoiceMoney(subtotal)+'</strong></div><div><span>ส่วนลด (Discount)</span><strong>'+invoiceMoney(discount)+'</strong></div><div><span>Deposit</span><strong>'+invoiceMoney(deposit)+'</strong></div><div><span>ยอดที่ต้องชำระ (Outstanding)</span><strong>'+invoiceMoney(outstanding)+'</strong></div><div><span>ยอดรอเรียกเก็บ</span><strong>'+invoiceMoney(pending)+'</strong></div><div class="total-row"><span>ยอดสุทธิ</span><strong>'+invoiceMoney(netTotal)+'</strong></div></div></div>';
 }
 
 function historyInformationBillBody(record){
   const lines=Array.isArray(record.lines)?record.lines.map(line=>({...line,qty:Math.max(1,Number(line.qty||1)),rate:Math.max(0,Number(line.rate||0)),deposit:Math.max(0,Number(line.deposit||0)),discountAmount:Math.max(0,Number(line.discountAmount||0)),discountRate:Math.max(0,Number(line.discountRate||0))})):[];
   const payments=Array.isArray(record.payments)?record.payments.map(payment=>({...payment,amount:Math.max(0,Number(payment.amount||0))})):[];
-  const subtotal=lines.reduce((sum,line)=>sum+lineAmount(line),0);
+  const subtotal=lines.reduce((sum,line)=>sum+lineAmount(line),0) || Math.max(0, Number(record.total || 0));
   const discount=Math.max(0,Number(record.discount||0));
-  const deposit=lines.reduce((sum,line)=>sum+line.deposit,0)+payments.reduce((sum,payment)=>sum+payment.amount,0);
+  const lineDeposits=lines.reduce((sum,line)=>sum+line.deposit,0);
+  const deposit=Number(record.deposit||0) || lineDeposits;
   const hasLineDiscount=lines.some(line=>line.discountAmount>0||line.discountRate>0);
   const discountScope=hasLineDiscount?'line':discount>0?'all':'none';
-  const snapshot={subtotal,discount,discountScope,netTotal:Math.max(0,subtotal-discount),allAmount:discount,paymentDeposits:payments.reduce((sum,payment)=>sum+payment.amount,0)};
+  const netTotal=Math.max(0,subtotal-discount);
+  const outstanding=Math.max(0,netTotal-deposit);
+  const snapshot={subtotal,discount,deposit,discountScope,netTotal,allAmount:discount,paymentDeposits:0,outstanding};
   
   const previousLines=state.invoiceLines,previousPayments=state.payments;
   let rows='';
@@ -1768,9 +1799,6 @@ function historyInformationBillBody(record){
     state.payments=previousPayments;
   }
   
-  const total=subtotal||Math.max(0,Number(record.total||0)+discount);
-  const netTotal=Math.max(0,total-discount);
-  const outstanding=Math.max(0,netTotal-deposit);
   const methods=[...new Set(payments.filter(payment=>payment.amount>0).map(payment=>payment.method||'-'))].join(', ')||'';
   const cashierName=staffDisplayName(record.cashier||record.preparer||record.closedBy);
 
@@ -1830,10 +1858,10 @@ function historyInformationBillBody(record){
               </div>
             </div>
             <div class="preview-totals">
-              <div><span>Total</span><strong>${invoiceMoney(total)}</strong></div>
+              <div><span>Total</span><strong>${invoiceMoney(subtotal)}</strong></div>
               <div><span>Deposit</span><strong>${invoiceMoney(deposit)}</strong></div>
               <div><span>Discount</span><strong>${invoiceMoney(discount)}</strong></div>
-              <div class="total-outstanding"><span>Outstanding</span><strong>${outstanding===0?'0.00':invoiceMoney(outstanding)}</strong></div>
+              <div class="total-outstanding"><span>Outstanding</span><strong>${invoiceMoney(outstanding)}</strong></div>
               <small>THAI BAHT</small>
             </div>
           </footer>
