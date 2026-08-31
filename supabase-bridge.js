@@ -538,22 +538,38 @@
       .filter(row => !deletedIds.has(String(row.id)))
       .map(row => {
         const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
-        const payloadHasDiscount = Object.prototype.hasOwnProperty.call(payload, 'discount');
-        const discount = payloadHasDiscount ? Math.max(0, Number(payload.discount) || 0) : Math.max(0, Number(row.discount) || 0);
+        const lines = Array.isArray(payload.lines) ? payload.lines : (Array.isArray(row.lines) ? row.lines : []);
+        const lineSubtotal = lines.reduce((sum, line) => sum + Math.max(0, Number(line.qty || 1) * Number(line.rate || 0)), 0);
+        const lineDeposits = lines.reduce((sum, line) => sum + Math.max(0, Number(line.deposit || 0)), 0);
+        const lineDiscounts = lines.reduce((sum, line) => {
+          const gross = Math.max(0, Number(line.qty || 1) * Number(line.rate || 0));
+          const rate = Math.min(100, Math.max(0, Number(line.discountRate || 0)));
+          const fixed = Math.max(0, Number(line.discountAmount || 0));
+          return sum + Math.min(gross, gross * rate / 100 + fixed);
+        }, 0);
+        const discount = lineDiscounts || Math.max(0, Number(payload.discount ?? row.discount) || 0);
+        const subtotal = lineSubtotal || Math.max(0, Number(payload.subtotal ?? payload.total ?? row.total) || 0);
+        const total = subtotal;
+        const deposit = lines.length ? lineDeposits : Math.max(0, Number(payload.deposit ?? row.deposit) || 0);
+        const netTotal = Math.max(0, total - discount);
+        const outstanding = Math.max(0, netTotal - deposit);
         const staff = payload.cashier || payload.preparer || payload.closedBy || payload.user || row.cashier || row.preparer || row.closed_by || row.user || '';
         return {
           ...payload,
           id: row.id,
           reference: row.reference || payload.reference || row.id,
-          businessDate: row.business_date,
-          customer: row.customer,
-          villa: row.villa,
-          villaCode: row.villa_code,
-          total: Number(row.total || 0),
+          businessDate: row.business_date || payload.businessDate,
+          customer: row.customer || payload.customer,
+          villa: row.villa || payload.villa,
+          villaCode: row.villa_code || payload.villaCode,
+          subtotal,
+          total,
           discount,
-          deposit: Number(row.deposit || 0),
-          pendingTotal: Number(row.pending_total || 0),
-          status: row.status,
+          deposit,
+          netTotal,
+          outstanding,
+          pendingTotal: Number(row.pending_total ?? payload.pendingTotal ?? 0),
+          status: row.status || payload.status || 'ชำระแล้ว',
           cashier: staff,
           preparer: staff,
           closedBy: staff

@@ -1284,9 +1284,16 @@ function normalizeHistoryRecord(record){
   const lines = Array.isArray(record.lines) ? record.lines : [];
   const lineDeposits = lines.reduce((sum, line) => sum + Math.max(0, Number(line.deposit || 0)), 0);
   const lineSubtotal = lines.reduce((sum, line) => sum + Math.max(0, Number(line.qty || 1) * Number(line.rate || 0)), 0);
-  const discount = Math.max(0, Number(record.discount || 0));
-  const total = lineSubtotal || Math.max(0, Number(record.total || 0));
-  const deposit = Number(record.deposit || 0) || lineDeposits;
+  const lineDiscounts = lines.reduce((sum, line) => {
+    const gross = Math.max(0, Number(line.qty || 1) * Number(line.rate || 0));
+    const rate = Math.min(100, Math.max(0, Number(line.discountRate || 0)));
+    const fixed = Math.max(0, Number(line.discountAmount || 0));
+    return sum + Math.min(gross, gross * rate / 100 + fixed);
+  }, 0);
+  const discount = lineDiscounts || Math.max(0, Number(record.discount || 0));
+  const subtotal = lineSubtotal || Math.max(0, Number(record.subtotal || record.total || 0));
+  const total = subtotal;
+  const deposit = lines.length ? lineDeposits : Math.max(0, Number(record.deposit || 0));
   const netTotal = Math.max(0, total - discount);
   const outstanding = Math.max(0, netTotal - deposit);
   const pendingTotal = historyPendingTotal(record);
@@ -1300,6 +1307,7 @@ function normalizeHistoryRecord(record){
     time: record.time || 'ไม่ระบุเวลา',
     cashier: staff,
     preparer: staff,
+    subtotal,
     total,
     discount,
     deposit,
@@ -1765,10 +1773,12 @@ function historyInvoiceDetailBody(record){
     return '<tr><td>'+esc(line.category||'-')+'</td><td>'+esc(line.name||'-')+'</td><td class="align-center">'+Number(line.qty||0)+'</td><td class="align-right">'+invoiceMoney(line.rate)+'</td><td class="align-right">'+invoiceMoney(discount)+'</td><td class="align-right">'+invoiceMoney(lineDeposit)+'</td><td class="align-right strong-number">'+invoiceMoney(Math.max(0,gross-discount-lineDeposit))+'</td></tr>';
   }).join('');
   const paymentRows=(Array.isArray(record.payments)?record.payments:[]).filter(payment=>Number(payment.amount||0)>0).map(payment=>'<div><span>'+esc(payment.method||'-')+'</span><strong>'+invoiceMoney(payment.amount)+'</strong></div>').join('')||'<div><span>-</span><strong>'+invoiceMoney(0)+'</strong></div>';
-  const subtotal=lines.reduce((sum,line)=>sum+Math.max(0,Number(line.qty||0)*Number(line.rate||0)),0) || Math.max(0,Number(record.total||0));
-  const discount=Math.max(0,Number(record.discount||0));
+  const lineSubtotal=lines.reduce((sum,line)=>sum+Math.max(0,Number(line.qty||0)*Number(line.rate||0)),0);
   const lineDeposits=lines.reduce((sum,line)=>sum+Math.max(0,Number(line.deposit||0)),0);
-  const deposit=Number(record.deposit||0) || lineDeposits;
+  const lineDiscounts=lines.reduce((sum,line)=>{const gross=Math.max(0,Number(line.qty||0)*Number(line.rate||0)),rate=Math.min(100,Math.max(0,Number(line.discountRate||0))),fixed=Math.max(0,Number(line.discountAmount||0));return sum+Math.min(gross,gross*rate/100+fixed)},0);
+  const subtotal=lineSubtotal || Math.max(0,Number(record.subtotal||record.total||0));
+  const discount=lineDiscounts || Math.max(0,Number(record.discount||0));
+  const deposit=lines.length ? lineDeposits : Math.max(0,Number(record.deposit||0));
   const netTotal=Math.max(0,subtotal-discount);
   const outstanding=Math.max(0,netTotal-deposit);
   const pending=historyPendingTotal(record);
@@ -1778,10 +1788,12 @@ function historyInvoiceDetailBody(record){
 function historyInformationBillBody(record){
   const lines=Array.isArray(record.lines)?record.lines.map(line=>({...line,qty:Math.max(1,Number(line.qty||1)),rate:Math.max(0,Number(line.rate||0)),deposit:Math.max(0,Number(line.deposit||0)),discountAmount:Math.max(0,Number(line.discountAmount||0)),discountRate:Math.max(0,Number(line.discountRate||0))})):[];
   const payments=Array.isArray(record.payments)?record.payments.map(payment=>({...payment,amount:Math.max(0,Number(payment.amount||0))})):[];
-  const subtotal=lines.reduce((sum,line)=>sum+lineAmount(line),0) || Math.max(0, Number(record.total || 0));
-  const discount=Math.max(0,Number(record.discount||0));
+  const lineSubtotal=lines.reduce((sum,line)=>sum+lineAmount(line),0);
   const lineDeposits=lines.reduce((sum,line)=>sum+line.deposit,0);
-  const deposit=Number(record.deposit||0) || lineDeposits;
+  const lineDiscounts=lines.reduce((sum,line)=>{const gross=Math.max(0,Number(line.qty||1)*Number(line.rate||0)),rate=Math.min(100,Math.max(0,Number(line.discountRate||0))),fixed=Math.max(0,Number(line.discountAmount||0));return sum+Math.min(gross,gross*rate/100+fixed)},0);
+  const subtotal=lineSubtotal || Math.max(0, Number(record.subtotal || record.total || 0));
+  const discount=lineDiscounts || Math.max(0,Number(record.discount||0));
+  const deposit=lines.length ? lineDeposits : Math.max(0,Number(record.deposit||0));
   const hasLineDiscount=lines.some(line=>line.discountAmount>0||line.discountRate>0);
   const discountScope=hasLineDiscount?'line':discount>0?'all':'none';
   const netTotal=Math.max(0,subtotal-discount);
