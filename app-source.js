@@ -813,7 +813,7 @@ function enableNegativeLineTotals(){
 }
 document.addEventListener('DOMContentLoaded',()=>enableNegativeLineTotals());
 
-function refreshInvoiceSummaryPanel(){const snapshot=invoiceSnapshot(),displayOutstanding=snapshot.outstandingDisplay??snapshot.outstanding;[['summary-total',snapshot.subtotal],['summary-deposit',snapshot.deposit],['summary-discount',snapshot.discount],['summary-outstanding',displayOutstanding],['preview-total',snapshot.subtotal],['preview-deposit',snapshot.deposit],['preview-discount',snapshot.discount],['preview-outstanding',displayOutstanding]].forEach(([id,value])=>{const element=$(`#${id}`);if(element)element.textContent=invoiceMoney(value)})}
+function refreshInvoiceSummaryPanel(){const snapshot=typeof calculateLiveInvoiceSnapshot==='function'?calculateLiveInvoiceSnapshot():invoiceSnapshot(),displayOutstanding=snapshot.outstanding;[['summary-total',snapshot.subtotal],['summary-deposit',snapshot.deposit],['summary-discount',snapshot.discount],['summary-outstanding',displayOutstanding],['preview-total',snapshot.subtotal],['preview-deposit',snapshot.deposit],['preview-discount',snapshot.discount],['preview-outstanding',displayOutstanding]].forEach(([id,value])=>{const element=$(`#${id}`);if(element)element.textContent=invoiceMoney(value)})}
 document.addEventListener('DOMContentLoaded',()=>{const refresh=event=>{if(!event||event.target.closest?.('#view-invoice'))refreshInvoiceSummaryPanel()};document.addEventListener('input',refresh);document.addEventListener('change',refresh);document.addEventListener('click',event=>{if(event.target.closest?.('#add-accommodation,#add-addon,[data-line-index][data-qty],.remove-form-line'))setTimeout(refreshInvoiceSummaryPanel,0)});refreshInvoiceSummaryPanel()});
 
 function installEditableLineCategories(){[{type:'accommodation',id:'accommodation-category',values:['Accommodation','Inclusive Package','Package','Extra Bed','Complimentary']},{type:'addon',id:'addon-category',values:['Food & Beverage','BBQ','Minibar','Souvenir','Activities','Miscellaneous','Other Expenses']}].forEach(({type,id,values})=>{const select=$(`#${type}-select`),fields=select?.parentElement;if(!fields||$(`#${id}`))return;const input=document.createElement('input');input.id=id;input.type='text';input.className='invoice-category-input';input.placeholder='หมวด / พิมพ์หรือเลือก';input.setAttribute('list',`${id}-options`);input.setAttribute('aria-label',`หมวด ${type}`);const list=document.createElement('datalist');list.id=`${id}-options`;values.forEach(value=>{const option=document.createElement('option');option.value=value;list.appendChild(option)});fields.insertBefore(input,fields.querySelector('.button'));fields.appendChild(list)})}
@@ -884,19 +884,13 @@ function installFinalInvoiceRules(){
   };
 
   allocateLineAmounts=function(snapshot){
-    let paid=snapshot.paymentDeposits;
-    const rows=state.invoiceLines.map(line=>{
+    return state.invoiceLines.map(line=>{
       const amount=lineAmount(line);
       const discount=snapshot.discountScope==='line'?clampDiscount(line,amount):snapshot.discountScope==='all'&&snapshot.subtotal?amount*(snapshot.discount/snapshot.subtotal):0;
-      const afterDiscount=amount-discount;
       const lineDeposit=Math.max(0,Number(line.deposit||0));
-      const payment=Math.min(Math.max(0,afterDiscount-lineDeposit),paid);
-      const unpaid=afterDiscount-lineDeposit-payment;
-      paid-=payment;
-      return {line,amount,discount,lineDeposit,payment,pending:0,deposit:lineDeposit+payment,unpaid,outstanding:unpaid};
+      const netRow=Math.max(0,amount-lineDeposit-discount);
+      return {line,amount,discount,lineDeposit,deposit:lineDeposit,total:netRow,unpaid:netRow,outstanding:netRow};
     });
-    if(paid>0&&rows.length){const last=rows[rows.length-1];last.payment+=paid;last.deposit+=paid;last.unpaid-=paid;last.outstanding-=paid}
-    return rows;
   };
 
   lineRow=function(line,index){
@@ -908,7 +902,12 @@ function installFinalInvoiceRules(){
     const groups=[{label:'Accommodation & Inclusive Package',type:'accommodation'},{label:'Food and Beverages (add-on) and Other Expenses',type:'addon'}],breakdowns=allocateLineAmounts(snapshot);
     return groups.map(group=>{
       const matches=breakdowns.filter(row=>row.line.type===group.type);
-      const lines=matches.map(row=>`<tr><td>${esc(row.line.category)}</td><td class="align-center">${row.line.qty}</td><td>${esc(row.line.name)}</td><td class="align-right">${invoiceMoney(row.amount)}</td><td class="align-right">${row.deposit?invoiceMoney(row.deposit):'-'}</td><td class="align-right invoice-discount-cell">${row.discount?invoiceMoney(row.discount):'-'}</td><td class="align-right">${row.outstanding<0?`<span class="invoice-overpaid">${invoiceMoney(row.outstanding)}</span>`:invoiceMoney(row.outstanding)}</td></tr>`).join('');
+      const lines=matches.map(row=>{
+        const depositLabel=row.deposit>0?invoiceMoney(row.deposit):'-';
+        const discountLabel=row.discount>0?invoiceMoney(row.discount):'-';
+        const totalLabel=invoiceMoney(row.total);
+        return `<tr><td>${esc(row.line.category)}</td><td class="align-center">${row.line.qty}</td><td>${esc(row.line.name)}</td><td class="align-right">${invoiceMoney(row.amount)}</td><td class="align-right">${depositLabel}</td><td class="align-right invoice-discount-cell">${discountLabel}</td><td class="align-right">${totalLabel}</td></tr>`;
+      }).join('');
       const count=Math.max(matches.length,group.type==='accommodation'?7:14),blanks=Array.from({length:count-matches.length},()=>'<tr class="blank-line"><td></td><td></td><td></td><td></td><td>-</td><td>-</td><td>-</td></tr>').join('');
       return `<tr class="bill-section-row"><td colspan="7">${group.label}</td></tr>${lines}${blanks}`;
     }).join('');
@@ -919,20 +918,23 @@ function installFinalInvoiceRules(){
   const baseRenderPreview=renderInvoicePreview;
   renderInvoicePreview=function(){
     baseRenderPreview();
-    const previewSnapshot=invoiceSnapshot();
+    const previewSnapshot=typeof calculateLiveInvoiceSnapshot==='function'?calculateLiveInvoiceSnapshot():invoiceSnapshot();
     [['preview-reference',previewSnapshot.reference],['preview-reference-meta',previewSnapshot.reference],['preview-customer',previewSnapshot.customer],['preview-check-in',previewSnapshot.checkIn?formatDate(previewSnapshot.checkIn):''],['preview-check-out',previewSnapshot.checkOut?formatDate(previewSnapshot.checkOut):''],['preview-nights',previewSnapshot.nights],['preview-remark',previewSnapshot.remark],['preview-invoice-date',previewSnapshot.docDate?formatDate(previewSnapshot.docDate):'']].forEach(([id,value])=>{if($(`#${id}`))$(`#${id}`).textContent=value||''});
     if($('#preview-total'))$('#preview-total').textContent=invoiceMoney(previewSnapshot.subtotal);
     if($('#preview-deposit'))$('#preview-deposit').textContent=invoiceMoney(previewSnapshot.deposit);
     if($('#preview-discount'))$('#preview-discount').textContent=invoiceMoney(previewSnapshot.discount);
-    const dispOutstanding=previewSnapshot.outstandingDisplay??previewSnapshot.outstanding;
-    if($('#preview-outstanding'))$('#preview-outstanding').textContent=state.invoiceClosed&&dispOutstanding===0?'':invoiceMoney(dispOutstanding);
+    if($('#preview-outstanding'))$('#preview-outstanding').textContent=invoiceMoney(previewSnapshot.outstanding);
+    if($('#summary-total'))$('#summary-total').textContent=invoiceMoney(previewSnapshot.subtotal);
+    if($('#summary-deposit'))$('#summary-deposit').textContent=invoiceMoney(previewSnapshot.deposit);
+    if($('#summary-discount'))$('#summary-discount').textContent=invoiceMoney(previewSnapshot.discount);
+    if($('#summary-outstanding'))$('#summary-outstanding').textContent=invoiceMoney(previewSnapshot.outstanding);
     const noteBox=$('#preview-pending-notes');
     if(!noteBox)return;
     const methods=[...new Set([...state.invoiceLines.filter(line=>Number(line.deposit||0)>0).map(line=>line.depositMethod||'เงินสด'),...state.payments.filter(payment=>Number(payment.amount||0)>0).map(payment=>payment.method)])];
     if($('#preview-payment-method')&&!methods.length)$('#preview-payment-method').textContent='';
     const notes=[];
     if(methods.length)notes.push(`<div><strong>ชำระแล้วจากช่องทาง</strong><span>${esc(methods.join(', '))}</span></div>`);
-    if(pendingTotal())notes.push(`<div><strong>รอเรียกเก็บทั้งบิล ${invoiceMoney(pendingTotal())}</strong><span>${esc(state.pendingCollectionNote||'รอเรียกเก็บจากจุดที่เกี่ยวข้อง')}</span></div>`);
+    if(previewSnapshot.pendingTotal>0)notes.push(`<div><strong>รอเรียกเก็บทั้งบิล ${invoiceMoney(previewSnapshot.pendingTotal)}</strong><span>${esc(state.pendingCollectionNote||'รอเรียกเก็บจากจุดที่เกี่ยวข้อง')}</span></div>`);
     noteBox.innerHTML=notes.join('');
     noteBox.classList.toggle('long-note',String(state.pendingCollectionNote||'').length>90);
     const footer=noteBox.closest('.preview-footer');
@@ -1009,8 +1011,6 @@ function installFinalInvoiceRules(){
       if(file.size>4*1024*1024){showToast('ไฟล์สลิปต้องมีขนาดไม่เกิน 4 MB','error');return}
       try{proof={name:file.name,size:file.size,type:file.type,data:await fileToDataUrl(file)}}catch{showToast('อ่านไฟล์สลิปไม่สำเร็จ','error');return}
     }
-    const originalSnapshot=invoiceSnapshot();
-    const displaySnapshot={...originalSnapshot,pendingTotal:0,outstanding:originalSnapshot.netTotal-originalSnapshot.deposit,outstandingDisplay:originalSnapshot.netTotal-originalSnapshot.deposit};
     const previousPayments=state.payments.map(payment=>({...payment})),previousTotal=state.pendingCollectionTotal,previousNote=state.pendingCollectionNote;
     state.payments=settlementRows.filter(row=>Number(row.amount||0)>0).map(row=>({method:row.method,amount:Number(row.amount||0)}));
     const pending=pendingCollectionRows[0]||{amount:0,note:''};
@@ -1031,7 +1031,7 @@ function installFinalInvoiceRules(){
       state.payments=previousPayments;state.pendingCollectionTotal=previousTotal;state.pendingCollectionNote=previousNote;renderPayments();calculateInvoice();
       showToast(`ยังมียอดที่ยังไม่ชำระหรือยังไม่ระบุยอดรอเก็บ ${invoiceMoney(settlementSnapshot.outstanding)}`,'error');return;
     }
-    state.closedInvoiceSnapshot=displaySnapshot;
+    state.closedInvoiceSnapshot={...settlementSnapshot,outstanding:0,outstandingDisplay:0};
     state.invoiceClosed=true;
     const now=new Date();
     const resolvedDate=normalizeDateKey(settlementSnapshot.docDate)||normalizeDateKey(settlementSnapshot.checkIn)||historyDateKey(now);
