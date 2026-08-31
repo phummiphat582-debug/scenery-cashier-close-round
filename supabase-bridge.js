@@ -435,47 +435,44 @@
       console.warn('[Supabase Sync] Pull drafts warning:', result.error.message);
       return;
     }
-    const deletedIds = getDeletedDraftIds();
-    const remote = (result.data || [])
-      .filter(row => !deletedIds.has(String(row.id)))
-      .map(row => {
-        const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
-        return {
-          ...payload,
-          id: row.id,
-          reference: row.reference || payload.reference || row.id,
-          customer: row.customer || payload.customer || '-',
-          savedAt: payload.savedAt || (row.created_at ? new Date(row.created_at).toLocaleString('th-TH') : new Date().toLocaleString('th-TH'))
-        };
-      });
+    const remote = (result.data || []).map(row => {
+      const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+      return {
+        ...payload,
+        id: row.id,
+        reference: row.reference || payload.reference || row.id,
+        customer: row.customer || payload.customer || '-',
+        savedAt: payload.savedAt || (row.created_at ? new Date(row.created_at).toLocaleString('th-TH') : new Date().toLocaleString('th-TH'))
+      };
+    });
 
     const local = readLocal(localDraftsKey, []);
-    const remoteIds = new Set(remote.map(r => String(r.id)));
-    const missingInRemote = local.filter(l => l && l.id && !remoteIds.has(String(l.id)) && !deletedIds.has(String(l.id)));
-    if (missingInRemote.length > 0) {
-      upsertDrafts(missingInRemote).catch(() => {});
-    }
-
-    const merged = [...remote, ...missingInRemote.filter(item => !remote.some(r => String(r.id) === String(item.id)))];
-    if (JSON.stringify(merged) !== JSON.stringify(local)) {
-      writeLocal(localDraftsKey, merged);
-      if (window.sceneryAppState) window.sceneryAppState.drafts = merged;
+    writeLocal(localDraftsKey, remote);
+    if (window.sceneryAppState) window.sceneryAppState.drafts = remote;
+    if (JSON.stringify(remote) !== JSON.stringify(local)) {
       triggerUIRefresh();
     }
   }
 
+  window.scenerySupabase.upsertInvoices = records => upsertInvoices(records).catch(e => console.warn('Upsert invoices remote:', e));
+  window.scenerySupabase.deleteInvoiceRemote = id => deleteInvoiceRemote(id).catch(e => console.warn('Delete invoice remote:', e));
+  window.scenerySupabase.pullInvoices = pullInvoices;
+  window.scenerySupabase.upsertDrafts = drafts => upsertDrafts(drafts).catch(e => console.warn('Upsert drafts remote:', e));
   window.scenerySupabase.saveDraftRemote = record => upsertDrafts([record]).catch(e => console.warn('Save draft remote:', e));
   window.scenerySupabase.deleteDraftRemote = id => deleteDraftRemote(id).catch(e => console.warn('Delete draft remote:', e));
   window.scenerySupabase.pullDrafts = pullDrafts;
+  window.scenerySupabase.broadcastSync = broadcastSync;
+  window.scenerySupabase.triggerUIRefresh = triggerUIRefresh;
 
   // Refresh UI dynamically without full page reload
   function triggerUIRefresh() {
     const activeEl = document.activeElement;
     const isInteracting = activeEl && (activeEl.tagName === 'INPUT' || activeEl.tagName === 'SELECT' || activeEl.tagName === 'TEXTAREA');
     if (typeof window.syncInvoiceHistoryState === 'function') window.syncInvoiceHistoryState();
+    if (typeof window.renderHistory === 'function') window.renderHistory();
     if (typeof window.renderInvoiceHistoryAllRecords === 'function') window.renderInvoiceHistoryAllRecords();
     if (typeof window.renderDashboard === 'function') window.renderDashboard();
-    if (!isInteracting && typeof window.renderCloseRound === 'function' && window.sceneryAppState?.currentView === 'close-round') {
+    if (!isInteracting && typeof window.renderCloseRound === 'function') {
       window.renderCloseRound();
     }
     if (typeof window.renderAuditLog === 'function') window.renderAuditLog();
@@ -543,63 +540,47 @@
       throw result.error;
     }
 
-    const deletedIds = getDeletedInvoiceIds();
-    const remote = (result.data || [])
-      .filter(row => !deletedIds.has(String(row.id)))
-      .map(row => {
-        const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
-        const lines = Array.isArray(payload.lines) ? payload.lines : (Array.isArray(row.lines) ? row.lines : []);
-        const lineSubtotal = lines.reduce((sum, line) => sum + Math.max(0, Number(line.qty || 1) * Number(line.rate || 0)), 0);
-        const lineDeposits = lines.reduce((sum, line) => sum + Math.max(0, Number(line.deposit || 0)), 0);
-        const lineDiscounts = lines.reduce((sum, line) => sum + Math.max(0, Number(line.discountAmount || 0)), 0);
-        const subtotal = lineSubtotal || Math.max(0, Number(payload.subtotal ?? payload.total ?? row.total) || 0);
-        const discount = Object.prototype.hasOwnProperty.call(payload, 'discount')
-          ? Math.max(0, Number(payload.discount) || 0)
-          : (Object.prototype.hasOwnProperty.call(row, 'discount') ? Math.max(0, Number(row.discount) || 0) : lineDiscounts);
-        const total = subtotal;
-        const deposit = lines.length ? lineDeposits : Math.max(0, Number(payload.deposit ?? row.deposit) || 0);
-        const netTotal = Math.max(0, total - discount);
-        const outstanding = Math.max(0, netTotal - deposit);
-        const staff = payload.cashier || payload.preparer || payload.closedBy || payload.user || row.cashier || row.preparer || row.closed_by || row.user || '';
-        return {
-          ...payload,
-          id: row.id,
-          reference: row.reference || payload.reference || row.id,
-          businessDate: row.business_date || payload.businessDate,
-          customer: row.customer || payload.customer,
-          villa: row.villa || payload.villa,
-          villaCode: row.villa_code || payload.villaCode,
-          subtotal,
-          total,
-          discount,
-          deposit,
-          netTotal,
-          outstanding,
-          pendingTotal: Number(row.pending_total ?? payload.pendingTotal ?? 0),
-          status: row.status || payload.status || 'ชำระแล้ว',
-          cashier: staff,
-          preparer: staff,
-          closedBy: staff
-        };
-      });
-
-    const local = readLocal(localHistoryKey, []);
-    const remoteIds = new Set(remote.map(r => String(r.id)));
-    
-    // Auto-seed: If this device has local invoices not yet in Supabase and not deleted, upload them!
-    const missingInRemote = local.filter(l => l && (l.id || l.reference) && !remoteIds.has(String(l.id || l.reference)) && !deletedIds.has(String(l.id || l.reference)));
-    if (missingInRemote.length > 0) {
-      upsertInvoices(missingInRemote).catch(() => {});
-    }
-
-    const merged = [...remote];
-    missingInRemote.forEach(item => {
-      if (!merged.some(m => String(m.id) === String(item.id))) merged.push(item);
+    const remote = (result.data || []).map(row => {
+      const payload = row.payload && typeof row.payload === 'object' ? row.payload : {};
+      const lines = Array.isArray(payload.lines) ? payload.lines : (Array.isArray(row.lines) ? row.lines : []);
+      const lineSubtotal = lines.reduce((sum, line) => sum + Math.max(0, Number(line.qty || 1) * Number(line.rate || 0)), 0);
+      const lineDeposits = lines.reduce((sum, line) => sum + Math.max(0, Number(line.deposit || 0)), 0);
+      const lineDiscounts = lines.reduce((sum, line) => sum + Math.max(0, Number(line.discountAmount || 0)), 0);
+      const subtotal = lineSubtotal || Math.max(0, Number(payload.subtotal ?? payload.total ?? row.total) || 0);
+      const discount = Object.prototype.hasOwnProperty.call(payload, 'discount')
+        ? Math.max(0, Number(payload.discount) || 0)
+        : (Object.prototype.hasOwnProperty.call(row, 'discount') ? Math.max(0, Number(row.discount) || 0) : lineDiscounts);
+      const total = subtotal;
+      const deposit = lines.length ? lineDeposits : Math.max(0, Number(payload.deposit ?? row.deposit) || 0);
+      const netTotal = Math.max(0, total - discount);
+      const outstanding = Math.max(0, netTotal - deposit);
+      const staff = payload.cashier || payload.preparer || payload.closedBy || payload.user || row.cashier || row.preparer || row.closed_by || row.user || '';
+      return {
+        ...payload,
+        id: row.id,
+        reference: row.reference || payload.reference || row.id,
+        businessDate: row.business_date || payload.businessDate,
+        customer: row.customer || payload.customer,
+        villa: row.villa || payload.villa,
+        villaCode: row.villa_code || payload.villaCode,
+        subtotal,
+        total,
+        discount,
+        deposit,
+        netTotal,
+        outstanding,
+        pendingTotal: Number(row.pending_total ?? payload.pendingTotal ?? 0),
+        status: row.status || payload.status || 'ชำระแล้ว',
+        cashier: staff,
+        preparer: staff,
+        closedBy: staff
+      };
     });
 
-    if (JSON.stringify(merged) !== JSON.stringify(local)) {
-      writeLocal(localHistoryKey, merged);
-      if (window.sceneryAppState) window.sceneryAppState.invoices = merged;
+    const local = readLocal(localHistoryKey, []);
+    writeLocal(localHistoryKey, remote);
+    if (window.sceneryAppState) window.sceneryAppState.invoices = remote;
+    if (JSON.stringify(remote) !== JSON.stringify(local)) {
       triggerUIRefresh();
     }
   }
@@ -608,29 +589,19 @@
     if (!client) return;
     const result = await client.from('closed_bookings').select('*').order('created_at', { ascending: false });
     if (result.error) throw result.error;
-    const deletedIds = getDeletedInvoiceIds();
-    const remote = (result.data || [])
-      .filter(row => !deletedIds.has(String(row.id)) && !deletedIds.has(String(row.reference)))
-      .map(row => ({
-        ...row.payload,
-        id: row.id,
-        reference: row.reference || row.payload?.reference || row.id,
-        businessDate: row.business_date,
-        customer: row.customer,
-        villa: row.villa,
-        total: Number(row.total || 0)
-      }));
+    const remote = (result.data || []).map(row => ({
+      ...row.payload,
+      id: row.id,
+      reference: row.reference || row.payload?.reference || row.id,
+      businessDate: row.business_date,
+      customer: row.customer,
+      villa: row.villa,
+      total: Number(row.total || 0)
+    }));
     const local = readLocal(localBookingsKey, []);
-    const remoteIds = new Set(remote.map(r => String(r.id)));
-    const missingInRemote = local.filter(l => l && (l.id || l.reference) && !remoteIds.has(String(l.id || l.reference)) && !deletedIds.has(String(l.id || l.reference)));
-    if (missingInRemote.length > 0) {
-      upsertBookings(missingInRemote).catch(() => {});
-    }
-
-    const merged = [...remote, ...missingInRemote.filter(item => !remote.some(r => String(r.id) === String(item.id)))];
-    if (JSON.stringify(merged) !== JSON.stringify(local)) {
-      writeLocal(localBookingsKey, merged);
-      if (window.sceneryAppState) window.sceneryAppState.closedBookings = merged;
+    writeLocal(localBookingsKey, remote);
+    if (window.sceneryAppState) window.sceneryAppState.closedBookings = remote;
+    if (JSON.stringify(remote) !== JSON.stringify(local)) {
       if (typeof window.renderBookingRecords === 'function') window.renderBookingRecords();
     }
   }

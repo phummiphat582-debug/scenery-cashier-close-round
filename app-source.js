@@ -1271,7 +1271,12 @@ function loadInvoiceHistory(){
     return [];
   }
 }
-function saveInvoiceHistory(records){try{localStorage.setItem(INVOICE_HISTORY_KEY,JSON.stringify(records))}catch{showToast('บันทึกประวัติใบแจ้งหนี้ไม่สำเร็จ','error')}}
+function saveInvoiceHistory(records){
+  try{localStorage.setItem(INVOICE_HISTORY_KEY,JSON.stringify(records))}catch{showToast('บันทึกประวัติใบแจ้งหนี้ไม่สำเร็จ','error')}
+  if(window.scenerySupabase?.upsertInvoices){
+    window.scenerySupabase.upsertInvoices(records);
+  }
+}
 function historyPendingTotal(record){
   if(Number(record.pendingTotal||0)>0)return Math.max(0,Number(record.pendingTotal||0));
   return (record.pendingCollections||[]).reduce((sum,row)=>sum+Math.max(0,Number(row.amount||0)),0);
@@ -1403,9 +1408,13 @@ function deleteInvoiceHistory(id){
   const current=records.find(record=>record.id===id);
   if(!current)return;
   if(closeRoundIsLocked(current.businessDate)){showToast(`ลบไม่ได้: รอบ ${current.businessDate} ถูก Submit และ Lock แล้ว`,'error');return}
-  saveInvoiceHistory(records.filter(record=>record.id!==id));
+  const remaining=records.filter(record=>record.id!==id);
+  try{localStorage.setItem(INVOICE_HISTORY_KEY,JSON.stringify(remaining))}catch{}
   state.closedBookings=state.closedBookings.filter(record=>record.reference!==id);
   saveClosedBookings();
+  if(window.scenerySupabase?.deleteInvoiceRemote){
+    window.scenerySupabase.deleteInvoiceRemote(id);
+  }
   $('#modal-root').innerHTML='';
   syncInvoiceHistoryState();
   const actor=localStorage.getItem('scenery-last-login-email')||'Cashier';
@@ -1418,6 +1427,16 @@ function requestDeleteInvoiceHistory(id){
   if(!record)return;
   openModal(`ยืนยันลบประวัติ ${id}`,`<div class="history-delete-form"><p>ต้องการลบใบแจ้งหนี้ของ <strong>${esc(record.customer||'-')}</strong> (${esc(id)}) ออกจากประวัติใช่หรือไม่?</p><p class="muted">เมื่อกดยืนยัน รายการนี้จะถูกลบออกจากประวัติและตารางปิดรอบทันที</p></div>`,`<button class="button button-outline" data-close-modal>ยกเลิก</button><button class="button button-danger" data-history-delete-confirm="${esc(id)}"><span class="material-symbols-outlined">delete</span>ยืนยันลบ</button>`);
 }
+
+window.loadInvoiceHistory=loadInvoiceHistory;
+window.saveInvoiceHistory=saveInvoiceHistory;
+window.deleteInvoiceHistory=deleteInvoiceHistory;
+window.editInvoiceHistory=editInvoiceHistory;
+window.openHistoryEdit=openHistoryEdit;
+window.openInvoiceHistoryDetail=openInvoiceHistoryDetail;
+window.renderHistory=renderHistory;
+window.renderDashboard=renderDashboard;
+window.syncInvoiceHistoryState=syncInvoiceHistoryState;
 function exportInvoiceHistoryCsv(){
   const rows=historyRowsForToday();
   const headers=['Invoice','Customer','Villa','Business Date','Total','Pending','Cashier','Status'];
@@ -1527,11 +1546,15 @@ function installInvoiceHistoryFiltersFix(){
     element.replaceWith(clone);
   });
   renderHistory=renderInvoiceHistoryAllRecords;
+  window.renderHistory=renderInvoiceHistoryAllRecords;
+  window.renderInvoiceHistoryAllRecords=renderInvoiceHistoryAllRecords;
   $('#history-search')?.addEventListener('input',renderHistory);
   $('#history-status-filter')?.addEventListener('change',renderHistory);
   $('#history-date-filter')?.addEventListener('change',renderHistory);
   renderHistory();
 }
+window.renderHistory=renderHistory;
+window.renderInvoiceHistoryAllRecords=typeof renderInvoiceHistoryAllRecords==='function'?renderInvoiceHistoryAllRecords:renderHistory;
 document.addEventListener('DOMContentLoaded',installInvoiceHistoryFiltersFix);
 
 /* Centralized quantity handler so +/- keeps working after line rows are re-rendered. */
