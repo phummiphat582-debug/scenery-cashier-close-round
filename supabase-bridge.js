@@ -188,6 +188,7 @@
   let realtimeClient = null;
   let realtimeChannel = null;
 
+  let reconnectTimer = null;
   function initRealtimeWebSocket() {
     if (!hasConfig || !window.supabase?.createClient) return;
     try {
@@ -229,9 +230,18 @@
         .on('broadcast', { event: 'sync_trigger' }, () => {
           hydrate();
         })
-        .subscribe((status) => {
+        .subscribe((status, err) => {
           if (status === 'SUBSCRIBED') {
             updateOnlineStatusIndicator(true, 'Realtime WebSocket พร้อมทำงาน');
+          } else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT' || status === 'CLOSED') {
+            console.warn('[Realtime WebSocket] Status:', status, err);
+            clearTimeout(reconnectTimer);
+            reconnectTimer = setTimeout(() => {
+              if (navigator.onLine !== false) {
+                initRealtimeWebSocket();
+                hydrate().catch(() => {});
+              }
+            }, 3000);
           }
         });
     } catch (e) {
@@ -905,6 +915,16 @@
     window.addEventListener('focus', () => hydrate().catch(() => {}));
     document.addEventListener('visibilitychange', () => {
       if (!document.hidden) hydrate().catch(() => {});
+    });
+
+    // 4. Auto-reconnect when device network changes online/offline
+    window.addEventListener('online', () => {
+      updateOnlineStatusIndicator(true, 'เชื่อมต่อเครือข่ายแล้ว');
+      initRealtimeWebSocket();
+      hydrate().catch(() => {});
+    });
+    window.addEventListener('offline', () => {
+      updateOnlineStatusIndicator(false, 'ออฟไลน์');
     });
   }
 
