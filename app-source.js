@@ -400,6 +400,14 @@ function wireEvents(){
   },true);
 
   document.addEventListener('change',event=>{
+    if(event.target.classList.contains('line-villa')){
+      const idx=Number(event.target.dataset.lineIndex);
+      if(state.invoiceLines[idx]){
+        state.invoiceLines[idx].villa=event.target.value;
+        calculateInvoice();
+        renderInvoicePreview();
+      }
+    }
     if(event.target.classList.contains('line-in-input')){
       const idx=Number(event.target.dataset.lineIndex);
       if(state.invoiceLines[idx]){
@@ -1057,9 +1065,20 @@ function installFinalInvoiceRules(){
     });
   };
 
+  function villaOptionsForLine(selectedVilla){
+    const current=selectedVilla?matchVillaFromText(selectedVilla):'';
+    const mainV=matchVillaFromText($('#villa')?.value)||'บ้านหลัก';
+    return `
+      <option value="">(อิงตาม ${esc(mainV)})</option>
+      ${CLOSE_ROUND_SOURCE_VILLAS.map(v=>`<option value="${esc(v)}" ${v===current?'selected':''}>${esc(v)}</option>`).join('')}
+    `;
+  }
+
   lineRow=function(line,index){
     const gross=lineAmount(line),discount=clampDiscount(line,gross),deposit=Math.max(0,Number(line.deposit||0)),net=Math.max(0,gross-discount-deposit);
-    return `<tr><td>${esc(line.category)}</td><td>${esc(line.name)}</td><td class="align-center"><div class="qty-control"><button type="button" data-line-index="${index}" data-qty="-1">−</button><strong>${line.qty}</strong><button type="button" data-line-index="${index}" data-qty="1">+</button></div></td><td class="align-right"><input class="line-rate" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.rate||0)}" aria-label="Rate ${esc(line.name)}"></td><td class="align-right"><div class="line-deposit-fields"><input class="line-deposit" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.deposit||0)}" aria-label="Deposit ${esc(line.name)}"><select class="line-deposit-method" data-line-index="${index}" aria-label="ช่องทาง Deposit ${esc(line.name)}">${paymentMethodOptions(line.depositMethod)}</select></div></td><td><input class="line-discount" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.discountAmount||0)}" placeholder="ยอดเงิน" aria-label="ส่วนลดเป็นยอดเงิน ${esc(line.name)}"></td><td class="align-right strong-number"><span>${invoiceMoney(net)}</span>${(discount||deposit)?`<small class="line-gross">เต็ม ${invoiceMoney(gross)}${discount?` · ลด -${invoiceMoney(discount)}`:''}${deposit?` · Deposit -${invoiceMoney(deposit)}`:''}</small>`:''}</td><td class="align-right"><button class="icon-button remove-form-line" type="button" data-line-index="${index}" aria-label="ลบรายการ"><span class="material-symbols-outlined">close</span></button></td></tr>`;
+    const currentVilla=line.villa||'';
+    const villaSelectHtml=`<div class="line-villa-wrapper" style="margin-top:4px;display:flex;align-items:center;gap:4px;"><span class="material-symbols-outlined" style="font-size:14px;color:#8a5433;">villa</span><select class="line-villa action-small" data-line-index="${index}" style="font-size:11px;padding:1px 4px;border-radius:4px;border:1px solid #dfcfbe;background:#fff;max-width:180px;cursor:pointer;color:#5a331c;" title="เลือกบ้านสำหรับรายการนี้ เพื่อแยกแถวในหน้าปิดรอบ">${villaOptionsForLine(currentVilla)}</select></div>`;
+    return `<tr><td>${esc(line.category)}</td><td><strong>${esc(line.name)}</strong>${villaSelectHtml}</td><td class="align-center"><div class="qty-control"><button type="button" data-line-index="${index}" data-qty="-1">−</button><strong>${line.qty}</strong><button type="button" data-line-index="${index}" data-qty="1">+</button></div></td><td class="align-right"><input class="line-rate" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.rate||0)}" aria-label="Rate ${esc(line.name)}"></td><td class="align-right"><div class="line-deposit-fields"><input class="line-deposit" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.deposit||0)}" aria-label="Deposit ${esc(line.name)}"><select class="line-deposit-method" data-line-index="${index}" aria-label="ช่องทาง Deposit ${esc(line.name)}">${paymentMethodOptions(line.depositMethod)}</select></div></td><td><input class="line-discount" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.discountAmount||0)}" placeholder="ยอดเงิน" aria-label="ส่วนลดเป็นยอดเงิน ${esc(line.name)}"></td><td class="align-right strong-number"><span>${invoiceMoney(net)}</span>${(discount||deposit)?`<small class="line-gross">เต็ม ${invoiceMoney(gross)}${discount?` · ลด -${invoiceMoney(discount)}`:''}${deposit?` · Deposit -${invoiceMoney(deposit)}`:''}</small>`:''}</td><td class="align-right"><button class="icon-button remove-form-line" type="button" data-line-index="${index}" aria-label="ลบรายการ"><span class="material-symbols-outlined">close</span></button></td></tr>`;
   };
 
   previewItemRows=function(snapshot){
@@ -2559,15 +2578,99 @@ function closeRoundTemplateEntries(records, selectedDate){
   const continuationStays = [];
 
   activeRecords.forEach(record => {
-    const stays = extractInvoiceStays(record);
+    const lines = Array.isArray(record.lines) ? record.lines : [];
     const model = closeRoundRecordModel(record);
+    const mainVilla = record.villa || (lines[0]?.villa) || '';
+    
+    // Group lines by tagged or inferred villa
+    const villaLinesMap = new Map();
+    lines.forEach(line => {
+      let vName = (line.villa && line.villa.trim()) ? line.villa.trim() : '';
+      if (!vName && typeof isActualVillaLine === 'function' && isActualVillaLine(line)) {
+        vName = matchVillaFromText(line.name) || matchVillaFromText(line.villa);
+      }
+      if (!vName) {
+        vName = mainVilla || 'Walk-in / อื่นๆ';
+      }
+      vName = matchVillaFromText(vName) || vName;
+      if (!villaLinesMap.has(vName)) villaLinesMap.set(vName, []);
+      villaLinesMap.get(vName).push(line);
+    });
+
+    // If lines specify multiple distinct villas (e.g. Villa 01 and Villa 02 in 1 bill)
+    if (villaLinesMap.size > 1) {
+      const billGrossTotal = Math.max(0.01, lines.reduce((sum, l) => sum + Math.max(0, Number(l.qty || 1) * Number(l.rate || 0)), 0));
+      const billTotal = Number(model.total || record.total || 0);
+      const billDeposit = Number(model.deposit || record.deposit || 0);
+
+      Array.from(villaLinesMap.entries()).forEach(([vName, vLines]) => {
+        const vCategories = Object.fromEntries(CLOSE_ROUND_CATEGORIES.map(item => [item.key, 0]));
+        let vLineGross = 0;
+        let vLineDeposits = 0;
+        vLines.forEach(l => {
+          const gross = Math.max(0, Number(l.qty || 1) * Number(l.rate || 0));
+          const net = closeRoundLineNet(l);
+          vCategories[closeRoundCategoryKey(l)] += net;
+          vLineGross += gross;
+          vLineDeposits += Math.max(0, Number(l.deposit || 0));
+        });
+
+        const vShareRatio = billGrossTotal > 0 ? (vLineGross / billGrossTotal) : (1 / villaLinesMap.size);
+        const vTotal = Object.values(vCategories).reduce((sum, val) => sum + val, 0);
+        const vDeposit = vLineDeposits > 0 ? vLineDeposits : (billDeposit > 0 ? Math.round(billDeposit * vShareRatio) : 0);
+        const vOutstanding = Math.max(0, vTotal - vDeposit);
+
+        const vPayments = Object.fromEntries(CLOSE_ROUND_PAYMENTS.map(item => [item.key, 0]));
+        if (Array.isArray(record.payments) && record.payments.length > 0) {
+          record.payments.forEach(p => {
+            const pKey = closeRoundPaymentKey(p.method);
+            vPayments[pKey] += Math.round(Number(p.amount || 0) * vShareRatio);
+          });
+        } else {
+          const pMethod = record.paymentMethod || 'cash';
+          vPayments[closeRoundPaymentKey(pMethod)] = vOutstanding;
+        }
+
+        const vPending = Number(record.pendingTotal || 0) > 0 ? Math.round(Number(record.pendingTotal) * vShareRatio) : 0;
+        vPayments.pending = vPending;
+
+        const stay = {
+          villa: vName,
+          villaCode: (typeof matchVillaCode === 'function' ? matchVillaCode(vName) : '') || record.villaCode || '',
+          customer: record.customer || 'ลูกค้าทั่วไป',
+          checkIn: formatDayOnly(record.checkIn || record.docDate),
+          checkOut: formatDayOnly(record.checkOut || record.checkIn || record.docDate),
+          categories: vCategories,
+          total: Number(vTotal),
+          deposit: Number(vDeposit),
+          outstanding: Number(vOutstanding),
+          payments: vPayments,
+          remark: `บิลรวม (${record.id || record.reference || ''})${record.remark ? ' · ' + record.remark : ''}`,
+          recordId: record.id || record.reference || '',
+          record: record,
+          isSplitStay: false
+        };
+
+        const vKey = closeRoundVillaTemplateKey(vName);
+        if (vName && vKey && CLOSE_ROUND_SOURCE_VILLAS.some(v => closeRoundVillaTemplateKey(v) === vKey)) {
+          if (!staysByVillaKey.has(vKey)) staysByVillaKey.set(vKey, []);
+          staysByVillaKey.get(vKey).push(stay);
+        } else {
+          continuationStays.push(stay);
+        }
+      });
+      return;
+    }
+
+    // Standard single-villa or explicit split-stay flow
+    const stays = extractInvoiceStays(record);
     const hasExplicitSplitStay = Array.isArray(record.lines) && record.lines.some(l => l.isSplitStay || l.splitStay);
 
     if (!hasExplicitSplitStay) {
       if (!stays || stays.length <= 1) {
-        const mainVilla = (stays && stays[0] && stays[0].villa) ? stays[0].villa : (model.villa || record.villa || '');
+        const singleVilla = (stays && stays[0] && stays[0].villa) ? stays[0].villa : (model.villa || record.villa || '');
         const stay = {
-          villa: mainVilla || 'Walk-in / อื่นๆ',
+          villa: singleVilla || 'Walk-in / อื่นๆ',
           villaCode: record.villaCode || '',
           customer: record.customer || 'ลูกค้าทั่วไป',
           checkIn: formatDayOnly(record.checkIn || record.docDate),
@@ -2582,12 +2685,11 @@ function closeRoundTemplateEntries(records, selectedDate){
           record: record,
           isSplitStay: false
         };
-        const vKey = closeRoundVillaTemplateKey(mainVilla);
-        if (mainVilla && vKey && CLOSE_ROUND_SOURCE_VILLAS.some(v => closeRoundVillaTemplateKey(v) === vKey)) {
+        const vKey = closeRoundVillaTemplateKey(singleVilla);
+        if (singleVilla && vKey && CLOSE_ROUND_SOURCE_VILLAS.some(v => closeRoundVillaTemplateKey(v) === vKey)) {
           if (!staysByVillaKey.has(vKey)) staysByVillaKey.set(vKey, []);
           staysByVillaKey.get(vKey).push(stay);
         } else {
-          // รายการอื่นที่สร้างใบแจ้งหนี้ ที่ไม่ใช่บ้านพักใน 11 รายการ -> ไปอยู่เพิ่มเติม
           continuationStays.push(stay);
         }
       } else {
