@@ -111,10 +111,10 @@ function invoiceSnapshot(){
   const lineDiscount=scope==='line'?state.invoiceLines.reduce((s,l)=>s+lineAmount(l)*(Number(l.discountRate||0)/100),0):0;
   const discount=scope==='all'?subtotal*allRate/100:lineDiscount;
   const lineDeposits=state.invoiceLines.reduce((s,l)=>s+Math.max(0,Number(l.deposit||0)),0);
-  const paymentDeposits=state.payments.reduce((s,p)=>s+Math.max(0,Number(p.amount||0)),0);
-  const pendingTotal=state.invoiceLines.reduce((s,l)=>s+Math.max(0,Number(l.pendingCollection||0)),0);
-  const deposit=lineDeposits+paymentDeposits;
+  const deposit=lineDeposits;
   const netTotal=Math.max(0,subtotal-discount);
+  const outstanding=Math.max(0,netTotal-deposit);
+  const pendingTotal=state.invoiceLines.reduce((s,l)=>s+Math.max(0,Number(l.pendingCollection||0)),0);
   const autoRef=`INV-${todayStr.slice(2).replaceAll('-','')}-${Math.floor(100+Math.random()*900)}`;
   const docDate=formValue('doc-date')||todayStr;
   return{
@@ -130,11 +130,12 @@ function invoiceSnapshot(){
     subtotal,
     discount,
     lineDeposits,
-    paymentDeposits,
+    paymentDeposits:0,
     pendingTotal,
     deposit,
     netTotal,
-    outstanding:netTotal-deposit-pendingTotal,
+    outstanding,
+    outstandingDisplay:outstanding,
     discountScope:scope,
     allRate
   };
@@ -860,21 +861,21 @@ function installFinalInvoiceRules(){
     const allDiscount=Math.max(0,Number(formValue('discount-all-rate',0))||0);
     const discount=scope==='none'?0:scope==='all'?Math.min(subtotal,subtotal*allDiscount/100):Math.min(subtotal,enteredLineDiscount);
     const lineDeposits=state.invoiceLines.reduce((sum,line)=>sum+Math.max(0,Number(line.deposit||0)),0);
-    const paymentDeposits=state.payments.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount||0)),0);
-    const deposit=lineDeposits+paymentDeposits;
-    const pending=Math.min(Math.max(0,subtotal-discount-deposit),pendingTotal());
+    const deposit=lineDeposits;
     const netTotal=Math.max(0,subtotal-discount);
+    const outstanding=Math.max(0,netTotal-deposit);
+    const pending=Math.min(outstanding,pendingTotal());
     const todayStr=new Date().toISOString().slice(0,10);
     const autoRef=`INV-${todayStr.slice(2).replaceAll('-','')}-${Math.floor(100+Math.random()*900)}`;
     const reference=String(formValue('folio','')||'').trim()||autoRef;
     const docDate=formValue('doc-date')||todayStr;
-    return {reference,customer:formValue('customer',''),checkIn:formValue('check-in')||docDate,checkOut:formValue('check-out')||docDate,nights:formValue('no-of-night','1'),remark:formValue('remark',''),docDate,villa:formValue('villa',''),villaCode:formValue('villa-code',''),subtotal,discount,lineDeposits,paymentDeposits,pendingTotal:pending,deposit,netTotal,outstanding:netTotal-deposit-pending,outstandingDisplay:netTotal-deposit,discountScope:scope,allAmount:allDiscount};
+    return {reference,customer:formValue('customer',''),checkIn:formValue('check-in')||docDate,checkOut:formValue('check-out')||docDate,nights:formValue('no-of-night','1'),remark:formValue('remark',''),docDate,villa:formValue('villa',''),villaCode:formValue('villa-code',''),subtotal,discount,lineDeposits,paymentDeposits:0,pendingTotal:pending,deposit,netTotal,outstanding,outstandingDisplay:outstanding,discountScope:scope,allAmount:allDiscount};
   };
   const settlementTotals=()=>{
     const snapshot=calculateLiveInvoiceSnapshot();
     const paid=settlementRows.reduce((sum,row)=>sum+Math.max(0,Number(row.amount||0)),0);
     const pending=pendingCollectionRows.reduce((sum,row)=>sum+Math.max(0,Number(row.amount||0)),0);
-    const maximum=Math.max(0,snapshot.netTotal-snapshot.lineDeposits);
+    const maximum=snapshot.outstanding;
     const excess=Math.max(0,paid+pending-maximum);
     return {snapshot,paid,pending,maximum,excess};
   };
@@ -958,7 +959,7 @@ function installFinalInvoiceRules(){
   const baseOpenSettlementModal=openSettlementModal;
   openSettlementModal=function(){
     const snapshot=typeof calculateLiveInvoiceSnapshot==='function'?calculateLiveInvoiceSnapshot():invoiceSnapshot();
-    const defaultAmount=Math.max(0,snapshot.netTotal-snapshot.deposit);
+    const defaultAmount=snapshot.outstanding;
     settlementRows=state.payments.length?state.payments.map(payment=>({...payment})):[{method:'เงินสด',amount:defaultAmount}];
     pendingCollectionRows=[{amount:pendingTotal(),note:state.pendingCollectionNote||''}];
     const root=$('#modal-root');
@@ -972,7 +973,7 @@ function installFinalInvoiceRules(){
     if(el){
       const totals=settlementTotals(),overLimit=totals.excess>0.005;
       el.classList.toggle('over-limit',overLimit);
-      el.innerHTML=`รวมชำระ ${invoiceMoney(totals.paid)} <span>• ยอดรอเก็บทั้งบิล ${invoiceMoney(totals.pending)}</span>${overLimit?`<small class="settlement-limit-warning">ยอดรวมเกินใบแจ้งหนี้ ${invoiceMoney(totals.excess)} กรุณาปรับยอดก่อนปิดบิล</small>`:''}`;
+      el.innerHTML=`รวมชำระ ${invoiceMoney(totals.paid)} <span>• ยอดรอเก็บทั้งบิล ${invoiceMoney(totals.pending)}</span>${overLimit?`<small class="settlement-limit-warning">ยอดรวมเกินยอดที่ต้องชำระ ${invoiceMoney(totals.excess)} กรุณาปรับยอดก่อนปิดบิล</small>`:''}`;
       const confirm=$('[data-settlement-confirm]');
       if(confirm){confirm.disabled=overLimit;confirm.setAttribute('aria-disabled',String(overLimit));}
     }
@@ -983,7 +984,7 @@ function installFinalInvoiceRules(){
     if(!button)return;
     const amount=Math.max(0,Number($('#payment-amount')?.value||0));
     const snapshot=calculateLiveInvoiceSnapshot();
-    const available=Math.max(0,snapshot.netTotal-snapshot.lineDeposits-snapshot.paymentDeposits);
+    const available=snapshot.outstanding;
     if(amount>available+0.005){
       event.preventDefault();
       event.stopImmediatePropagation();
@@ -1002,7 +1003,7 @@ function installFinalInvoiceRules(){
     const enteredTotals=settlementTotals();
     if(enteredTotals.excess>0.005){
       updateSettlementTotal();
-      showToast(`ยอดชำระรวมเกินยอดใบแจ้งหนี้ ${invoiceMoney(enteredTotals.excess)}`,'error');
+      showToast(`ยอดชำระรวมเกินยอดที่ต้องชำระ ${invoiceMoney(enteredTotals.excess)}`,'error');
       return;
     }
     const file=$('#settlement-slip')?.files?.[0];
@@ -1017,21 +1018,22 @@ function installFinalInvoiceRules(){
     state.pendingCollectionTotal=Math.max(0,Number(pending.amount||0));
     state.pendingCollectionNote=String(pending.note||'').trim();
     let settlementSnapshot=calculateLiveInvoiceSnapshot();
-    state.pendingCollectionTotal=Math.min(state.pendingCollectionTotal,Math.max(0,settlementSnapshot.netTotal-settlementSnapshot.deposit));
+    state.pendingCollectionTotal=Math.min(state.pendingCollectionTotal,settlementSnapshot.outstanding);
     settlementSnapshot=calculateLiveInvoiceSnapshot();
-    if(settlementSnapshot.outstanding>0&&!state.payments.length&&!state.pendingCollectionTotal){
-      state.payments=[{method:'เงินสด',amount:settlementSnapshot.netTotal}];
-      settlementSnapshot=calculateLiveInvoiceSnapshot();
+    const paidSum=state.payments.reduce((sum,p)=>sum+Number(p.amount||0),0);
+    if(!paidSum&&!state.pendingCollectionTotal&&settlementSnapshot.outstanding>0){
+      state.payments=[{method:'เงินสด',amount:settlementSnapshot.outstanding}];
     }
-    if(settlementSnapshot.deposit+settlementSnapshot.pendingTotal>settlementSnapshot.netTotal+0.005){
+    const totalCovered=state.payments.reduce((sum,p)=>sum+Number(p.amount||0),0)+state.pendingCollectionTotal;
+    if(totalCovered>settlementSnapshot.outstanding+0.005){
       state.payments=previousPayments;state.pendingCollectionTotal=previousTotal;state.pendingCollectionNote=previousNote;renderPayments();calculateInvoice();
-      showToast(`ยอดชำระรวมเกินยอดใบแจ้งหนี้ ${invoiceMoney(settlementSnapshot.deposit+settlementSnapshot.pendingTotal-settlementSnapshot.netTotal)}`,'error');return;
+      showToast(`ยอดชำระรวมเกินยอดที่ต้องชำระ ${invoiceMoney(totalCovered-settlementSnapshot.outstanding)}`,'error');return;
     }
-    if(settlementSnapshot.outstanding>0){
+    if(totalCovered<settlementSnapshot.outstanding-0.005){
       state.payments=previousPayments;state.pendingCollectionTotal=previousTotal;state.pendingCollectionNote=previousNote;renderPayments();calculateInvoice();
-      showToast(`ยังมียอดที่ยังไม่ชำระหรือยังไม่ระบุยอดรอเก็บ ${invoiceMoney(settlementSnapshot.outstanding)}`,'error');return;
+      showToast(`ยังมียอดที่ยังไม่ชำระหรือยังไม่ระบุยอดรอเก็บ ${invoiceMoney(settlementSnapshot.outstanding-totalCovered)}`,'error');return;
     }
-    state.closedInvoiceSnapshot={...settlementSnapshot,outstanding:0,outstandingDisplay:0};
+    state.closedInvoiceSnapshot={...settlementSnapshot,outstanding:settlementSnapshot.outstanding,outstandingDisplay:settlementSnapshot.outstanding};
     state.invoiceClosed=true;
     const now=new Date();
     const resolvedDate=normalizeDateKey(settlementSnapshot.docDate)||normalizeDateKey(settlementSnapshot.checkIn)||historyDateKey(now);
