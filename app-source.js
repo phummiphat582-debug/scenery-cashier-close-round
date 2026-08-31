@@ -19,42 +19,150 @@ function saveClosedBookings(){try{localStorage.setItem('scenery-closed-bookings'
 function showToast(message,type='success'){const region=$('#toast-region');if(!region)return;const toast=document.createElement('div');toast.className=`toast ${type}`;toast.innerHTML=`<span class="material-symbols-outlined">${type==='error'?'error':'check_circle'}</span><span>${esc(message)}</span>`;region.appendChild(toast);setTimeout(()=>toast.classList.add('show'),10);setTimeout(()=>{toast.classList.remove('show');setTimeout(()=>toast.remove(),250)},3200)}
 function setView(view){state.currentView=view;$$('.view').forEach(s=>s.classList.toggle('active',s.id===`view-${view}`));$$('.nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===view));$('#sidebar')?.classList.remove('open');if(view==='dashboard'&&typeof renderDashboard==='function')renderDashboard();if(view==='master')renderBookingRecords();if(view==='close-round'&&typeof renderCloseRound==='function')renderCloseRound();if(view==='drawer'&&typeof cashDrawerV2Render==='function')cashDrawerV2Render();if(view==='history'){if(typeof renderInvoiceHistoryAllRecords==='function')renderInvoiceHistoryAllRecords();else if(typeof renderHistory==='function')renderHistory();}}
 function setInvoicePage(page){state.invoicePage=page;$$('.invoice-page').forEach(s=>s.classList.toggle('active',s.dataset.invoicePage===page));$$('.invoice-page-tab').forEach(b=>b.classList.toggle('active',b.dataset.invoicePage===page));if(page==='preview')renderInvoicePreview()}
-function renderDashboard(){
+function dashboardSelectedDate(){
+  const input=$('#dashboard-date');
+  if(input&&input.value)return normalizeDateKey(input.value);
+  if(state.dashboardDate)return normalizeDateKey(state.dashboardDate);
+  return typeof historyDateKey==='function'?historyDateKey():new Date().toISOString().slice(0,10);
+}
+function renderDashboard(customDate){
+  if(customDate)state.dashboardDate=normalizeDateKey(customDate);
+  const targetDate=customDate?normalizeDateKey(customDate):dashboardSelectedDate();
   const allRecords=typeof loadInvoiceHistory==='function'?loadInvoiceHistory():(state.invoices||[]);
-  const today=typeof historyDateKey==='function'?historyDateKey():new Date().toISOString().slice(0,10);
+  
+  // Available dates from history for quick date pills
+  const dateCounts=new Map();
+  allRecords.forEach(r=>{
+    if(!r||r.status==='Void')return;
+    const d=normalizeDateKey(r.businessDate||r.docDate);
+    if(d)dateCounts.set(d,(dateCounts.get(d)||0)+1);
+  });
+  const availableDatesList=Array.from(dateCounts.entries()).sort((a,b)=>b[0].localeCompare(a[0]));
+
   const records=allRecords
     .map(r=>typeof normalizeHistoryRecord==='function'?normalizeHistoryRecord(r):r)
     .filter(r=>{
       if(!r||r.status==='Void')return false;
       const bDate=typeof normalizeDateKey==='function'?normalizeDateKey(r.businessDate||r.docDate):(r.businessDate||r.docDate);
-      return bDate===today;
+      return bDate===targetDate;
     });
+
   const totalSales=records.reduce((sum,r)=>sum+Number(r.total||0),0);
   const totalPending=records.reduce((sum,r)=>sum+(typeof historyPendingTotal==='function'?historyPendingTotal(r):Number(r.pendingTotal||0)),0);
+  const paidInFullCount=records.filter(r=>(typeof historyPendingTotal==='function'?historyPendingTotal(r):Number(r.pendingTotal||0))<=0).length;
+  const pendingCount=records.filter(r=>(typeof historyPendingTotal==='function'?historyPendingTotal(r):Number(r.pendingTotal||0))>0).length;
   const drafts=typeof loadInvoiceDrafts==='function'?loadInvoiceDrafts():(state.drafts||[]);
 
+  // Calculate Cash vs Non-Cash for this day
+  let dayCashTotal=0;
+  let dayNonCashTotal=0;
+  records.forEach(r=>{
+    const rPending=typeof historyPendingTotal==='function'?historyPendingTotal(r):Number(r.pendingTotal||0);
+    const rPaid=Math.max(0,Number(r.total||0)-rPending);
+    // If lines have deposit/payments or check payment lines
+    const payments=Array.isArray(r.payments)?r.payments:[];
+    if(payments.length>0){
+      payments.forEach(p=>{
+        const m=String(p.method||'').toLowerCase();
+        const amt=Math.max(0,Number(p.amount||0));
+        if(m.includes('สด')||m==='cash')dayCashTotal+=amt;
+        else dayNonCashTotal+=amt;
+      });
+    }else{
+      // Assume paid portion as standard transaction
+      dayCashTotal+=rPaid;
+    }
+  });
+
+  const targetDisplay=typeof historyDisplayDate==='function'?historyDisplayDate(targetDate):targetDate;
+
+  // Insert or update Date Toolbar in Dashboard
+  const dashView=$('#view-dashboard');
+  if(dashView){
+    let toolbar=$('#dashboard-toolbar');
+    if(!toolbar){
+      toolbar=document.createElement('div');
+      toolbar.id='dashboard-toolbar';
+      toolbar.className='round-toolbar panel';
+      toolbar.style.marginTop='-8px';
+      toolbar.style.marginBottom='20px';
+      const pageHeading=dashView.querySelector('.page-heading');
+      if(pageHeading&&pageHeading.nextSibling){
+        dashView.insertBefore(toolbar,pageHeading.nextSibling);
+      }else{
+        dashView.prepend(toolbar);
+      }
+    }
+    
+    let quickDatePills='';
+    if(availableDatesList.length>0){
+      quickDatePills=`<div class="dashboard-quick-dates" style="display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin-top:10px;padding-top:10px;border-top:1px dashed #dfcfbe;width:100%;"><span style="font-size:12px;font-weight:700;color:#6e4022;display:inline-flex;align-items:center;gap:4px;"><span class="material-symbols-outlined" style="font-size:16px;color:#8a5433;">history</span> เลือกวันที่มียอด:</span>${availableDatesList.map(([d,cnt])=>{const isSelected=d===targetDate;return `<button type="button" class="button ${isSelected?'button-primary':'button-soft'} action-small" data-select-dashboard-date="${esc(d)}" style="font-size:11.5px;padding:3px 8px;border-radius:6px;font-weight:600;display:inline-flex;align-items:center;gap:3px;cursor:pointer;">${isSelected?'<span class="material-symbols-outlined" style="font-size:14px;">check</span>':''}${esc(d)} (${cnt} บิล)</button>`;}).join('')}</div>`;
+    }
+
+    toolbar.innerHTML=`<label>วันที่สรุปภาพรวม (Business Date)<input id="dashboard-date" type="date" value="${esc(targetDate)}"></label><div class="round-health"><span class="online-dot"></span><div><strong>ภาพรวมประจำวันที่ ${esc(targetDisplay)}</strong><small>${records.length?`${records.length} บิลในระบบของวันนี้`:'ยังไม่มีใบแจ้งหนี้ของวันที่เลือก'}</small></div></div>${quickDatePills}`;
+
+    const dateInput=$('#dashboard-date');
+    if(dateInput){
+      dateInput.addEventListener('change',e=>{
+        state.dashboardDate=e.target.value;
+        renderDashboard(e.target.value);
+      });
+    }
+    toolbar.querySelectorAll('[data-select-dashboard-date]').forEach(btn=>{
+      btn.addEventListener('click',e=>{
+        e.preventDefault();
+        const d=btn.dataset.selectDashboardDate;
+        if(d){
+          state.dashboardDate=d;
+          renderDashboard(d);
+        }
+      });
+    });
+  }
+
+  // Update Metric Cards
   const metricCards=document.querySelectorAll('#view-dashboard .metric-card');
-  if(metricCards[0]){const strong=metricCards[0].querySelector('strong');if(strong)strong.textContent=money(totalSales)}
-  if(metricCards[1]){const strong=metricCards[1].querySelector('strong');if(strong)strong.textContent=`${drafts.length} รายการ`}
-  if(metricCards[2]){const strong=metricCards[2].querySelector('strong');if(strong)strong.textContent=`${records.length} บิล`}
-  if(metricCards[3]){const strong=metricCards[3].querySelector('strong');if(strong){strong.textContent=money(totalPending);strong.className=totalPending>0?'critical-text':'positive-text'}}
+  if(metricCards[0]){
+    const p=metricCards[0].querySelector('p');
+    if(p)p.innerHTML=`ยอดขายประจำวัน <small>(${esc(targetDisplay)})</small>`;
+    const strong=metricCards[0].querySelector('strong');
+    if(strong)strong.textContent=money(totalSales);
+  }
+  if(metricCards[1]){
+    const strong=metricCards[1].querySelector('strong');
+    if(strong)strong.textContent=`${drafts.length} รายการ`;
+  }
+  if(metricCards[2]){
+    const p=metricCards[2].querySelector('p');
+    if(p)p.innerHTML=`จำนวนใบแจ้งหนี้ <small>(${esc(targetDisplay)})</small>`;
+    const strong=metricCards[2].querySelector('strong');
+    if(strong)strong.textContent=`${records.length} บิล`;
+  }
+  if(metricCards[3]){
+    const p=metricCards[3].querySelector('p');
+    if(p)p.innerHTML=`ยอดค้างชำระ / รอเรียกเก็บ <small>(${esc(targetDisplay)})</small>`;
+    const strong=metricCards[3].querySelector('strong');
+    if(strong){
+      strong.textContent=money(totalPending);
+      strong.className=totalPending>0?'critical-text':'positive-text';
+    }
+  }
 
   const lastUpdated=$('#last-updated');
   if(lastUpdated){
     const now=new Date();
     const timeStr=now.toLocaleTimeString('th-TH',{hour:'2-digit',minute:'2-digit'});
-    const todayDisplay=typeof historyDisplayDate==='function'?historyDisplayDate(today):today;
-    lastUpdated.textContent=`ข้อมูลประจำวันที่: ${todayDisplay} | ${timeStr} น. · ข้อมูลจริง ${records.length} รายการ`;
+    lastUpdated.textContent=`ข้อมูลประจำวันที่: ${targetDisplay} | ${timeStr} น. · ข้อมูลจริง ${records.length} รายการ`;
   }
 
   const d=$('#dashboard-invoices');
   if(d){
     if(!records.length){
-      d.innerHTML='<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ยังไม่มีใบแจ้งหนี้ของวันนี้</p><small>สร้างใบแจ้งหนี้ใหม่เพื่อบันทึกรายการ</small></div></td></tr>';
+      d.innerHTML=`<tr><td colspan="6"><div class="empty-state"><span class="material-symbols-outlined">receipt_long</span><p>ไม่มีใบแจ้งหนี้ประจำวันที่ ${esc(targetDisplay)}</p><small>สร้างใบแจ้งหนี้ใหม่เพื่อบันทึกรายการสำหรับวันนี้</small></div></td></tr>`;
     }else{
       d.innerHTML=records.slice(0,8).map(i=>{
         const status=typeof historyStatus==='function'?historyStatus(i):{label:i.status||'ชำระแล้ว',className:i.statusClass||'status-paid'};
-        const displayDate=typeof historyDisplayDate==='function'?historyDisplayDate(i.businessDate||today):(i.businessDate||today);
+        const displayDate=typeof historyDisplayDate==='function'?historyDisplayDate(i.businessDate||targetDate):(i.businessDate||targetDate);
         return `<tr>
           <td><button class="button button-text mono strong-link" type="button" data-history-view="${esc(i.id)}" style="padding:0;font-weight:700;color:var(--primary);text-decoration:underline;cursor:pointer;background:none;border:none;">${esc(i.id)}</button></td>
           <td><strong>${esc(i.customer||'-')}</strong><small class="table-subtext">${esc(i.villa||'-')} · ${esc(i.time||'-')} น.</small></td>
@@ -69,6 +177,53 @@ function renderDashboard(){
           </td>
         </tr>`;
       }).join('');
+    }
+  }
+
+  // Update Progress Panel dynamically
+  const progressPanel=document.querySelector('#view-dashboard .progress-panel');
+  if(progressPanel){
+    const totalCount=records.length;
+    const paidPct=totalCount>0?Math.round((paidInFullCount/totalCount)*100):100;
+    const pendingPct=totalCount>0?Math.round((pendingCount/totalCount)*100):0;
+    const statusChip=progressPanel.querySelector('.panel-heading .status-chip');
+    if(statusChip){
+      statusChip.className=`status-chip ${pendingCount>0?'warning':'success'}`;
+      statusChip.textContent=pendingCount>0?`มีค้างชำระ ${pendingCount} รายการ`:'พร้อมปิดรอบ';
+    }
+    const rows=progressPanel.querySelectorAll('.progress-row');
+    if(rows[0]){
+      const labelStrong=rows[0].querySelector('.progress-label strong');
+      if(labelStrong)labelStrong.textContent=`${totalCount} / ${totalCount}`;
+      const trackBar=rows[0].querySelector('.progress-track i');
+      if(trackBar)trackBar.style.width=totalCount>0?'100%':'0%';
+    }
+    if(rows[1]){
+      const labelStrong=rows[1].querySelector('.progress-label strong');
+      if(labelStrong)labelStrong.textContent=`${paidInFullCount} / ${totalCount}`;
+      const trackBar=rows[1].querySelector('.progress-track i');
+      if(trackBar)trackBar.style.width=`${paidPct}%`;
+    }
+    if(rows[2]){
+      const labelStrong=rows[2].querySelector('.progress-label strong');
+      if(labelStrong)labelStrong.textContent=`${pendingCount} รายการ`;
+      const trackBar=rows[2].querySelector('.progress-track i');
+      if(trackBar)trackBar.style.width=`${pendingPct}%`;
+    }
+  }
+
+  // Update Shift / Drawer Panel dynamically
+  const shiftPanel=document.querySelector('#view-dashboard .shift-panel');
+  if(shiftPanel){
+    const lastStaff=records.length>0?(records[0].cashier||records[0].preparer||records[0].closedBy||'เจ้าหน้าที่'):'เจ้าหน้าที่';
+    const shiftDetails=shiftPanel.querySelector('.shift-details');
+    if(shiftDetails){
+      shiftDetails.innerHTML=`
+        <div><small>ผู้ทำรายการล่าสุด</small><strong>${esc(lastStaff)}</strong></div>
+        <div><small>วันที่ประมวลผล</small><strong>${esc(targetDisplay)}</strong></div>
+        <div><small>รับเงินสดประจำวัน</small><strong class="positive-text">${money(dayCashTotal)}</strong></div>
+        <div><small>รับช่องทางอื่น/ค้าง</small><strong class="${totalPending>0?'warning-text':'accent-text'}">${money(dayNonCashTotal+totalPending)}</strong></div>
+      `;
     }
   }
 
