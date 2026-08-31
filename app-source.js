@@ -1884,8 +1884,9 @@ function historyInformationBillBody(record){
 }
 
 function openInvoiceHistoryDetail(id){
-  const record=loadInvoiceHistory().find(item=>String(item.id)===String(id)||String(item.reference)===String(id));
-  if(!record)return;
+  const rawRecord=loadInvoiceHistory().find(item=>String(item.id)===String(id)||String(item.reference)===String(id));
+  if(!rawRecord)return;
+  const record=normalizeHistoryRecord(rawRecord);
   const actions=`
     <button class="button button-outline" type="button" data-history-load-invoice="${esc(record.id)}"><span class="material-symbols-outlined">edit</span>เปิดในหน้าสร้างใบแจ้งหนี้</button>
     <button class="button button-outline" type="button" onclick="window.print()"><span class="material-symbols-outlined">print</span>พิมพ์ใบแจ้งหนี้ / PDF</button>
@@ -1920,12 +1921,14 @@ function installInvoiceHistoryDetailView(){
     if(loadBtn){
       event.preventDefault();
       const id=loadBtn.dataset.historyLoadInvoice;
-      const rec=loadInvoiceHistory().find(item=>String(item.id)===String(id)||String(item.reference)===String(id));
-      if(!rec)return;
+      const rawRec=loadInvoiceHistory().find(item=>String(item.id)===String(id)||String(item.reference)===String(id));
+      if(!rawRec)return;
+      const rec=normalizeHistoryRecord(rawRec);
       $('#modal-root').innerHTML='';
       if($('#folio'))$('#folio').value=rec.id||rec.reference||'';
       if($('#customer'))$('#customer').value=rec.customer||'';
       if($('#villa'))$('#villa').value=rec.villa||'';
+      if($('#villa-code'))$('#villa-code').value=rec.villaCode||'';
       if($('#check-in'))$('#check-in').value=rec.checkIn||rec.docDate||'';
       if($('#check-out'))$('#check-out').value=rec.checkOut||rec.docDate||'';
       if($('#no-of-night'))$('#no-of-night').value=rec.nights||'1';
@@ -1934,6 +1937,28 @@ function installInvoiceHistoryDetailView(){
       if($('#cashier'))$('#cashier').value=rec.cashier||rec.preparer||'';
       state.invoiceLines=Array.isArray(rec.lines)?rec.lines.map(l=>({...l})):[];
       state.payments=Array.isArray(rec.payments)?rec.payments.map(p=>({...p})):[];
+      state.pendingCollectionTotal=Number(rec.pendingTotal||0);
+      state.pendingCollectionNote=String(rec.pendingCollectionNote||'');
+      state.invoiceClosed=true;
+      state.closedInvoiceSnapshot={
+        reference:rec.id||rec.reference||'',
+        customer:rec.customer||'',
+        checkIn:rec.checkIn||'',
+        checkOut:rec.checkOut||'',
+        nights:rec.nights||'1',
+        remark:rec.remark||'',
+        docDate:rec.docDate||rec.businessDate||'',
+        villa:rec.villa||'',
+        villaCode:rec.villaCode||'',
+        subtotal:rec.subtotal||rec.total,
+        discount:rec.discount,
+        lineDeposits:rec.deposit,
+        deposit:rec.deposit,
+        netTotal:rec.netTotal,
+        outstanding:rec.outstanding,
+        outstandingDisplay:rec.outstanding,
+        pendingTotal:rec.pendingTotal
+      };
       renderFormLines();
       renderPayments();
       calculateInvoice();
