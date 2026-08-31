@@ -20,14 +20,14 @@ function showToast(message,type='success'){const region=$('#toast-region');if(!r
 function setView(view){state.currentView=view;$$('.view').forEach(s=>s.classList.toggle('active',s.id===`view-${view}`));$$('.nav-item').forEach(i=>i.classList.toggle('active',i.dataset.view===view));$('#sidebar')?.classList.remove('open');if(view==='dashboard'&&typeof renderDashboard==='function')renderDashboard();if(view==='master')renderBookingRecords();if(view==='close-round'&&typeof renderCloseRound==='function')renderCloseRound();if(view==='drawer'&&typeof cashDrawerV2Render==='function')cashDrawerV2Render();if(view==='history'){if(typeof renderInvoiceHistoryAllRecords==='function')renderInvoiceHistoryAllRecords();else if(typeof renderHistory==='function')renderHistory();}}
 function setInvoicePage(page){state.invoicePage=page;$$('.invoice-page').forEach(s=>s.classList.toggle('active',s.dataset.invoicePage===page));$$('.invoice-page-tab').forEach(b=>b.classList.toggle('active',b.dataset.invoicePage===page));if(page==='preview')renderInvoicePreview()}
 function dashboardSelectedDate(){
+  if(state.dashboardDate)return normalizeDateKey(state.dashboardDate);
   const input=$('#dashboard-date');
   if(input&&input.value)return normalizeDateKey(input.value);
-  if(state.dashboardDate)return normalizeDateKey(state.dashboardDate);
   return typeof historyDateKey==='function'?historyDateKey():new Date().toISOString().slice(0,10);
 }
 function renderDashboard(customDate){
   if(customDate)state.dashboardDate=normalizeDateKey(customDate);
-  const targetDate=customDate?normalizeDateKey(customDate):dashboardSelectedDate();
+  const targetDate=dashboardSelectedDate();
   const allRecords=typeof loadInvoiceHistory==='function'?loadInvoiceHistory():(state.invoices||[]);
   
   // Available dates from history for quick date pills
@@ -2261,11 +2261,15 @@ function normalizeDateKey(val){
   if(!str||str==='-')return '';
   const isoMatch=str.match(/^(\d{4})[/-](\d{1,2})[/-](\d{1,2})/);
   if(isoMatch){
-    return `${isoMatch[1]}-${isoMatch[2].padStart(2,'0')}-${isoMatch[3].padStart(2,'0')}`;
+    let y=parseInt(isoMatch[1],10);
+    if(y>2400)y-=543;
+    return `${y}-${isoMatch[2].padStart(2,'0')}-${isoMatch[3].padStart(2,'0')}`;
   }
   const thMatch=str.match(/^(\d{1,2})[/-](\d{1,2})[/-](\d{4})/);
   if(thMatch){
-    return `${thMatch[3]}-${thMatch[2].padStart(2,'0')}-${thMatch[1].padStart(2,'0')}`;
+    let y=parseInt(thMatch[3],10);
+    if(y>2400)y-=543;
+    return `${y}-${thMatch[2].padStart(2,'0')}-${thMatch[1].padStart(2,'0')}`;
   }
   return str.slice(0,10);
 }
