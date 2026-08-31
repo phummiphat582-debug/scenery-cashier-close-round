@@ -541,14 +541,11 @@
         const lines = Array.isArray(payload.lines) ? payload.lines : (Array.isArray(row.lines) ? row.lines : []);
         const lineSubtotal = lines.reduce((sum, line) => sum + Math.max(0, Number(line.qty || 1) * Number(line.rate || 0)), 0);
         const lineDeposits = lines.reduce((sum, line) => sum + Math.max(0, Number(line.deposit || 0)), 0);
-        const lineDiscounts = lines.reduce((sum, line) => {
-          const gross = Math.max(0, Number(line.qty || 1) * Number(line.rate || 0));
-          const rate = Math.min(100, Math.max(0, Number(line.discountRate || 0)));
-          const fixed = Math.max(0, Number(line.discountAmount || 0));
-          return sum + Math.min(gross, gross * rate / 100 + fixed);
-        }, 0);
-        const discount = lineDiscounts || Math.max(0, Number(payload.discount ?? row.discount) || 0);
+        const lineDiscounts = lines.reduce((sum, line) => sum + Math.max(0, Number(line.discountAmount || 0)), 0);
         const subtotal = lineSubtotal || Math.max(0, Number(payload.subtotal ?? payload.total ?? row.total) || 0);
+        const discount = Object.prototype.hasOwnProperty.call(payload, 'discount')
+          ? Math.max(0, Number(payload.discount) || 0)
+          : (Object.prototype.hasOwnProperty.call(row, 'discount') ? Math.max(0, Number(row.discount) || 0) : lineDiscounts);
         const total = subtotal;
         const deposit = lines.length ? lineDeposits : Math.max(0, Number(payload.deposit ?? row.deposit) || 0);
         const netTotal = Math.max(0, total - discount);

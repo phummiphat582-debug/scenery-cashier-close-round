@@ -1284,14 +1284,11 @@ function normalizeHistoryRecord(record){
   const lines = Array.isArray(record.lines) ? record.lines : [];
   const lineDeposits = lines.reduce((sum, line) => sum + Math.max(0, Number(line.deposit || 0)), 0);
   const lineSubtotal = lines.reduce((sum, line) => sum + Math.max(0, Number(line.qty || 1) * Number(line.rate || 0)), 0);
-  const lineDiscounts = lines.reduce((sum, line) => {
-    const gross = Math.max(0, Number(line.qty || 1) * Number(line.rate || 0));
-    const rate = Math.min(100, Math.max(0, Number(line.discountRate || 0)));
-    const fixed = Math.max(0, Number(line.discountAmount || 0));
-    return sum + Math.min(gross, gross * rate / 100 + fixed);
-  }, 0);
-  const discount = lineDiscounts || Math.max(0, Number(record.discount || 0));
+  const lineDiscounts = lines.reduce((sum, line) => sum + Math.max(0, Number(line.discountAmount || 0)), 0);
   const subtotal = lineSubtotal || Math.max(0, Number(record.subtotal || record.total || 0));
+  const discount = Object.prototype.hasOwnProperty.call(record, 'discount') && record.discount !== null && record.discount !== undefined
+    ? Math.max(0, Number(record.discount || 0))
+    : lineDiscounts;
   const total = subtotal;
   const deposit = lines.length ? lineDeposits : Math.max(0, Number(record.deposit || 0));
   const netTotal = Math.max(0, total - discount);
@@ -1785,30 +1782,39 @@ function historyInvoiceDetailBody(record){
   return '<div class="history-invoice-form"><div class="form-grid three"><label>เลข Invoice<input value="'+esc(record.id||record.reference||'')+'" disabled></label><label>ลูกค้า / บริษัท<input value="'+esc(record.customer||'')+'" disabled></label><label>Villa / Room<input value="'+esc(record.villa||'')+'" disabled></label><label>Check-in<input value="'+esc(record.checkIn||'')+'" disabled></label><label>Check-out<input value="'+esc(record.checkOut||'')+'" disabled></label><label>วันที่เอกสาร<input value="'+esc(record.businessDate||record.docDate||'')+'" disabled></label><label>จำนวนคืน<input value="'+esc(record.nights||'')+'" disabled></label><label class="span-two">หมายเหตุ<input value="'+esc(record.remark||record.pendingCollectionNote||'')+'" disabled></label></div><div class="table-wrap"><table><thead><tr><th>หมวด</th><th>รายการ</th><th>จำนวน</th><th class="align-right">Rate</th><th class="align-right">ส่วนลด</th><th class="align-right">Deposit</th><th class="align-right">ยอดสุทธิ</th></tr></thead><tbody>'+lineRows+'</tbody></table></div><div class="history-payment-list"><h4>ช่องทางชำระเงิน</h4>'+paymentRows+'</div><div class="history-invoice-totals"><div><span>ยอดก่อนส่วนลด (Total)</span><strong>'+invoiceMoney(subtotal)+'</strong></div><div><span>ส่วนลด (Discount)</span><strong>'+invoiceMoney(discount)+'</strong></div><div><span>Deposit</span><strong>'+invoiceMoney(deposit)+'</strong></div><div><span>ยอดที่ต้องชำระ (Outstanding)</span><strong>'+invoiceMoney(outstanding)+'</strong></div><div><span>ยอดรอเรียกเก็บ</span><strong>'+invoiceMoney(pending)+'</strong></div><div class="total-row"><span>ยอดสุทธิ</span><strong>'+invoiceMoney(netTotal)+'</strong></div></div></div>';
 }
 
-function historyInformationBillBody(record){
-  const lines=Array.isArray(record.lines)?record.lines.map(line=>({...line,qty:Math.max(1,Number(line.qty||1)),rate:Math.max(0,Number(line.rate||0)),deposit:Math.max(0,Number(line.deposit||0)),discountAmount:Math.max(0,Number(line.discountAmount||0)),discountRate:Math.max(0,Number(line.discountRate||0))})):[];
-  const payments=Array.isArray(record.payments)?record.payments.map(payment=>({...payment,amount:Math.max(0,Number(payment.amount||0))})):[];
-  const lineSubtotal=lines.reduce((sum,line)=>sum+lineAmount(line),0);
-  const lineDeposits=lines.reduce((sum,line)=>sum+line.deposit,0);
-  const lineDiscounts=lines.reduce((sum,line)=>{const gross=Math.max(0,Number(line.qty||1)*Number(line.rate||0)),rate=Math.min(100,Math.max(0,Number(line.discountRate||0))),fixed=Math.max(0,Number(line.discountAmount||0));return sum+Math.min(gross,gross*rate/100+fixed)},0);
-  const subtotal=lineSubtotal || Math.max(0, Number(record.subtotal || record.total || 0));
-  const discount=lineDiscounts || Math.max(0,Number(record.discount||0));
-  const deposit=lines.length ? lineDeposits : Math.max(0,Number(record.deposit||0));
-  const hasLineDiscount=lines.some(line=>line.discountAmount>0||line.discountRate>0);
-  const discountScope=hasLineDiscount?'line':discount>0?'all':'none';
-  const netTotal=Math.max(0,subtotal-discount);
-  const outstanding=Math.max(0,netTotal-deposit);
-  const snapshot={subtotal,discount,deposit,discountScope,netTotal,allAmount:discount,paymentDeposits:0,outstanding};
+function historyInformationBillBody(rawRecord){
+  const record = normalizeHistoryRecord(rawRecord);
+  const lines = Array.isArray(record.lines) ? record.lines.map(line => ({
+    ...line,
+    qty: Math.max(1, Number(line.qty || 1)),
+    rate: Math.max(0, Number(line.rate || 0)),
+    deposit: Math.max(0, Number(line.deposit || 0)),
+    discountAmount: Math.max(0, Number(line.discountAmount || 0)),
+    discountRate: Math.max(0, Number(line.discountRate || 0))
+  })) : [];
+  const payments = Array.isArray(record.payments) ? record.payments.map(p => ({
+    ...p,
+    amount: Math.max(0, Number(p.amount || 0))
+  })) : [];
+
+  const subtotal = record.subtotal;
+  const discount = record.discount;
+  const deposit = record.deposit;
+  const netTotal = record.netTotal;
+  const outstanding = record.outstanding;
+  const hasLineDiscount = lines.some(line => Number(line.discountAmount || 0) > 0);
+  const discountScope = hasLineDiscount ? 'line' : discount > 0 ? 'all' : 'none';
+  const snapshot = { subtotal, discount, deposit, discountScope, netTotal, allAmount: discount, paymentDeposits: 0, outstanding };
   
-  const previousLines=state.invoiceLines,previousPayments=state.payments;
-  let rows='';
-  try{
-    state.invoiceLines=lines;
-    state.payments=payments;
-    rows=previewItemRows(snapshot);
-  }finally{
-    state.invoiceLines=previousLines;
-    state.payments=previousPayments;
+  const previousLines = state.invoiceLines, previousPayments = state.payments;
+  let rows = '';
+  try {
+    state.invoiceLines = lines;
+    state.payments = payments;
+    rows = previewItemRows(snapshot);
+  } finally {
+    state.invoiceLines = previousLines;
+    state.payments = previousPayments;
   }
   
   const methods=[...new Set(payments.filter(payment=>payment.amount>0).map(payment=>payment.method||'-'))].join(', ')||'';
