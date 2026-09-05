@@ -1028,8 +1028,6 @@ function enhanceInvoiceWorkspace(){
   lineRow=function(line,index){const gross=lineAmount(line),discount=Math.min(gross,Math.max(0,Number(line.discountAmount||0))),net=Math.max(0,gross-discount);return`<tr><td>${esc(line.category)}</td><td>${esc(line.name)}</td><td class="align-center"><div class="qty-control"><button type="button" data-line-index="${index}" data-qty="-1">−</button><strong>${line.qty}</strong><button type="button" data-line-index="${index}" data-qty="1">+</button></div></td><td class="align-right"><input class="line-rate" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.rate||0)}" aria-label="Rate ${esc(line.name)}"></td><td class="align-right"><div class="line-deposit-fields"><input class="line-deposit" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.deposit||0)}" aria-label="Deposit ${esc(line.name)}"><select class="line-deposit-method" data-line-index="${index}" aria-label="ช่องทาง Deposit ${esc(line.name)}">${paymentMethodOptions(line.depositMethod)}</select></div></td><td><input class="line-discount" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.discountAmount||0)}" placeholder="ยอดเงิน" aria-label="ส่วนลดเป็นยอดเงิน ${esc(line.name)}"></td><td class="align-right strong-number"><span>${invoiceMoney(net)}</span>${discount?`<small class="line-gross">ก่อนหัก ${invoiceMoney(gross)}</small>`:''}</td><td class="align-right"><button class="icon-button remove-form-line" type="button" data-line-index="${index}" aria-label="ลบรายการ"><span class="material-symbols-outlined">close</span></button></td></tr>`}
   const originalRenderFormLines=renderFormLines;renderFormLines=function(){originalRenderFormLines();renderPendingFormRows()}
   renderPendingFormRows=function(){const box=$('#pending-form-rows');if(!box)return;box.innerHTML=state.invoiceLines.map((line,index)=>`<div class="pending-form-row"><strong>${esc(line.name)}</strong><input class="form-pending-amount" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.pendingCollection||0)}" placeholder="ยอดรอเรียกเก็บ"><input class="form-pending-note" data-line-index="${index}" value="${esc(line.pendingNote||'')}" placeholder="หมายเหตุ / แผนก / จุดที่รอเก็บ"></div>`).join('')||'<p class="muted">เพิ่มรายการก่อนระบุยอดรอเรียกเก็บ</p>'}
-  addLine=function(type){const select=type==='accommodation'?$('#accommodation-select'):$('#addon-select'),search=$(`#${type==='accommodation'?'accommodation':'addon'}-search`),rateEl=type==='accommodation'?$('#accommodation-rate'):$('#addon-rate'),qtyEl=type==='accommodation'?$('#accommodation-qty'):$('#addon-qty'),items=type==='accommodation'?accommodationItems:addonItems,selected=items[Number(select?.value)],typed=cleanEnglishText(search?.value?.trim()||''),item=selected||(!typed?null:{name:typed,category:type==='accommodation'?'Accommodation':'Miscellaneous',rate:Math.max(0,Number(rateEl?.value||0)),custom:true});if(!item){showToast('กรุณาเลือกรายการหรือพิมพ์รายการใหม่ก่อนเพิ่ม','error');return}state.invoiceLines.push({type,name:item.name,category:item.category,sourceIndex:selected?Number(select.value):null,rate:Math.max(0,Number(rateEl?.value||item.rate||0)),deposit:0,depositMethod:'เงินสด',qty:Math.max(1,Number(qtyEl?.value||1)),discountAmount:0,pendingCollection:0,pendingNote:''});if(select)select.value='';if(rateEl)rateEl.value='';if(qtyEl)qtyEl.value='1';if(search)search.value='';renderFormLines();showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`)}
-  fillRate=function(type){const select=type==='accommodation'?$('#accommodation-select'):$('#addon-select'),input=type==='accommodation'?$('#accommodation-rate'):$('#addon-rate'),items=type==='accommodation'?accommodationItems:addonItems,item=items[Number(select?.value)];if(input&&item)input.value=item.rate||0}
   previewItemRows=function(snapshot){const groups=[{label:'Accommodation & Inclusive Package',type:'accommodation'},{label:'Food and Beverages (add-on) and Other Expenses',type:'addon'}],breakdowns=allocateLineAmounts(snapshot);return groups.map(group=>{const matches=breakdowns.filter(row=>row.line.type===group.type),lines=matches.map(row=>{const discountLabel=row.discount?invoiceMoney(row.discount):'-',totalLabel=row.unpaid<0?`<span class="invoice-overpaid">${invoiceMoney(row.unpaid)}</span>`:invoiceMoney(row.unpaid);return`<tr><td>${esc(row.line.category)}</td><td class="align-center">${row.line.qty}</td><td>${esc(row.line.name)}</td><td class="align-right">${invoiceMoney(row.amount)}</td><td class="align-right">${row.deposit?invoiceMoney(row.deposit):'-'}</td><td class="align-right invoice-discount-cell">${discountLabel}</td><td class="align-right">${totalLabel}</td></tr>`}).join(''),count=Math.max(matches.length,group.type==='accommodation'?7:14),blanks=Array.from({length:count-matches.length},()=>'<tr class="blank-line"><td></td><td></td><td></td><td></td><td>-</td><td>-</td><td>-</td></tr>').join('');return`<tr class="bill-section-row"><td colspan="7">${group.label}</td></tr>${lines}${blanks}`}).join('')}
   renderInvoicePreview=function(){if(!$('#invoice-preview-sheet'))return;const s=invoiceSnapshot(),set=(id,value)=>{if($(`#${id}`))$(`#${id}`).textContent=value},methods=[...new Set([...state.invoiceLines.filter(line=>Number(line.deposit||0)>0).map(line=>line.depositMethod||'เงินสด'),...state.payments.filter(payment=>Number(payment.amount||0)>0).map(payment=>payment.method)])].join(', ')||'-';set('preview-reference',s.reference);set('preview-reference-meta',s.reference);set('preview-customer',s.customer);set('preview-check-in',formatDate(s.checkIn));set('preview-check-out',formatDate(s.checkOut));set('preview-nights',s.nights);set('preview-remark',s.remark||'-');set('preview-invoice-date',formatDate(s.docDate));set('preview-payment-method',methods);set('preview-total',invoiceMoney(s.subtotal));set('preview-deposit',invoiceMoney(s.deposit));set('preview-discount',invoiceMoney(s.discount));set('preview-outstanding',state.invoiceClosed&&s.outstanding===0?'':invoiceMoney(s.outstanding));const noteBox=$('#preview-pending-notes');if(noteBox){const noteLines=state.invoiceLines.filter(line=>String(line.pendingNote||'').trim()),notes=noteLines.map(line=>`<div><strong>${esc(line.name)}</strong><span>${esc(line.pendingNote)}</span></div>`).join('');noteBox.innerHTML=notes;noteBox.classList.toggle('long-note',noteLines.some(line=>String(line.pendingNote||'').length>90));const previewFooter=noteBox.closest('.preview-footer');if(previewFooter)previewFooter.classList.toggle('has-pending-notes',Boolean(notes))}if($('#preview-invoice-lines'))$('#preview-invoice-lines').innerHTML=previewItemRows(s)}
   renderPendingFormRows();renderFormLines();renderInvoicePreview()
@@ -1041,7 +1039,6 @@ function switchLineDiscountToPercent(){
   invoiceSnapshot=function(){const subtotal=state.invoiceLines.reduce((sum,line)=>sum+lineAmount(line),0),scope=formValue('discount-scope','line'),lineDiscount=state.invoiceLines.reduce((sum,line)=>sum+lineAmount(line)*(Math.min(100,Math.max(0,Number(line.discountRate||0)))/100),0),allDiscount=Math.max(0,Number(formValue('discount-all-rate',0))||0),discount=scope==='none'?0:scope==='all'?Math.min(subtotal,allDiscount):Math.min(subtotal,lineDiscount),lineDeposits=state.invoiceLines.reduce((sum,line)=>sum+Math.max(0,Number(line.deposit||0)),0),paymentDeposits=state.payments.reduce((sum,payment)=>sum+Math.max(0,Number(payment.amount||0)),0),pendingTotal=state.invoiceLines.reduce((sum,line)=>sum+Math.max(0,Number(line.pendingCollection||0)),0),deposit=lineDeposits+paymentDeposits,netTotal=Math.max(0,subtotal-discount);return{reference:formValue('folio','INV-260717-085'),customer:formValue('customer','-'),checkIn:formValue('check-in'),checkOut:formValue('check-out'),nights:formValue('no-of-night','1'),remark:formValue('remark','-'),docDate:formValue('doc-date'),villa:formValue('villa',''),subtotal,discount,lineDeposits,paymentDeposits,pendingTotal,deposit,netTotal,outstanding:netTotal-deposit-pendingTotal,discountScope:scope,allAmount:allDiscount}}
   allocateLineAmounts=function(snapshot){let paid=snapshot.paymentDeposits;const rows=state.invoiceLines.map(line=>{const amount=lineAmount(line),rate=Math.min(100,Math.max(0,Number(line.discountRate||0))),discount=snapshot.discountScope==='line'?amount*rate/100:snapshot.discountScope==='all'&&snapshot.subtotal?amount*(snapshot.discount/snapshot.subtotal):0,afterDiscount=Math.max(0,amount-discount),lineDeposit=Math.max(0,Number(line.deposit||0)),payment=Math.min(Math.max(0,afterDiscount-lineDeposit),paid),pending=Math.max(0,Number(line.pendingCollection||0)),unpaid=Math.max(0,afterDiscount-lineDeposit-payment);paid-=payment;return{line,amount,discount,lineDeposit,payment,pending,deposit:lineDeposit+payment,unpaid,outstanding:unpaid-pending}});if(paid>0&&rows.length){const last=rows[rows.length-1];last.payment+=paid;last.deposit+=paid;last.unpaid-=paid;last.outstanding-=paid}return rows}
   lineRow=function(line,index){const gross=lineAmount(line),rate=Math.min(100,Math.max(0,Number(line.discountRate||0))),snapshot=invoiceSnapshot(),discount=snapshot.discountScope==='line'?gross*rate/100:snapshot.discountScope==='all'&&snapshot.subtotal?gross*(snapshot.discount/snapshot.subtotal):0,net=Math.max(0,gross-discount);return`<tr><td>${esc(line.category)}</td><td>${esc(line.name)}</td><td class="align-center"><div class="qty-control"><button type="button" data-line-index="${index}" data-qty="-1">−</button><strong>${line.qty}</strong><button type="button" data-line-index="${index}" data-qty="1">+</button></div></td><td class="align-right"><input class="line-rate" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.rate||0)}" aria-label="Rate ${esc(line.name)}"></td><td class="align-right"><div class="line-deposit-fields"><input class="line-deposit" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.deposit||0)}" aria-label="Deposit ${esc(line.name)}"><select class="line-deposit-method" data-line-index="${index}" aria-label="ช่องทาง Deposit ${esc(line.name)}">${paymentMethodOptions(line.depositMethod)}</select></div></td><td><div class="discount-input-wrap"><input class="line-discount" data-line-index="${index}" type="number" min="0" max="100" step="0.01" value="${rate}" placeholder="%" aria-label="ส่วนลดเปอร์เซ็นต์ ${esc(line.name)}"><span>%</span></div></td><td class="align-right strong-number"><span>${invoiceMoney(net)}</span>${discount?`<small class="line-gross">ก่อนหัก ${invoiceMoney(gross)}</small>`:''}</td><td class="align-right"><button class="icon-button remove-form-line" type="button" data-line-index="${index}" aria-label="ลบรายการ"><span class="material-symbols-outlined">close</span></button></td></tr>`}
-  addLine=function(type){const select=type==='accommodation'?$('#accommodation-select'):$('#addon-select'),search=$(`#${type==='accommodation'?'accommodation':'addon'}-search`),rateEl=type==='accommodation'?$('#accommodation-rate'):$('#addon-rate'),qtyEl=type==='accommodation'?$('#accommodation-qty'):$('#addon-qty'),items=type==='accommodation'?accommodationItems:addonItems,selected=items[Number(select?.value)],typed=cleanEnglishText(search?.value?.trim()||''),item=selected||(!typed?null:{name:typed,category:type==='accommodation'?'Accommodation':'Miscellaneous',rate:Math.max(0,Number(rateEl?.value||0)),custom:true});if(!item){showToast('กรุณาเลือกรายการหรือพิมพ์รายการใหม่ก่อนเพิ่ม','error');return}state.invoiceLines.push({type,name:item.name,category:item.category,sourceIndex:selected?Number(select.value):null,rate:Math.max(0,Number(rateEl?.value||item.rate||0)),deposit:0,depositMethod:'เงินสด',qty:Math.max(1,Number(qtyEl?.value||1)),discountRate:0,pendingCollection:0,pendingNote:''});if(select)select.value='';if(rateEl)rateEl.value='';if(qtyEl)qtyEl.value='1';if(search)search.value='';renderFormLines();showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`)}
   document.addEventListener('input',event=>{if(event.target.matches('.line-discount')){const line=state.invoiceLines[Number(event.target.dataset.lineIndex)];if(line){line.discountRate=Math.min(100,Math.max(0,Number(event.target.value||0)));calculateInvoice()}}})
   renderInvoicePreview();renderFormLines()
 }
@@ -1083,30 +1080,10 @@ document.addEventListener('DOMContentLoaded',()=>enableNegativeLineTotals());
 function refreshInvoiceSummaryPanel(){const snapshot=typeof calculateLiveInvoiceSnapshot==='function'?calculateLiveInvoiceSnapshot():invoiceSnapshot(),displayOutstanding=snapshot.outstanding;[['summary-total',snapshot.subtotal],['summary-deposit',snapshot.deposit],['summary-discount',snapshot.discount],['summary-outstanding',displayOutstanding],['preview-total',snapshot.subtotal],['preview-deposit',snapshot.deposit],['preview-discount',snapshot.discount],['preview-outstanding',displayOutstanding]].forEach(([id,value])=>{const element=$(`#${id}`);if(element)element.textContent=invoiceMoney(value)})}
 document.addEventListener('DOMContentLoaded',()=>{const refresh=event=>{if(!event||event.target.closest?.('#view-invoice'))refreshInvoiceSummaryPanel()};document.addEventListener('input',refresh);document.addEventListener('change',refresh);document.addEventListener('click',event=>{if(event.target.closest?.('#add-accommodation,#add-addon,[data-line-index][data-qty],.remove-form-line'))setTimeout(refreshInvoiceSummaryPanel,0)});refreshInvoiceSummaryPanel()});
 
-function installEditableLineCategories(){[{type:'accommodation',id:'accommodation-category',values:['Accommodation','Inclusive Package','Package','Extra Bed','Complimentary']},{type:'addon',id:'addon-category',values:['Food & Beverage','BBQ','Minibar','Souvenir','Activities','Miscellaneous','Other Expenses']}].forEach(({type,id,values})=>{const select=$(`#${type}-select`),fields=select?.parentElement;if(!fields||$(`#${id}`))return;const input=document.createElement('input');input.id=id;input.type='text';input.className='invoice-category-input';input.placeholder='หมวด / พิมพ์หรือเลือก';input.setAttribute('list',`${id}-options`);input.setAttribute('aria-label',`หมวด ${type}`);const list=document.createElement('datalist');list.id=`${id}-options`;values.forEach(value=>{const option=document.createElement('option');option.value=value;list.appendChild(option)});fields.insertBefore(input,fields.querySelector('.button'));fields.appendChild(list)})}
-function enableEditableLineCategories(){
-  installEditableLineCategories()
-  addLine=function(type){
-    const select=type==='accommodation'?$('#accommodation-select'):$('#addon-select'),search=$(`#${type==='accommodation'?'accommodation':'addon'}-search`),categoryEl=type==='accommodation'?$('#accommodation-category'):$('#addon-category'),rateEl=type==='accommodation'?$('#accommodation-rate'):$('#addon-rate'),qtyEl=type==='accommodation'?$('#accommodation-qty'):$('#addon-qty'),items=type==='accommodation'?accommodationItems:addonItems,selected=items[Number(select?.value)],typed=cleanEnglishText(search?.value?.trim()||''),item=selected||(!typed?null:{name:typed,category:type==='accommodation'?'Accommodation':'Miscellaneous',rate:Math.max(0,Number(rateEl?.value||0)),custom:true});
-    if(!item){showToast('กรุณาเลือกรายการหรือพิมพ์รายการใหม่ก่อนเพิ่ม','error');return}
-    const category=cleanEnglishText(categoryEl?.value?.trim()||item.category||(type==='accommodation'?'Accommodation':'Miscellaneous'));
-    let rate=Math.max(0,Number(rateEl?.value||item.rate||0)),qty=Math.max(1,Number(qtyEl?.value||1));
-    if(!rate && /ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name) && /atv|100/i.test(item.name)) rate = 100;
-    const isBasket100 = (/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name)) && (rate === 100 || /100/.test(item.name) || (/atv/i.test(item.name) && !/defender|500/i.test(item.name)));
-    const initialDiscount = isBasket100 ? (rate * qty) : 0;
-    state.invoiceLines.push({type,name:item.name,category,sourceIndex:selected?Number(select.value):null,rate,deposit:0,depositMethod:'เงินสด',qty,discountRate:0,discountAmount:initialDiscount,pendingCollection:0,pendingNote:''});
-    if(select)select.value='';if(rateEl)rateEl.value='';if(qtyEl)qtyEl.value='1';if(search)search.value='';if(categoryEl)categoryEl.value='';renderFormLines();calculateInvoice();showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`);
-  }
-  installEditableLineCategories()
-}
-document.addEventListener('DOMContentLoaded',()=>enableEditableLineCategories());
-
+function installEditableLineCategories(){}
+function enableEditableLineCategories(){}
 function removeSearchClearButtons(){
-  document.querySelectorAll('.invoice-search-clear').forEach(button=>button.remove());
-  document.querySelectorAll('.invoice-search-wrap').forEach(wrapper=>{
-    const input=wrapper.querySelector('.invoice-search-input');
-    if(input)wrapper.replaceWith(input);
-  });
+  document.querySelectorAll('.invoice-search-clear, #accommodation-search, #addon-search, .invoice-search-input, .invoice-search-results').forEach(el=>el.remove());
 }
 document.addEventListener('DOMContentLoaded',()=>removeSearchClearButtons());
 
@@ -2353,58 +2330,10 @@ function installInvoiceQuantityControls(){
 }
 document.addEventListener('DOMContentLoaded',installInvoiceQuantityControls);
 
-/* Search the large master-data lists before adding an invoice line. */
+/* Pure category-first selection workflow */
 function installInvoiceItemSearch(){
   ['\u0e23\u0e31\u0e10 50%','\u0e17\u0e17\u0e17','\u0e44\u0e21\u0e48\u0e40\u0e23\u0e35\u0e22\u0e01\u0e40\u0e01\u0e47\u0e1a'].forEach(method=>{if(!paymentMethods.includes(method))paymentMethods.push(method)});
-  [
-    {type:'accommodation',selectId:'accommodation-select',inputId:'accommodation-search'},
-    {type:'addon',selectId:'addon-select',inputId:'addon-search'}
-  ].forEach(({type,selectId,inputId})=>{
-    const select=$('#'+selectId);
-    if(!select)return;
-    const existing=$('#'+inputId);
-    if(existing){
-      if(existing.dataset.searchEnhanced)return;
-      existing.dataset.searchEnhanced='true';
-      const options=[...select.options].filter(option=>option.value!=='');
-      const enhanceExistingSearch=()=>{
-        const query=existing.value.trim().toLowerCase();
-        const matches=options.filter(option=>option.textContent.toLowerCase().includes(query));
-        const exact=options.find(option=>option.textContent.trim().toLowerCase()===query);
-        if(exact||query&&matches.length===1){
-          select.value=(exact||matches[0]).value;
-          if(typeof fillRate==='function')fillRate(type);
-        }else if(!query||!matches.length){
-          select.value='';
-        }
-      };
-      existing.addEventListener('input',enhanceExistingSearch);
-      existing.addEventListener('change',enhanceExistingSearch);
-      enhanceExistingSearch();
-      return;
-    }
-    const input=document.createElement('input');
-    input.id=inputId;
-    input.type='search';
-    input.className='invoice-search-input';
-    input.placeholder='ค้นหารายการ...';
-    input.setAttribute('aria-label','ค้นหารายการ');
-    input.autocomplete='off';
-    select.parentElement?.insertBefore(input,select);
-    const options=[...select.options].filter(option=>option.value!=='');
-    const filter=()=>{
-      const query=input.value.trim().toLowerCase();
-      const matches=options.filter(option=>option.textContent.toLowerCase().includes(query));
-      options.forEach(option=>{option.hidden=Boolean(query)&&!option.textContent.toLowerCase().includes(query)});
-      if(select.value&&!matches.some(option=>option.value===select.value))select.value='';
-      if(query&&matches.length===1){
-        select.value=matches[0].value;
-        if(typeof fillRate==='function')fillRate(type);
-      }
-    };
-    input.addEventListener('input',filter);
-    filter();
-  });
+  document.querySelectorAll('#accommodation-search, #addon-search, .invoice-search-input, .invoice-search-results').forEach(el=>el.remove());
 }
 
 /* Normalize every finalized line into the workbook's income and payment columns. */
@@ -2460,99 +2389,9 @@ document.addEventListener('DOMContentLoaded',()=>{
   installCloseRoundDataNormalization();
 });
 
-/* Make the typed search value authoritative when adding an invoice line. */
+/* Category-first select workflow */
 function installInvoiceAddSelectionFix(){
-  const customItemsKey='scenery-invoice-custom-items';
-  const normalize=value=>cleanEnglishText(String(value||'')).trim().toLowerCase().replace(/\s+/g,' ');
-  let customItems={accommodation:[],addon:[]};
-  try{
-    const saved=JSON.parse(localStorage.getItem(customItemsKey)||'{}');
-    if(saved&&typeof saved==='object')customItems={accommodation:Array.isArray(saved.accommodation)?saved.accommodation:[],addon:Array.isArray(saved.addon)?saved.addon:[]};
-  }catch{}
-  const saveCustomItems=()=>{try{localStorage.setItem(customItemsKey,JSON.stringify(customItems))}catch{}};
-  const baseItems=type=>type==='accommodation'?accommodationItems:addonItems;
-  const allItems=type=>[...baseItems(type),...(customItems[type]||[])];
-  const prefixFor=type=>type==='accommodation'?'accommodation':'addon';
-  const optionsFor=type=>{
-    const select=$(`#${prefixFor(type)}-select`);
-    return [...select?.options||[]].filter(option=>option.value!=='');
-  };
-  const ensureSearchResults=type=>{
-    const prefix=prefixFor(type),search=$(`#${prefix}-search`);
-    if(!search)return null;
-    let box=search.parentElement?.querySelector(`.invoice-search-results[data-results-for="${type}"]`);
-    if(!box){box=document.createElement('div');box.className='invoice-search-results';box.dataset.resultsFor=type;search.insertAdjacentElement('afterend',box)}
-    return box;
-  };
-  const renderSearchResults=type=>{
-    const search=$(`#${prefixFor(type)}-search`),box=ensureSearchResults(type);
-    if(!search||!box)return;
-    const query=normalize(search.value);box.innerHTML='';
-    if(!query){box.hidden=true;return}
-    const matches=optionsFor(type).filter(option=>normalize(option.textContent).includes(query)).slice(0,50);
-    if(!matches.length){box.hidden=true;return}
-    matches.forEach(option=>{
-      const button=document.createElement('button');button.type='button';button.className='invoice-search-result';button.textContent=option.textContent;button.addEventListener('mousedown',event=>event.preventDefault());button.addEventListener('click',()=>{search.value=option.textContent;const select=$(`#${prefixFor(type)}-select`);if(select)select.value=option.value;if(typeof fillRate==='function')fillRate(type);search.dispatchEvent(new Event('input',{bubbles:true}));search.focus()});box.appendChild(button);
-    });
-    box.hidden=false;
-  };
-  const refreshSuggestions=type=>{
-    const prefix=prefixFor(type),select=$(`#${prefix}-select`),search=$(`#${prefix}-search`),list=$(`#${prefix}-options`);
-    if(!select||!search)return;
-    const query=normalize(search.value);
-    if(list){
-      list.innerHTML='';
-      optionsFor(type).filter(option=>query&&normalize(option.textContent).includes(query)).forEach(option=>{
-        const suggestion=document.createElement('option');suggestion.value=option.textContent;list.appendChild(suggestion);
-      });
-    }
-    renderSearchResults(type);
-  };
-  const ensureCustomOptions=type=>{
-    const select=$(`#${prefixFor(type)}-select`),base=baseItems(type);
-    if(!select)return;
-    (customItems[type]||[]).forEach((item,index)=>{
-      const value=String(base.length+index);
-      if([...select.options].some(option=>option.value===value))return;
-      const option=document.createElement('option');option.value=value;option.textContent=item.name;option.dataset.custom='true';select.appendChild(option);
-    });
-  };
-  const wireSearch=type=>{
-    const prefix=prefixFor(type),search=$(`#${prefix}-search`),select=$(`#${prefix}-select`);
-    if(!search||!select||search.dataset.addSelectionFix)return;
-    search.dataset.addSelectionFix='true';
-    ensureCustomOptions(type);
-    const sync=()=>{
-      const query=normalize(search.value),options=optionsFor(type),exact=options.find(option=>normalize(option.textContent)===query),matches=options.filter(option=>normalize(option.textContent).includes(query));
-      if(exact){select.value=exact.value;if(typeof fillRate==='function')fillRate(type)}
-      else if(query&&matches.length===1){select.value=matches[0].value;if(typeof fillRate==='function')fillRate(type)}
-      else if(query&&!matches.some(option=>option.value===select.value))select.value='';
-      refreshSuggestions(type);
-    };
-    search.addEventListener('input',sync);search.addEventListener('change',sync);search.addEventListener('focus',()=>refreshSuggestions(type));sync();
-  };
-  ['accommodation','addon'].forEach(type=>{ensureCustomOptions(type);wireSearch(type)});
-  addLine=function(type){
-    const prefix=prefixFor(type),select=$(`#${prefix}-select`),search=$(`#${prefix}-search`),categoryEl=type==='accommodation'?$('#accommodation-category'):$('#addon-category'),rateEl=type==='accommodation'?$('#accommodation-rate'):$('#addon-rate'),qtyEl=type==='accommodation'?$('#accommodation-qty'):$('#addon-qty'),items=allItems(type),query=normalize(search?.value),options=optionsFor(type),exact=options.find(option=>normalize(option.textContent)===query),matches=options.filter(option=>normalize(option.textContent).includes(query));
-    let item=null,index=null;
-    if(query){
-      if(matches.length>1&&!exact){showToast('พบหลายรายการ กรุณาเลือกจากรายการที่แสดงก่อนเพิ่ม','error');return}
-      const chosen=exact||matches[0];
-      if(chosen){index=Number(chosen.value);item=items[index]}
-      else item={name:cleanEnglishText(search.value.trim()),category:type==='accommodation'?'Accommodation':'Miscellaneous',rate:0,custom:true};
-    }else if(select?.value!==''){
-      index=Number(select.value);item=items[index];
-    }
-    if(!item){showToast('กรุณาเลือกรายการหรือพิมพ์รายการใหม่ก่อนเพิ่ม','error');return}
-    const category=cleanEnglishText(categoryEl?.value?.trim()||item.category||(type==='accommodation'?'Accommodation':'Miscellaneous'));
-    let rate=Math.max(0,Number(rateEl?.value||item.rate||0)),qty=Math.max(1,Number(qtyEl?.value||1));
-    if(!rate && /ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name) && /atv|100/i.test(item.name)) rate = 100;
-    const isBasket100 = (/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name)) && (rate === 100 || /100/.test(item.name) || (/atv/i.test(item.name) && !/defender|500/i.test(item.name)));
-    const initialDiscount = isBasket100 ? (rate * qty) : 0;
-    if(item.custom&&!customItems[type].some(saved=>normalize(saved.name)===normalize(item.name))){customItems[type].push({name:item.name,category,rate});saveCustomItems();ensureCustomOptions(type)}
-    state.invoiceLines.push({type,name:item.name,category,sourceIndex:index,rate,deposit:0,depositMethod:'เงินสด',qty,discountRate:0,discountAmount:initialDiscount,pendingCollection:0,pendingNote:''});
-    if(select)select.value='';if(rateEl)rateEl.value='';if(qtyEl)qtyEl.value='1';if(search)search.value='';if(categoryEl)categoryEl.value='';refreshSuggestions(type);renderFormLines();if(typeof calculateInvoice==='function')calculateInvoice();showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`);
-  };
+  document.querySelectorAll('#accommodation-search, #addon-search, .invoice-search-input, .invoice-search-results').forEach(el=>el.remove());
 }
 document.addEventListener('DOMContentLoaded',installInvoiceAddSelectionFix);
 

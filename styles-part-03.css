@@ -294,18 +294,27 @@
   appearance:none;
   -webkit-appearance:none;
 }
-#view-invoice .invoice-add-fields>.invoice-search-input::placeholder{white-space:nowrap;text-overflow:clip}
-#view-invoice .invoice-add-fields>.invoice-search-input::-webkit-list-button,
-#view-invoice .invoice-add-fields>.invoice-search-input::-webkit-calendar-picker-indicator{display:none!important}
 #view-invoice #accommodation-select,
-#view-invoice #addon-select{appearance:none;-webkit-appearance:none}
-#view-invoice .invoice-add-fields{position:relative}
-#view-invoice .invoice-search-results{position:absolute;z-index:40;top:46px;left:2px;right:calc(33.333% + 7px);max-height:260px;overflow-y:auto;background:#fff;border:1px solid #d8cbc1;border-radius:6px;box-shadow:0 10px 24px rgba(70,45,28,.16);padding:4px}
-#view-invoice .invoice-search-result{display:block;width:100%;border:0;border-radius:4px;background:#fff;color:var(--ink);padding:9px 10px;text-align:left;cursor:pointer;font:inherit}
-#view-invoice .invoice-search-result:hover,#view-invoice .invoice-search-result:focus{background:#f3ebe4;outline:0}
-#view-invoice .invoice-search-empty{padding:10px;color:var(--muted);font-size:12px}
-@media(max-width:900px){#view-invoice .invoice-add-fields>.invoice-search-input{grid-column:1;grid-row:1}}
-@media(max-width:620px){#view-invoice .invoice-add-fields>.invoice-search-input{grid-column:1/-1;grid-row:1;padding-right:30px}#view-invoice .invoice-search-results{right:2px}}
+#view-invoice #addon-select,
+#view-invoice #accommodation-category,
+#view-invoice #addon-category {
+  height: 40px;
+  min-height: 40px;
+  border-radius: 6px;
+  border: 1px solid #d8cbc1;
+  background-color: #fff;
+  padding: 0 10px;
+  font-size: 13px;
+  cursor: pointer;
+  appearance: auto;
+  -webkit-appearance: menulist;
+}
+#view-invoice #accommodation-select:disabled,
+#view-invoice #addon-select:disabled {
+  background-color: #f3eee9;
+  color: #9a8b80;
+  cursor: not-allowed;
+}
 
 /* Final invoice header alignment: continuous blue bands and exact separators. */
 #view-invoice .preview-meta{
@@ -711,4 +720,33 @@
   background:#f4ebe2;
   z-index:25;
 }
+
+#view-close-round .close-round-detail-table td{
+  white-space:nowrap!important;
+  vertical-align:middle;
+  padding:3.5px 3px!important;
+  font-size:8.5px!important;
+  line-height:1.2;
+  font-variant-numeric:tabular-nums;
+  border-bottom:1px solid #eee4db;
+  border-right:1px solid #f2e9df;
+  background:#fff;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  min-width:0!important;
+  letter-spacing:-0.2px;
+}
+
+#view-close-round .close-round-detail-table tbody tr:nth-child(even) td{
+  background:#faf7f4;
+}
+#view-close-round .close-round-detail-table tbody tr:nth-child(even) td:nth-child(1){
+  background:#faf7f4;
+}
+#view-close-round .close-round-detail-table tbody tr:hover td{
+  background:#fef3e7!important;
+}
+
+/* Strict Proportional Widths & Content Alignment (Headers are ALWAYS Centered) */
+#view-close-round .close-round-detail-table th{text-align:center!important;vertical-align:middle!important}
 
