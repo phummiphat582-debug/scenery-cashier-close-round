@@ -1,3 +1,7 @@
+#view-close-round .close-round-detail-table td:nth-child(1){text-align:left;font-weight:700;padding-left:5px!important}
+
+#view-close-round .close-round-detail-table th:nth-child(2),
+#view-close-round .close-round-detail-table td:nth-child(2){width:8.0%!important;min-width:0!important}
 #view-close-round .close-round-detail-table td:nth-child(2){text-align:left;padding:2px 3px!important}
 
 #view-close-round .close-round-detail-table th:nth-child(3),

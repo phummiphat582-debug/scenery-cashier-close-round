@@ -672,7 +672,10 @@ function openCloseRoundManualSplitModal() {
 let settlementRows=[],pendingCollectionRows=[];
 function installDepositHeaders(){document.querySelectorAll('#view-invoice .invoice-line-group thead tr').forEach(row=>{if(row.querySelector('.deposit-column'))return;const header=document.createElement('th');header.className='deposit-column align-right';header.textContent='Deposit';row.insertBefore(header,row.children[4]||null)})}
 function installSearchableItemFields(){[{id:'accommodation-select',prefix:'accommodation',type:'accommodation'},{id:'addon-select',prefix:'addon',type:'addon'}].forEach(({id,prefix,type})=>{const select=$(`#${id}`);if(!select||$(`#${prefix}-search`))return;const input=document.createElement('input');input.type='text';input.id=`${prefix}-search`;input.className='invoice-search-input';input.setAttribute('list',`${prefix}-options`);input.setAttribute('inputmode','search');input.dataset.source=id;input.autocomplete='off';input.placeholder='';const list=document.createElement('datalist');list.id=`${prefix}-options`;[...select.options].slice(1).forEach(option=>{const item=document.createElement('option');item.value=option.textContent;list.appendChild(item)});select.options[0].textContent='';select.hidden=true;select.insertAdjacentElement('beforebegin',input);select.insertAdjacentElement('afterend',list);const choose=()=>{const value=input.value.trim().toLowerCase(),option=[...select.options].slice(1).find(o=>o.textContent.trim().toLowerCase()===value);select.value=option?option.value:'';if(option){fillRate(type);select.dispatchEvent(new Event('change',{bubbles:true}))}else{const rate=$(`#${prefix}-rate`);if(rate)rate.value=''}};input.addEventListener('input',choose);input.addEventListener('change',choose)});}
-function installPreviewPaymentMeta(){const meta=$('#invoice-preview-sheet .preview-meta');if(!meta||$('#preview-payment-method'))return;const guestLabel=meta.querySelector('.guest-meta span');if(guestLabel)guestLabel.textContent='Guest Name / No. of Guest';const reference=meta.children[0];if(!reference)return;const row=document.createElement('div');row.className='preview-payment-method-row';row.innerHTML='<span>Payment Method</span><strong id="preview-payment-method">-</strong>';const wrapper=document.createElement('div');wrapper.className='preview-reference-payment-row';reference.parentNode.insertBefore(wrapper,reference);wrapper.append(reference,row)}
+function installPreviewPaymentMeta(){
+  const guestLabel=$('#invoice-preview-sheet .guest-meta span');
+  if(guestLabel)guestLabel.textContent='Guest Name / Villa';
+}
 function renderSettlementRows(){const box=$('#settlement-rows');if(!box)return;box.innerHTML=settlementRows.map((row,index)=>`<div class="settlement-row"><select data-settlement-index="${index}" data-settlement-field="method">${paymentMethodOptions(row.method)}</select><input data-settlement-index="${index}" data-settlement-field="amount" type="number" min="0" step="0.01" value="${Number(row.amount||0)}" placeholder="จำนวนเงิน"><button type="button" class="icon-button" data-settlement-remove="${index}" aria-label="ลบช่องทางชำระ"><span class="material-symbols-outlined">delete</span></button></div>`).join('')}
 function renderPendingCollectionRows(){const box=$('#pending-collection-rows');if(!box)return;box.innerHTML=state.invoiceLines.map((line,index)=>{const row=pendingCollectionRows[index]||{amount:0,note:''};return`<div class="pending-collection-row"><div class="pending-collection-name"><strong>${esc(line.name)}</strong><small>${esc(line.category||'รายการ')}</small></div><input data-pending-line-index="${index}" data-pending-field="amount" type="number" min="0" step="0.01" value="${Number(row.amount||0)}" placeholder="ยอดรอเก็บ"><input data-pending-line-index="${index}" data-pending-field="note" value="${esc(row.note||'')}" placeholder="แผนก / จุดที่รอเก็บ"></div>`}).join('')||'<p class="muted">ยังไม่มีรายการสำหรับกำหนดยอดรอเก็บ</p>';box.querySelectorAll('[data-pending-line-index]').forEach(input=>input.addEventListener('input',event=>{const index=Number(event.target.dataset.pendingLineIndex),row=pendingCollectionRows[index]||(pendingCollectionRows[index]={amount:0,note:''});if(event.target.dataset.pendingField==='amount')row.amount=Math.max(0,Number(event.target.value||0));else row.note=event.target.value;updateSettlementTotal()}))}
 function staffDisplayName(raw){
@@ -4796,14 +4799,14 @@ function buildInvoiceWorkspace(){
             </div>
             <div class="preview-title">
               <h1>INFORMATION<br>BILL</h1>
-              <div>
+              <div class="preview-title-row">
                 <span>Invoice No</span>
-                <input class="sheet-input sheet-ref" id="preview-sheet-reference" placeholder="Auto" style="font-weight:700;color:#2c1a0e;" />
+                <input class="sheet-title-input" id="preview-sheet-reference" placeholder="Auto" />
                 <strong id="preview-reference" class="sheet-print-text"></strong>
               </div>
-              <div>
+              <div class="preview-title-row">
                 <span>Date</span>
-                <input class="sheet-input sheet-date" type="date" id="preview-sheet-doc-date" style="font-weight:700;color:#2c1a0e;" />
+                <input class="sheet-title-input" type="date" id="preview-sheet-doc-date" />
                 <strong id="preview-invoice-date" class="sheet-print-text"></strong>
               </div>
             </div>
@@ -4811,41 +4814,50 @@ function buildInvoiceWorkspace(){
           <div class="preview-meta">
             <div>
               <span>Reference No.</span>
-              <input class="sheet-input" id="preview-sheet-reference-meta" placeholder="เลขอ้างอิง" />
-              <strong id="preview-reference-meta" class="sheet-print-text"></strong>
+              <div class="sheet-meta-cell">
+                <input class="sheet-input" id="preview-sheet-reference-meta" placeholder="เลขอ้างอิง" />
+                <strong id="preview-reference-meta" class="sheet-print-text"></strong>
+              </div>
             </div>
             <div class="guest-meta">
-              <span>Guest Name</span>
-              <input class="sheet-input" id="preview-sheet-customer" placeholder="คลิกเพื่อพิมพ์ชื่อลูกค้า *" required style="font-weight:700;" />
-              <strong id="preview-customer" class="sheet-print-text"></strong>
-            </div>
-            <div class="villa-meta">
-              <span>Villa / Room</span>
-              <select class="sheet-select" id="preview-sheet-villa">
-                <option value="">เลือก Villa / Room</option>
-                ${villaMarkup}
-              </select>
-              <strong id="preview-print-villa" class="sheet-print-text"></strong>
+              <span>Guest Name / Villa</span>
+              <div class="sheet-meta-cell sheet-guest-cell">
+                <input class="sheet-input sheet-customer-input" id="preview-sheet-customer" placeholder="คลิกเพื่อพิมพ์ชื่อลูกค้า *" required style="font-weight:700;" />
+                <select class="sheet-select sheet-villa-select" id="preview-sheet-villa" title="เลือก Villa หลัก">
+                  <option value="">(เลือก Villa)</option>
+                  ${villaMarkup}
+                </select>
+                <strong id="preview-customer" class="sheet-print-text"></strong>
+                <strong id="preview-print-villa" class="sheet-print-text" style="font-weight:normal;margin-left:4px;"></strong>
+              </div>
             </div>
             <div>
               <span>Check-in Date</span>
-              <input class="sheet-input" type="date" id="preview-sheet-check-in" />
-              <strong id="preview-check-in" class="sheet-print-text"></strong>
+              <div class="sheet-meta-cell">
+                <input class="sheet-input" type="date" id="preview-sheet-check-in" />
+                <strong id="preview-check-in" class="sheet-print-text"></strong>
+              </div>
             </div>
             <div>
               <span>Check-out Date</span>
-              <input class="sheet-input" type="date" id="preview-sheet-check-out" />
-              <strong id="preview-check-out" class="sheet-print-text"></strong>
+              <div class="sheet-meta-cell">
+                <input class="sheet-input" type="date" id="preview-sheet-check-out" />
+                <strong id="preview-check-out" class="sheet-print-text"></strong>
+              </div>
             </div>
             <div>
-              <span>No. Of Night</span>
-              <input class="sheet-input" type="number" min="0" id="preview-sheet-nights" placeholder="1" />
-              <strong id="preview-nights" class="sheet-print-text"></strong>
+              <span>No. of Nights</span>
+              <div class="sheet-meta-cell">
+                <input class="sheet-input align-center" type="number" min="0" id="preview-sheet-nights" placeholder="1" style="text-align:center;" />
+                <strong id="preview-nights" class="sheet-print-text"></strong>
+              </div>
             </div>
             <div>
               <span>Remark</span>
-              <input class="sheet-input" id="preview-sheet-remark" placeholder="หมายเหตุ / เลขที่ใบจอง" />
-              <strong id="preview-remark" class="sheet-print-text"></strong>
+              <div class="sheet-meta-cell">
+                <input class="sheet-input" id="preview-sheet-remark" placeholder="หมายเหตุ / เลขที่ใบจอง" />
+                <strong id="preview-remark" class="sheet-print-text"></strong>
+              </div>
             </div>
           </div>
           <div class="preview-table-wrap">
