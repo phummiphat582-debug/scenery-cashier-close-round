@@ -2451,35 +2451,53 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   margin-top: 10px;
 }
 .sheet-print-text {
-  display: none;
+  display: none !important;
 }
-
 
 @media print {
   .screen-only,
+  .sheet-qty-wrap,
   .sheet-qty-btn,
   .sheet-delete-line-btn,
   .sheet-add-bar,
   .preview-settlement-bar,
   .sheet-villa-badge,
+  .sheet-desc-wrap,
+  .sheet-total-wrap,
   .preview-toolbar,
   .invoice-page-tabs,
-  .sheet-quick-pick {
+  .sheet-quick-pick,
+  .sheet-title-input,
+  .sheet-input,
+  .sheet-select,
+  .sheet-cell-select,
+  .sheet-desc-select,
+  .sheet-line-cat,
+  .sheet-line-villa-select,
+  .sheet-qty-input,
+  .sheet-desc-input,
+  .sheet-rate-input,
+  .sheet-deposit-input,
+  .sheet-discount-input,
+  .invoice-add-grid,
+  .invoice-add-box,
+  .line-group-heading button,
+  input,
+  select,
+  button {
     display: none !important;
   }
   .sheet-print-text {
     display: inline !important;
   }
-  .sheet-title-input,
-  .sheet-input,
-  .sheet-select,
-  .sheet-cell-select,
-  .sheet-qty-input,
-  .sheet-desc-input,
-  .sheet-rate-input,
-  .sheet-deposit-input,
-  .sheet-discount-input {
-    display: none !important;
+  td.sheet-cell-cat .sheet-print-text,
+  td.sheet-cell-desc .sheet-print-text,
+  td.sheet-cell-qty .sheet-print-text,
+  td.sheet-cell-rate .sheet-print-text,
+  td.sheet-cell-deposit .sheet-print-text,
+  td.sheet-cell-discount .sheet-print-text,
+  td.sheet-cell-total .sheet-print-text {
+    display: block !important;
   }
 }
 
