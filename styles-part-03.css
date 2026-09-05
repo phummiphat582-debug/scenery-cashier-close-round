@@ -1,3 +1,4 @@
+#view-invoice .invoice-category-input:focus{border-color:var(--brown-2);box-shadow:0 0 0 3px rgba(172,126,84,.14);outline:0}
 @media(min-width:1201px){
   #view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) minmax(100px,110px) minmax(70px,80px) minmax(130px,1fr) minmax(110px,130px);gap:12px}
 }
@@ -306,90 +307,86 @@
 @media(max-width:900px){#view-invoice .invoice-add-fields>.invoice-search-input{grid-column:1;grid-row:1}}
 @media(max-width:620px){#view-invoice .invoice-add-fields>.invoice-search-input{grid-column:1/-1;grid-row:1;padding-right:30px}#view-invoice .invoice-search-results{right:2px}}
 
-/* Authentic INFO BILL Header Alignment: 6-Column continuous grid */
-#view-invoice .preview-meta,
-.invoice-preview-sheet .preview-meta {
-  display: grid !important;
-  grid-template-columns: 16% 36% 12% 12% 8% 16% !important;
-  gap: 1px !important;
-  column-gap: 1px !important;
-  row-gap: 1px !important;
-  border: 1px solid #388da0 !important;
-  background: #388da0 !important;
-  overflow: hidden !important;
-  width: 100% !important;
-  box-sizing: border-box !important;
+/* Final invoice header alignment: continuous blue bands and exact separators. */
+#view-invoice .preview-meta{
+  display:grid;
+  grid-template-columns:1fr 2.1fr .8fr 1.4fr;
+  gap:0!important;
+  column-gap:0!important;
+  row-gap:0!important;
+  border-collapse:collapse;
+  border-spacing:0;
+  background:#388da0;
+  overflow:hidden;
 }
-#view-invoice .preview-meta > div,
-.invoice-preview-sheet .preview-meta > div {
-  box-sizing: border-box !important;
-  min-width: 0 !important;
-  margin: 0 !important;
-  background: #fff !important;
-  border: 0 !important;
-  display: flex !important;
-  flex-direction: column !important;
+#view-invoice .preview-meta>div,
+#view-invoice .preview-reference-payment-row,
+#view-invoice .preview-reference-payment-row>div{
+  box-sizing:border-box;
+  min-width:0;
+  margin:0!important;
+  gap:0!important;
+  background:#388da0!important;
 }
-#view-invoice .preview-meta > div > span,
-.invoice-preview-sheet .preview-meta > div > span {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-sizing: border-box !important;
-  width: 100% !important;
-  height: 25px !important;
-  min-height: 25px !important;
-  margin: 0 !important;
-  padding: 4px 2px !important;
-  background: #388da0 !important;
-  color: #fff !important;
-  border: 0 !important;
-  text-align: center !important;
-  font-size: 9.5px !important;
-  font-weight: 700 !important;
-  line-height: 1.1 !important;
+#view-invoice .preview-meta>div{
+  border-right:1px solid #fff!important;
+  border-bottom:1px solid #fff!important;
 }
-#view-invoice .preview-meta > div > strong,
-#view-invoice .preview-meta .sheet-meta-cell,
-.invoice-preview-sheet .preview-meta > div > strong,
-.invoice-preview-sheet .preview-meta .sheet-meta-cell {
-  display: flex !important;
-  align-items: center !important;
-  justify-content: center !important;
-  box-sizing: border-box !important;
-  width: 100% !important;
-  min-width: 0 !important;
-  min-height: 30px !important;
-  margin: 0 !important;
-  padding: 3px 4px !important;
-  background: #fff !important;
-  color: #2b2825 !important;
-  text-align: center !important;
-  font-size: 11px !important;
+#view-invoice .preview-meta>div:nth-child(2),
+#view-invoice .preview-meta>div:nth-child(6){border-right:0!important}
+#view-invoice .preview-reference-payment-row{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  grid-column:1 / span 2;
+  border-right:1px solid #fff!important;
+  border-bottom:1px solid #fff!important;
 }
-#view-invoice .preview-meta .sheet-guest-cell,
-.invoice-preview-sheet .preview-meta .sheet-guest-cell {
-  display: flex !important;
-  flex-direction: row !important;
-  align-items: center !important;
-  gap: 4px !important;
-  padding: 2px 4px !important;
+#view-invoice .preview-reference-payment-row>div{
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:flex-start!important;
+  align-items:stretch!important;
+  border-right:1px solid #fff!important;
+  border-bottom:0!important;
 }
-#view-invoice .preview-meta .sheet-customer-input {
-  flex: 1 1 auto !important;
-  min-width: 0 !important;
-  font-weight: 700 !important;
-  font-size: 11px !important;
+#view-invoice .preview-reference-payment-row>div:last-child{border-right:0!important}
+#view-invoice .preview-meta>div>span,
+#view-invoice .preview-reference-payment-row>div>span{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-sizing:border-box;
+  width:100%;
+  height:32px;
+  min-height:32px;
+  margin:0!important;
+  padding:4px 6px!important;
+  background:#388da0!important;
+  color:#fff!important;
+  border:0!important;
+  text-align:center;
+  line-height:1.1;
+  overflow-wrap:anywhere;
+  white-space:normal;
 }
-#view-invoice .preview-meta .sheet-villa-select {
-  flex: 0 0 120px !important;
-  max-width: 130px !important;
-  font-size: 10px !important;
-  padding: 2px 4px !important;
-  border: 1px solid #d4c4b5 !important;
-  border-radius: 4px !important;
-  background: #fdfbf9 !important;
-  color: #5a331c !important;
+#view-invoice .preview-meta>div>strong,
+#view-invoice .preview-reference-payment-row>div>strong{
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  box-sizing:border-box;
+  width:100%;
+  min-width:0;
+  min-height:30px;
+  margin:0!important;
+  padding:6px 5px!important;
+  background:#fff!important;
+  color:#2b2825!important;
+  text-align:center;
+  font-size:12px;
+  font-weight:700;
+  overflow-wrap:anywhere;
+  white-space:normal;
 }
 #view-invoice .invoice-preview-table,
 #view-invoice .invoice-preview-table thead,
@@ -706,3 +703,7 @@
 
 #view-close-round .close-round-detail-table th:nth-child(1),
 #view-close-round .close-round-detail-table td:nth-child(1){width:4.5%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(1){text-align:left;font-weight:700;padding-left:5px!important}
+
+#view-close-round .close-round-detail-table th:nth-child(2),
+#view-close-round .close-round-detail-table td:nth-child(2){width:8.0%!important;min-width:0!important}
