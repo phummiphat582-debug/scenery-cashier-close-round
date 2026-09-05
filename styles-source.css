@@ -2450,6 +2450,40 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   gap: 8px;
   margin-top: 10px;
 }
+.sheet-blank-interactive-row {
+  background-color: #fdfdfd;
+}
+.sheet-blank-interactive-row:hover {
+  background-color: #f9f6f0;
+}
+.sheet-blank-interactive-row .sheet-desc-select {
+  color: #78716c;
+  background-color: #fcfbf9;
+  border: 1px dashed #d5c8be;
+  font-weight: 500;
+}
+.sheet-blank-interactive-row .sheet-desc-select:hover,
+.sheet-blank-interactive-row .sheet-desc-select:focus {
+  color: #8a5433;
+  border-color: #8a5433;
+  border-style: solid;
+  background-color: #ffffff;
+}
+.sheet-blank-interactive-row .sheet-cell-select {
+  color: #78716c;
+  border: 1px dashed #d5c8be;
+}
+.sheet-blank-interactive-row .sheet-cell-select:hover,
+.sheet-blank-interactive-row .sheet-cell-select:focus {
+  color: #8a5433;
+  border-color: #8a5433;
+  border-style: solid;
+  background-color: #ffffff;
+}
+.sheet-blank-ph {
+  color: #a8a29e;
+  font-size: 11px;
+}
 .sheet-print-text {
   display: none !important;
 }
@@ -2472,6 +2506,9 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   .sheet-select,
   .sheet-cell-select,
   .sheet-desc-select,
+  .sheet-new-line-desc,
+  .sheet-new-line-cat,
+  .sheet-blank-ph,
   .sheet-line-cat,
   .sheet-line-villa-select,
   .sheet-qty-input,

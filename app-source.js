@@ -1298,7 +1298,54 @@ function installFinalInvoiceRules(){
         `;
       }).join('');
 
-      const count=Math.max(matches.length,group.type==='accommodation'?4:7),blanks=Array.from({length:Math.max(1, count-matches.length)},()=>'<tr class="blank-line"><td></td><td></td><td></td><td></td><td>-</td><td>-</td><td>-</td></tr>').join('');
+      const count = Math.max(matches.length, group.type === 'accommodation' ? 4 : 7);
+      const remainingCount = Math.max(1, count - matches.length);
+      const blanks = Array.from({ length: remainingCount }, () => {
+        const isAcc = group.type === 'accommodation';
+        const promptLabel = isAcc
+          ? '+ คลิกเลือกบ้านพัก / แพ็กเกจ / เตียงเสริม...'
+          : '+ คลิกเลือกอาหาร / เครื่องดื่ม / กิจกรรม...';
+        return `
+          <tr class="blank-line sheet-blank-interactive-row" data-add-type="${group.type}">
+            <td class="sheet-cell-cat">
+              <select class="sheet-cell-select sheet-new-line-cat" data-add-type="${group.type}" aria-label="เพิ่มหมวด">
+                <option value="">+ หมวด</option>
+                ${categoryOptionsForLine('', group.type)}
+              </select>
+              <span class="sheet-print-text"></span>
+            </td>
+            <td class="align-center sheet-cell-qty">
+              <span class="sheet-blank-ph">-</span>
+              <span class="sheet-print-text"></span>
+            </td>
+            <td class="sheet-cell-desc">
+              <div class="sheet-desc-wrap">
+                <select class="sheet-desc-select sheet-cell-select sheet-new-line-desc" data-add-type="${group.type}" aria-label="เลือกรายการเพิ่ม">
+                  <option value="">${promptLabel}</option>
+                  ${itemOptionsForLineCategory(isAcc ? 'Accommodation' : 'Food & Beverage', '', group.type)}
+                </select>
+              </div>
+              <span class="sheet-print-text"></span>
+            </td>
+            <td class="align-right sheet-cell-rate">
+              <span class="sheet-blank-ph">-</span>
+              <span class="sheet-print-text"></span>
+            </td>
+            <td class="align-right sheet-cell-deposit">
+              <span class="sheet-blank-ph">-</span>
+              <span class="sheet-print-text">-</span>
+            </td>
+            <td class="align-right invoice-discount-cell sheet-cell-discount">
+              <span class="sheet-blank-ph">-</span>
+              <span class="sheet-print-text">-</span>
+            </td>
+            <td class="align-right strong-number sheet-cell-total">
+              <span class="sheet-blank-ph">-</span>
+              <span class="sheet-print-text">-</span>
+            </td>
+          </tr>
+        `;
+      }).join('');
       return `<tr class="bill-section-row"><td colspan="7">${group.label}</td></tr>${lines}${blanks}`;
     }).join('');
 
@@ -1819,9 +1866,84 @@ function installFinalInvoiceRules(){
           }
           renderFormLines();
           calculateInvoice();
-          updateSheetLiveTotals(idx);
+          renderInvoicePreview(true);
           if (val) showToast(`เลือก "${val}" แล้ว`);
         }
+      } else if (t.classList.contains('sheet-new-line-desc')) {
+        const val = t.value;
+        if (!val) return;
+        const addType = t.dataset.addType || 'accommodation';
+        let itemName = val;
+        let itemRate = 0;
+        let itemCat = addType === 'accommodation' ? 'Accommodation' : 'Food & Beverage';
+        let itemType = addType;
+
+        if (val === '__custom__') {
+          const customName = prompt('พิมพ์ชื่อรายการที่ต้องการ:');
+          if (!customName || !customName.trim()) {
+            t.value = '';
+            return;
+          }
+          itemName = customName.trim();
+        } else {
+          const opt = t.options[t.selectedIndex];
+          const matched = accommodationItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase()) ||
+                          addonItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase());
+          if (matched) {
+            itemName = matched.name;
+            itemCat = matched.category || itemCat;
+            itemRate = Number(matched.rate || 0);
+            if (accommodationItems.some(i => i.name === matched.name)) itemType = 'accommodation';
+            else if (addonItems.some(i => i.name === matched.name)) itemType = 'addon';
+          } else if (opt) {
+            itemRate = Number(opt.dataset.rate || 0);
+            if (opt.dataset.cat) itemCat = opt.dataset.cat;
+            if (opt.dataset.itemType) itemType = opt.dataset.itemType;
+          }
+        }
+
+        state.invoiceLines.push({
+          type: itemType,
+          category: itemCat,
+          name: itemName,
+          rate: itemRate,
+          qty: 1,
+          discountAmount: 0,
+          deposit: 0,
+          depositMethod: 'เงินสด',
+          villa: state.villa || ''
+        });
+
+        renderFormLines();
+        calculateInvoice();
+        renderInvoicePreview(true);
+        showToast(`เพิ่ม "${itemName}" ในรายการแล้ว`);
+      } else if (t.classList.contains('sheet-new-line-cat')) {
+        const val = t.value;
+        if (!val) return;
+        const addType = t.dataset.addType || 'accommodation';
+        const isAcc = addType === 'accommodation' || ['Accommodation', 'Extra Bed', 'Complimentary', 'Package'].includes(val);
+        state.invoiceLines.push({
+          type: isAcc ? 'accommodation' : 'addon',
+          category: val,
+          name: '',
+          rate: 0,
+          qty: 1,
+          discountAmount: 0,
+          deposit: 0,
+          depositMethod: 'เงินสด',
+          villa: state.villa || ''
+        });
+        renderFormLines();
+        calculateInvoice();
+        renderInvoicePreview(true);
+        setTimeout(() => {
+          const rows = document.querySelectorAll('#preview-invoice-lines tr[data-sheet-row]');
+          if (rows.length) {
+            const lastDesc = rows[rows.length - 1].querySelector('.sheet-desc-select');
+            if (lastDesc) lastDesc.focus();
+          }
+        }, 50);
       } else if (t.classList.contains('sheet-line-cat')) {
         const idx = Number(t.dataset.sheetLine);
         if (state.invoiceLines[idx]) {
