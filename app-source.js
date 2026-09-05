@@ -5,9 +5,10 @@ const CLOSE_ROUND_SOURCE_VILLAS=[
   '08 Mulato','010 Napier','011 Setaria','012 Alfalfa','013 Rapunzel'
 ];
 const villaBathTypes={'02 Pangola':'Jacuzzi','03 Hamata':'Jacuzzi','04 Barbados':'Jacuzzi_Deluxe','05 Merino':'BathTub','06 Corriedale':'BathTub','06 Corredale':'BathTub','07 Katahdin':'BathTub_Deluxe','08 Mulato':'Jacuzzi','010 Napier':'Jacuzzi','011 Setaria':'Jacuzzi','012 Alfalfa':'Jacuzzi','013 Rapunzel':'Villa'};
+const villaDefaultRates={'Jacuzzi':4500,'BathTub':4500,'Bathtub':4500,'BathTub_Deluxe':5500,'Bathtub Deluxe':5500,'Jacuzzi_Deluxe':6500,'Jacuzzi Deluxe':6500,'Villa':8500,'Pre-Wedding':4500};
 function cleanEnglishText(value){return String(value??'').replace(/\bBath\b/g,'Baht').replace(/\bFlaver\b/g,'Flavor').replace(/\bGrand ma\b/g,'Grandma').replace(/Food_Beverage/g,'Food & Beverage').replace(/Afternoon_Tea/g,'Afternoon Tea').replace(/Extra_Bed/g,'Extra Bed').replace(/BathTub_Deluxe/g,'Bathtub Deluxe').replace(/BathTub/g,'Bathtub').replace(/Jacuzzi_Deluxe/g,'Jacuzzi Deluxe').replace(/\s*(?:เด้งราคา|เพิ่มราคา|เด้ง)\b/g,'').replace(/\s*\?\s*/g,' - ').replace(/\s{2,}/g,' ').trim()}
-const accommodationItems=[...DATA.accommodationItems.map(item=>{const villaName=Object.keys(villaBathTypes).find(name=>item.name.startsWith(`${name} `)||String(item.villa||'').startsWith(`${name} `));const normalized={...item,name:cleanEnglishText(item.name),category:cleanEnglishText(item.category)};return villaName?{...normalized,label:`${villaName} ${cleanEnglishText(villaBathTypes[villaName])}`,name:`${villaName} ${cleanEnglishText(villaBathTypes[villaName])}`,category:cleanEnglishText(villaBathTypes[villaName]),villa:villaName}:normalized}),{name:'E-Voucher Dinner 800 Baht (22)',category:'Package',rate:800},{name:'E-Voucher Dinner 1200 Baht (22)',category:'Package',rate:1200}].filter((item,index,items)=>items.findIndex(other=>other.name===item.name)===index);
-const addonItems=[...DATA.addonItems.map(item=>({...item,name:cleanEnglishText(item.name),category:cleanEnglishText(item.category)})),{name:'E-Voucher Dinner 800 Baht (22)',category:'Food & Beverage',rate:800},{name:'E-Voucher Dinner 1200 Baht (22)',category:'Food & Beverage',rate:1200}].filter((item,index,items)=>items.findIndex(other=>other.name===item.name)===index);
+const accommodationItems=[...DATA.accommodationItems.map(item=>{const villaName=Object.keys(villaBathTypes).find(name=>item.name.startsWith(`${name} `)||String(item.villa||'').startsWith(`${name} `));const normalized={...item,name:cleanEnglishText(item.name),category:cleanEnglishText(item.category)};if(villaName){const bType=cleanEnglishText(villaBathTypes[villaName]);const defRate=Number(item.rate||0)>0?Number(item.rate):(villaDefaultRates[villaBathTypes[villaName]]||villaDefaultRates[bType]||4500);return{...normalized,label:`${villaName} ${bType}`,name:`${villaName} ${bType}`,category:bType,villa:villaName,rate:defRate};}return normalized;}),{name:'E-Voucher Dinner 800 Baht (22)',category:'Package',rate:800},{name:'E-Voucher Dinner 1200 Baht (22)',category:'Package',rate:1200}].filter((item,index,items)=>items.findIndex(other=>other.name===item.name)===index);
+const addonItems=[...DATA.addonItems.map(item=>({...item,name:cleanEnglishText(item.name),category:cleanEnglishText(item.category),rate:Number(item.rate||0)})),{name:'E-Voucher Dinner 800 Baht (22)',category:'Food & Beverage',rate:800},{name:'E-Voucher Dinner 1200 Baht (22)',category:'Food & Beverage',rate:1200}].filter((item,index,items)=>items.findIndex(other=>other.name===item.name)===index);
 const paymentMethods=['เงินสด','โอน','บัตรเครดิต','คิวอาโค้ต','2C2P'];
 const state={invoiceLines:[],payments:[],currentView:'dashboard',invoicePage:'form',invoiceNumber:85,invoices:[],drafts:[{id:'DF-260717-A',label:'บัตรกิจกรรมแกะ + หญ้า 4 ชุด',total:1200,time:'5 นาทีที่แล้ว'},{id:'DF-260717-B',label:'ของที่ระลึก: กระเป๋าสาน 2 ใบ',total:640,time:'12 นาทีที่แล้ว'},{id:'DF-260716-Z',label:'เหมาจ่าย: คณะทัศนศึกษา 45 ท่าน',total:12500,time:'เมื่อวาน'}],closedBookings:loadClosedBookings()};
 window.sceneryAppState=state;
@@ -1841,28 +1842,21 @@ function installFinalInvoiceRules(){
           }
           const opt = t.options[t.selectedIndex];
           state.invoiceLines[idx].name = val;
+          const optRate = opt && opt.dataset.rate !== undefined && opt.dataset.rate !== '' ? Number(opt.dataset.rate) : 0;
           const matched = accommodationItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase()) ||
                           addonItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase());
+          const matchedRate = matched ? Number(matched.rate || 0) : 0;
+          const itemRate = optRate > 0 ? optRate : matchedRate;
+
           if (matched) {
             state.invoiceLines[idx].category = matched.category || state.invoiceLines[idx].category;
-            state.invoiceLines[idx].rate = Number(matched.rate || 0);
+            state.invoiceLines[idx].rate = itemRate;
             if (accommodationItems.some(i => i.name === matched.name)) state.invoiceLines[idx].type = 'accommodation';
             else if (addonItems.some(i => i.name === matched.name)) state.invoiceLines[idx].type = 'addon';
-            
-            const tr = t.closest('tr');
-            if (tr) {
-              const catSel = tr.querySelector('.sheet-line-cat');
-              if (catSel) catSel.value = state.invoiceLines[idx].category;
-              const rateInp = tr.querySelector('.sheet-rate-input');
-              if (rateInp) rateInp.value = state.invoiceLines[idx].rate;
-            }
-          } else if (opt && opt.dataset.rate !== undefined && opt.value !== '') {
-            state.invoiceLines[idx].rate = Number(opt.dataset.rate || 0);
-            const tr = t.closest('tr');
-            if (tr) {
-              const rateInp = tr.querySelector('.sheet-rate-input');
-              if (rateInp) rateInp.value = state.invoiceLines[idx].rate;
-            }
+          } else {
+            state.invoiceLines[idx].rate = itemRate;
+            if (opt && opt.dataset.cat) state.invoiceLines[idx].category = opt.dataset.cat;
+            if (opt && opt.dataset.itemType) state.invoiceLines[idx].type = opt.dataset.itemType;
           }
           renderFormLines();
           calculateInvoice();
@@ -1887,16 +1881,18 @@ function installFinalInvoiceRules(){
           itemName = customName.trim();
         } else {
           const opt = t.options[t.selectedIndex];
+          const optRate = opt && opt.dataset.rate !== undefined && opt.dataset.rate !== '' ? Number(opt.dataset.rate) : 0;
           const matched = accommodationItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase()) ||
                           addonItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase());
+          const matchedRate = matched ? Number(matched.rate || 0) : 0;
+          itemRate = optRate > 0 ? optRate : matchedRate;
+
           if (matched) {
             itemName = matched.name;
             itemCat = matched.category || itemCat;
-            itemRate = Number(matched.rate || 0);
             if (accommodationItems.some(i => i.name === matched.name)) itemType = 'accommodation';
             else if (addonItems.some(i => i.name === matched.name)) itemType = 'addon';
           } else if (opt) {
-            itemRate = Number(opt.dataset.rate || 0);
             if (opt.dataset.cat) itemCat = opt.dataset.cat;
             if (opt.dataset.itemType) itemType = opt.dataset.itemType;
           }
