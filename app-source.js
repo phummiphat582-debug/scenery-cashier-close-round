@@ -681,11 +681,90 @@ function installPreviewPaymentMeta(){
   if(!reference)return;
   const row=document.createElement('div');
   row.className='preview-payment-method-row';
-  row.innerHTML='<span>Payment Method</span><strong id="preview-payment-method">-</strong>';
+  row.innerHTML='<span>Payment Method</span><strong id="preview-payment-method" contenteditable="true" spellcheck="false" title="คลิกเพื่อพิมพ์แก้ไขช่องทางชำระ">-</strong>';
   const wrapper=document.createElement('div');
   wrapper.className='preview-reference-payment-row';
   reference.parentNode.insertBefore(wrapper,reference);
   wrapper.append(reference,row);
+  installHeaderEditableSync();
+}
+
+function installHeaderEditableSync(){
+  const sheet = $('#invoice-preview-sheet');
+  if (!sheet || sheet.dataset.headerSyncReady) return;
+  sheet.dataset.headerSyncReady = 'true';
+
+  const syncMap = {
+    'preview-reference': ['folio', 'preview-reference-meta'],
+    'preview-reference-meta': ['folio', 'preview-reference'],
+    'preview-customer': ['customer'],
+    'preview-invoice-date': ['doc-date'],
+    'preview-check-in': ['check-in'],
+    'preview-check-out': ['check-out'],
+    'preview-nights': ['no-of-night'],
+    'preview-remark': ['remark'],
+    'preview-payment-method': ['payment-method']
+  };
+
+  sheet.addEventListener('input', (event) => {
+    const target = event.target;
+    if (!target || !target.isContentEditable) return;
+    const fieldId = target.id;
+    const targets = syncMap[fieldId];
+    if (!targets) return;
+
+    const rawText = target.textContent.trim();
+    const text = (rawText === '-' ? '' : rawText);
+
+    targets.forEach(syncId => {
+      const el = $(`#${syncId}`);
+      if (el) {
+        if (el.isContentEditable) {
+          if (document.activeElement !== el) el.textContent = target.textContent;
+        } else {
+          el.value = text;
+        }
+      }
+    });
+
+    if (fieldId === 'preview-customer') {
+      const customerInput = $('#customer');
+      if (customerInput) customerInput.value = text;
+      state.customer = text;
+      if (typeof saveDraft === 'function') saveDraft();
+    } else if (fieldId === 'preview-nights') {
+      const nights = parseInt(text.replace(/[^0-9]/g, ''), 10) || 1;
+      const nightInput = $('#no-of-night');
+      if (nightInput) nightInput.value = nights;
+    }
+
+    if (typeof calculateInvoice === 'function') {
+      calculateInvoice();
+    }
+  });
+
+  sheet.addEventListener('keydown', (event) => {
+    const target = event.target;
+    if (!target || !target.isContentEditable) return;
+    if (event.key === 'Enter') {
+      event.preventDefault();
+      target.blur();
+    }
+  });
+
+  sheet.addEventListener('focusin', (event) => {
+    const target = event.target;
+    if (!target || !target.isContentEditable) return;
+    if (target.textContent.trim() === '-') {
+      const range = document.createRange();
+      range.selectNodeContents(target);
+      const sel = window.getSelection();
+      if (sel) {
+        sel.removeAllRanges();
+        sel.addRange(range);
+      }
+    }
+  });
 }
 function renderSettlementRows(){const box=$('#settlement-rows');if(!box)return;box.innerHTML=settlementRows.map((row,index)=>`<div class="settlement-row"><select data-settlement-index="${index}" data-settlement-field="method">${paymentMethodOptions(row.method)}</select><input data-settlement-index="${index}" data-settlement-field="amount" type="number" min="0" step="0.01" value="${Number(row.amount||0)}" placeholder="จำนวนเงิน"><button type="button" class="icon-button" data-settlement-remove="${index}" aria-label="ลบช่องทางชำระ"><span class="material-symbols-outlined">delete</span></button></div>`).join('')}
 function renderPendingCollectionRows(){const box=$('#pending-collection-rows');if(!box)return;box.innerHTML=state.invoiceLines.map((line,index)=>{const row=pendingCollectionRows[index]||{amount:0,note:''};return`<div class="pending-collection-row"><div class="pending-collection-name"><strong>${esc(line.name)}</strong><small>${esc(line.category||'รายการ')}</small></div><input data-pending-line-index="${index}" data-pending-field="amount" type="number" min="0" step="0.01" value="${Number(row.amount||0)}" placeholder="ยอดรอเก็บ"><input data-pending-line-index="${index}" data-pending-field="note" value="${esc(row.note||'')}" placeholder="แผนก / จุดที่รอเก็บ"></div>`}).join('')||'<p class="muted">ยังไม่มีรายการสำหรับกำหนดยอดรอเก็บ</p>';box.querySelectorAll('[data-pending-line-index]').forEach(input=>input.addEventListener('input',event=>{const index=Number(event.target.dataset.pendingLineIndex),row=pendingCollectionRows[index]||(pendingCollectionRows[index]={amount:0,note:''});if(event.target.dataset.pendingField==='amount')row.amount=Math.max(0,Number(event.target.value||0));else row.note=event.target.value;updateSettlementTotal()}))}
@@ -4810,17 +4889,17 @@ function buildInvoiceWorkspace(){
             </div>
             <div class="preview-title">
               <h1>INFORMATION<br>BILL</h1>
-              <div><span>Invoice No</span><strong id="preview-reference"></strong></div>
-              <div><span>Date</span><strong id="preview-invoice-date"></strong></div>
+              <div><span>Invoice No</span><strong id="preview-reference" contenteditable="true" spellcheck="false" title="คลิกเพื่อพิมพ์แก้ไขเลข Invoice"></strong></div>
+              <div><span>Date</span><strong id="preview-invoice-date" contenteditable="true" spellcheck="false" title="คลิกเพื่อพิมพ์แก้ไขวันที่"></strong></div>
             </div>
           </header>
           <div class="preview-meta">
-            <div><span>Reference No.</span><strong id="preview-reference-meta"></strong></div>
-            <div class="guest-meta"><span>Guest Name</span><strong id="preview-customer"></strong></div>
-            <div><span>Check-in Date</span><strong id="preview-check-in"></strong></div>
-            <div><span>Check-out Date</span><strong id="preview-check-out"></strong></div>
-            <div><span>No. Of Night</span><strong id="preview-nights"></strong></div>
-            <div><span>Remark</span><strong id="preview-remark"></strong></div>
+            <div><span>Reference No.</span><strong id="preview-reference-meta" contenteditable="true" spellcheck="false" title="คลิกเพื่อพิมพ์แก้ไข Reference No."></strong></div>
+            <div class="guest-meta"><span>Guest Name</span><strong id="preview-customer" contenteditable="true" spellcheck="false" title="คลิกเพื่อพิมพ์ชื่อลูกค้า"></strong></div>
+            <div><span>Check-in Date</span><strong id="preview-check-in" contenteditable="true" spellcheck="false" title="คลิกเพื่อพิมพ์แก้ไข Check-in Date"></strong></div>
+            <div><span>Check-out Date</span><strong id="preview-check-out" contenteditable="true" spellcheck="false" title="คลิกเพื่อพิมพ์แก้ไข Check-out Date"></strong></div>
+            <div><span>No. Of Night</span><strong id="preview-nights" contenteditable="true" spellcheck="false" title="คลิกเพื่อพิมพ์แก้ไขจำนวนคืน"></strong></div>
+            <div><span>Remark</span><strong id="preview-remark" contenteditable="true" spellcheck="false" title="คลิกเพื่อพิมพ์แก้ไขหมายเหตุ"></strong></div>
           </div>
           <div class="preview-table-wrap">
             <table class="invoice-preview-table">
@@ -4928,6 +5007,8 @@ function buildInvoiceWorkspace(){
     </section>
   `;
   setInvoicePage('form');
+  installPreviewPaymentMeta();
+  installHeaderEditableSync();
 }
 
 /* Invoice item flow: category first, then only the items in that category. */
