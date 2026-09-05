@@ -491,19 +491,42 @@
 }
 .sheet-desc-input {
   width: 100%;
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid #d8cbc1;
+  background: #fff;
   font-size: 11px;
   font-weight: 600;
   color: #2c1a0e;
-  padding: 2px 4px;
+  padding: 3px 5px;
   border-radius: 4px;
 }
 .sheet-desc-input:hover {
-  border-color: rgba(56, 141, 160, 0.35);
-  background: rgba(56, 141, 160, 0.08);
+  border-color: #388da0;
+  background: #f4fafb;
 }
 .sheet-desc-input:focus {
+  border-color: #388da0;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(56, 141, 160, 0.2);
+  outline: none;
+}
+.sheet-desc-select {
+  width: 100%;
+  border: 1px solid #d8cbc1;
+  background: #fff;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2c1a0e;
+  padding: 3px 5px;
+  border-radius: 4px;
+  cursor: pointer;
+  appearance: auto;
+  -webkit-appearance: menulist;
+}
+.sheet-desc-select:hover {
+  border-color: #388da0;
+  background: #f4fafb;
+}
+.sheet-desc-select:focus {
   border-color: #388da0;
   background: #fff;
   box-shadow: 0 0 0 2px rgba(56, 141, 160, 0.2);
@@ -512,20 +535,24 @@
 .sheet-cell-select {
   font-family: inherit;
   font-size: 11px;
-  padding: 2px 4px;
+  padding: 3px 5px;
   border-radius: 4px;
-  border: 1px solid transparent;
-  background: transparent;
+  border: 1px solid #d8cbc1;
+  background: #fff;
   width: 100%;
   cursor: pointer;
+  color: #2c1a0e;
+  appearance: auto;
+  -webkit-appearance: menulist;
 }
 .sheet-cell-select:hover {
-  border-color: rgba(56, 141, 160, 0.35);
-  background: rgba(56, 141, 160, 0.08);
+  border-color: #388da0;
+  background: #f4fafb;
 }
 .sheet-cell-select:focus {
   border-color: #388da0;
   background: #fff;
+  box-shadow: 0 0 0 2px rgba(56, 141, 160, 0.2);
   outline: none;
 }
 .sheet-villa-badge {

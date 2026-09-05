@@ -1160,6 +1160,32 @@ function installFinalInvoiceRules(){
     return list.map(cat=>`<option value="${esc(cat)}" ${cat.toLowerCase()===current.toLowerCase()?'selected':''}>${esc(cat)}</option>`).join('');
   }
 
+  function itemOptionsForLineCategory(selectedCategory, currentName, type){
+    const allItems = type === 'accommodation' ? accommodationItems : addonItems;
+    let matches = allItems.filter(it => isInvoiceMatchingCategory(it.category, selectedCategory, it));
+    if (!matches.length) {
+      const combined = [...accommodationItems, ...addonItems];
+      matches = combined.filter(it => isInvoiceMatchingCategory(it.category, selectedCategory, it));
+    }
+    if (!matches.length) {
+      matches = allItems;
+    }
+
+    const hasCurrent = currentName && matches.some(m => m.name.toLowerCase() === currentName.trim().toLowerCase());
+
+    let html = `<option value="">-- เลือกรายการในหมวด (${matches.length} รายการ) --</option>`;
+    html += matches.map(it => {
+      const isSel = currentName && (it.name.toLowerCase() === currentName.trim().toLowerCase());
+      return `<option value="${esc(it.name)}" data-rate="${it.rate || 0}" data-cat="${esc(it.category || '')}" ${isSel ? 'selected' : ''}>${esc(it.name)}${it.rate ? ` (฿${Number(it.rate).toLocaleString('th-TH')})` : ''}</option>`;
+    }).join('');
+
+    if (currentName && !hasCurrent) {
+      html += `<option value="${esc(currentName)}" selected>${esc(currentName)} (กำหนดเอง)</option>`;
+    }
+    html += `<option value="__custom__">✏️ พิมพ์ชื่อรายการเอง...</option>`;
+    return html;
+  }
+
   function renderSheetPayments(){
     const list=$('#sheet-payment-list');
     if(!list)return;
@@ -1204,7 +1230,9 @@ function installFinalInvoiceRules(){
             </td>
             <td class="sheet-cell-desc">
               <div class="sheet-desc-wrap">
-                <input type="text" class="sheet-desc-input" list="sheet-items-datalist" data-sheet-line="${index}" value="${esc(row.line.name||'')}" placeholder="พิมพ์หรือเลือกรายการ..." aria-label="ชื่อรายการ">
+                <select class="sheet-desc-select sheet-cell-select" data-sheet-line="${index}" aria-label="ชื่อรายการ">
+                  ${itemOptionsForLineCategory(row.line.category, row.line.name, row.line.type)}
+                </select>
                 <div class="sheet-villa-badge">
                   <span class="material-symbols-outlined">villa</span>
                   <select class="sheet-line-villa-select" data-sheet-line="${index}" title="เลือกบ้านสำหรับรายการนี้ เพื่อแยกแถวในหน้าปิดรอบ">
@@ -1708,12 +1736,70 @@ function installFinalInvoiceRules(){
         if ($('#doc-date')) $('#doc-date').value = t.value;
         if ($('#preview-invoice-date')) $('#preview-invoice-date').textContent = formatDate(t.value);
         calculateInvoice();
+      } else if (t.classList.contains('sheet-desc-select')) {
+        const idx = Number(t.dataset.sheetLine);
+        if (state.invoiceLines[idx]) {
+          const val = t.value;
+          if (val === '__custom__') {
+            const customName = prompt('พิมพ์ชื่อรายการที่ต้องการ:', state.invoiceLines[idx].name || '');
+            if (customName && customName.trim()) {
+              state.invoiceLines[idx].name = customName.trim();
+              renderFormLines();
+              calculateInvoice();
+              renderInvoicePreview(true);
+            } else {
+              t.value = state.invoiceLines[idx].name || '';
+            }
+            return;
+          }
+          const opt = t.options[t.selectedIndex];
+          state.invoiceLines[idx].name = val;
+          const matched = accommodationItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase()) ||
+                          addonItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase());
+          if (matched) {
+            state.invoiceLines[idx].category = matched.category || state.invoiceLines[idx].category;
+            state.invoiceLines[idx].rate = Number(matched.rate || 0);
+            if (accommodationItems.some(i => i.name === matched.name)) state.invoiceLines[idx].type = 'accommodation';
+            else if (addonItems.some(i => i.name === matched.name)) state.invoiceLines[idx].type = 'addon';
+            
+            const tr = t.closest('tr');
+            if (tr) {
+              const catSel = tr.querySelector('.sheet-line-cat');
+              if (catSel) catSel.value = state.invoiceLines[idx].category;
+              const rateInp = tr.querySelector('.sheet-rate-input');
+              if (rateInp) rateInp.value = state.invoiceLines[idx].rate;
+            }
+          } else if (opt && opt.dataset.rate !== undefined && opt.value !== '') {
+            state.invoiceLines[idx].rate = Number(opt.dataset.rate || 0);
+            const tr = t.closest('tr');
+            if (tr) {
+              const rateInp = tr.querySelector('.sheet-rate-input');
+              if (rateInp) rateInp.value = state.invoiceLines[idx].rate;
+            }
+          }
+          renderFormLines();
+          calculateInvoice();
+          updateSheetLiveTotals(idx);
+          if (val) showToast(`เลือก "${val}" แล้ว`);
+        }
       } else if (t.classList.contains('sheet-line-cat')) {
         const idx = Number(t.dataset.sheetLine);
         if (state.invoiceLines[idx]) {
           state.invoiceLines[idx].category = t.value;
+          const tr = t.closest('tr');
+          if (tr) {
+            const descSel = tr.querySelector('.sheet-desc-select');
+            if (descSel) {
+              descSel.innerHTML = itemOptionsForLineCategory(t.value, '', state.invoiceLines[idx].type);
+              state.invoiceLines[idx].name = '';
+              state.invoiceLines[idx].rate = 0;
+              const rateInp = tr.querySelector('.sheet-rate-input');
+              if (rateInp) rateInp.value = '0';
+            }
+          }
           renderFormLines();
           calculateInvoice();
+          updateSheetLiveTotals(idx);
         }
       } else if (t.classList.contains('sheet-line-villa-select')) {
         const idx = Number(t.dataset.sheetLine);
@@ -1811,7 +1897,7 @@ function installFinalInvoiceRules(){
         setTimeout(() => {
           const rows = document.querySelectorAll('#preview-invoice-lines tr[data-sheet-row]');
           if (rows.length) {
-            const lastDesc = rows[rows.length - 1].querySelector('.sheet-desc-input');
+            const lastDesc = rows[rows.length - 1].querySelector('.sheet-desc-select');
             if (lastDesc) lastDesc.focus();
           }
         }, 50);
@@ -1839,7 +1925,7 @@ function installFinalInvoiceRules(){
         setTimeout(() => {
           const rows = document.querySelectorAll('#preview-invoice-lines tr[data-sheet-row]');
           if (rows.length) {
-            const lastDesc = rows[rows.length - 1].querySelector('.sheet-desc-input');
+            const lastDesc = rows[rows.length - 1].querySelector('.sheet-desc-select');
             if (lastDesc) lastDesc.focus();
           }
         }, 50);
