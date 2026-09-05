@@ -1,232 +1,142 @@
-/* Invoice form data is driven by ข้อมูลสร้างใบแจ้งหนี้.txt. */
+/* Invoice form data is driven by ข้อมูลสร้างใบแจ้งหนี้.txt & Master Data. */
 (() => {
   const CUSTOM_KEY = 'scenery-invoice-custom-items';
   const clean = value => String(value ?? '').replace(/\t+/g, ' ').replace(/\s+/g, ' ').trim();
   const numberFrom = value => Number(String(value ?? '').replace(/,/g, '')) || 0;
   const escapeHtml = value => String(value ?? '').replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
 
-  function parseItem(line) {
-    let name = clean(line);
-    if (!name || /^มีรายการ/.test(name)) return null;
-    let rate = 0;
-    let price = name.match(/\s+ราคา\s*([\d,]+(?:\.\d+)?)\s*(?:บาท|Bath|Baht)?\s*$/i);
-    if (!price) price = name.match(/\s+([\d,]+(?:\.\d+)?)\s*(?:บาท|Bath|Baht)?\s*$/i);
-    if (price) {
-      rate = numberFrom(price[1]);
-      name = name.slice(0, price.index).trim();
-    }
-    name = name.replace(/\s*(?:เด้งราคา|เพิ่มราคา|เด้ง)\b/g, '').replace(/\s{2,}/g, ' ').trim();
-    return name ? { name, rate } : null;
+  function normalizeCategory(c) {
+    return String(c || '')
+      .toLowerCase()
+      .replace(/[_\s\-\/&]+/g, '')
+      .replace(/[^a-z0-9\u0E00-\u0E7F]/gi, '')
+      .trim();
   }
 
-  function parseSource(text) {
-    const result = { accommodation: [], addon: [] };
-    let family = '';
-    let category = '';
-    String(text || '').replace(/^\uFEFF/, '').split(/\r?\n/).forEach(rawLine => {
-      const line = clean(rawLine);
-      if (!line) return;
-      const heading = line.match(/^หัวข้อ\s+(.+)$/);
-      if (heading) { family = heading[1]; category = ''; return; }
-      const categoryMatch = line.match(/^หมวด\s+(.+)$/);
-      if (categoryMatch) {
-        category = clean(categoryMatch[1]);
-        const target = /^Accommodation/i.test(family) ? result.accommodation : result.addon;
-        if (!target.some(item => item.category === category)) target.push({ category, items: [] });
-        return;
+  function isMatchingCategory(itemCat, selectedCat, item) {
+    const nItem = normalizeCategory(itemCat);
+    const nSel = normalizeCategory(selectedCat);
+    if (!nSel) return false;
+    if (nItem === nSel) return true;
+    
+    // Accommodation / Villa matching:
+    const isAccSel = /^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel) || /^(bathtub|jacuzzi)/i.test(nSel);
+    const isAccItem = item?.type === 'accommodation' || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem) || Boolean(item?.villa);
+    
+    if (isAccSel && isAccItem) {
+      if (/^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel)) {
+        if (item?.villa || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem)) return true;
       }
-      if (!category) return;
-      const parsed = parseItem(line);
-      if (!parsed) return;
-      const target = /^Accommodation/i.test(family) ? result.accommodation : result.addon;
-      const bucket = target.find(item => item.category === category);
-      if (bucket && !bucket.items.some(item => item.name === parsed.name)) bucket.items.push({ ...parsed, category });
-    });
-    return result;
-  }
-
-  function readCustom() {
-    try {
-      const value = JSON.parse(localStorage.getItem(CUSTOM_KEY) || '[]');
-      return Array.isArray(value) ? value : [];
-    } catch { return []; }
-  }
-
-  function saveCustom(items) {
-    try { localStorage.setItem(CUSTOM_KEY, JSON.stringify(items)); } catch {}
-  }
-
-  function flatten(data) {
-    return Object.values(data).flatMap(groups => groups.flatMap(group => group.items.map(item => ({ ...item }))));
-  }
-
-  function mergeCustom(data) {
-    const custom = readCustom();
-    custom.forEach(item => {
-      const groups = data[item.type] || [];
-      let bucket = groups.find(group => group.category === item.category);
-      if (!bucket) { bucket = { category: item.category, items: [] }; groups.push(bucket); }
-      if (!bucket.items.some(existing => existing.name === item.name)) bucket.items.push({ name: item.name, rate: numberFrom(item.rate), category: item.category, custom: true });
-    });
-  }
-
-  function optionList(group) {
-    return group.map(item => `<option value="${escapeHtml(item.name)}">${escapeHtml(item.name)}${item.rate ? ` — ${item.rate.toLocaleString('th-TH')}` : ''}</option>`).join('');
-  }
-
-  function replaceWithClone(element) {
-    if (!element) return null;
-    const clone = element.cloneNode(true);
-    element.replaceWith(clone);
-    return clone;
-  }
-
-  function applyForm(data) {
-    const villa = document.querySelector('#villa');
-    if (villa) {
-      const numberedVillas = [
-        '02 Pangola', '03 Hamata', '04 Barbados', '05 Merino', '06 Corriedale',
-        '07 Katahdin', '08 Mulato', '010 Napier', '011 Setaria', '012 Alfalfa', '013 Rapunzel'
-      ];
-      villa.innerHTML = `<option value="">เลือก Villa / Room (ไม่ระบุก็ได้)</option>${numberedVillas.map(name => `<option value="${escapeHtml(name)}">${escapeHtml(name)}</option>`).join('')}`;
+      if (nSel.includes('bathtubdeluxe') && (nItem.includes('bathtubdeluxe') || /01\s*ruzi|07\s*katahdin/i.test(item?.name || ''))) return true;
+      if (nSel.includes('jacuzzideluxe') && (nItem.includes('jacuzzideluxe') || /04\s*barbados|04ab/i.test(item?.name || ''))) return true;
+      if (nSel === 'bathtub' && (nItem === 'bathtub' || /05\s*merino|06\s*corriedale|06\s*corredale/i.test(item?.name || ''))) return true;
+      if (nSel === 'jacuzzi' && (nItem === 'jacuzzi' || /02\s*pangola|03\s*hamata|08\s*mulato|010\s*napier|011\s*setaria|012\s*alfalfa/i.test(item?.name || ''))) return true;
     }
-    const villaCode = document.querySelector('#villa-code');
-    if (villaCode) {
-      const codeOptions = [
-        'A — Rainy S', 'B — Rainy S', 'E1 — [โชว์]', 'E2 — [โชว์+สปาคกิ้งไวน์]',
-        'G1 — [Defender]', 'G2 จอง — [Range Rover]', 'G3 เจ้าของ — [Range Rover]',
-        'G5 — [08+Test Drive]', 'G6 — [08+Test Drive]'
-      ];
-      let dl = document.querySelector('#invoice-villa-code-options');
-      if (!dl) {
-        dl = document.createElement('datalist');
-        dl.id = 'invoice-villa-code-options';
-        villaCode.insertAdjacentElement('afterend', dl);
-      }
-      dl.innerHTML = codeOptions.map(c => `<option value="${escapeHtml(c)}">${escapeHtml(c)}</option>`).join('');
-      villaCode.setAttribute('list', 'invoice-villa-code-options');
+    
+    if (nSel.includes('extrabed') && nItem.includes('extrabed')) return true;
+    if (nSel.includes('complimentary') && nItem.includes('complimentary')) return true;
+    if (nSel.includes('package') && nItem.includes('package')) return true;
+    if (nSel.includes('food') && (nItem.includes('food') || nItem.includes('fnb') || nItem.includes('beverage'))) return true;
+    if (nSel.includes('bbq') && nItem.includes('bbq')) return true;
+    if ((nSel.includes('afternoon') || nSel.includes('bakery') || nSel.includes('เบเกอรี่')) && (nItem.includes('afternoon') || nItem.includes('bakery') || nItem.includes('เบเกอรี่'))) return true;
+    if (nSel.includes('minibar') && nItem.includes('minibar')) return true;
+    if (nSel.includes('souvenir') && nItem.includes('souvenir')) return true;
+    if ((nSel.includes('activit') || nSel.includes('กิจกรรม') || nSel.includes('massage') || nSel.includes('นวด')) && !nSel.includes('สุนัข') && !nSel.includes('123') && (nItem.includes('activit') || nItem.includes('massage') || nItem.includes('นวด')) && !nItem.includes('สุนัข') && !nItem.includes('123')) return true;
+    if ((nSel.includes('สุนัข') || nSel.includes('123') || nSel.includes('dog')) && (nItem.includes('สุนัข') || nItem.includes('123') || nItem.includes('dog'))) return true;
+    if ((nSel.includes('misc') || nSel.includes('other') || nSel.includes('อื่น')) && (nItem.includes('misc') || nItem.includes('other') || nItem.includes('อื่น'))) return true;
+    
+    return false;
+  }
+
+  function applyCategorySelection() {
+    const accCategorySelect = document.querySelector('#accommodation-category');
+    const accItemSelect = document.querySelector('#accommodation-select');
+    const accRateInput = document.querySelector('#accommodation-rate');
+    const accQtyInput = document.querySelector('#accommodation-qty');
+
+    const addonCategorySelect = document.querySelector('#addon-category');
+    const addonItemSelect = document.querySelector('#addon-select');
+    const addonRateInput = document.querySelector('#addon-rate');
+    const addonQtyInput = document.querySelector('#addon-qty');
+
+    // Remove old search inputs or datalists that hid the select
+    document.querySelectorAll('#accommodation-search, #accommodation-options, #addon-search, #addon-options, #accommodation-item-input, #accommodation-source-options, #addon-item-input, #addon-source-options').forEach(el => el.remove());
+
+    const accItems = (window.DATA_MASTER?.accommodationItems || []).map((it, idx) => ({ ...it, _idx: idx }));
+    const addonItems = (window.DATA_MASTER?.addonItems || []).map((it, idx) => ({ ...it, _idx: idx }));
+
+    if (accCategorySelect && (!accCategorySelect.options.length || accCategorySelect.options.length <= 1)) {
+      accCategorySelect.innerHTML = `
+        <option value="">เลือกหมวด</option>
+        <option value="Accommodation">Accommodation (วิลล่า/ห้องพัก)</option>
+        <option value="Extra Bed">Extra Bed (เตียงเสริม)</option>
+        <option value="Complimentary">Complimentary (อภินันทนาการ)</option>
+        <option value="Package">Package (แพ็กเกจ)</option>
+      `;
     }
 
-    const configs = [
-      { type: 'accommodation', categoryId: 'accommodation-category', selectId: 'accommodation-select', rateId: 'accommodation-rate', qtyId: 'accommodation-qty', source: data.accommodation },
-      { type: 'addon', categoryId: 'addon-category', selectId: 'addon-select', rateId: 'addon-rate', qtyId: 'addon-qty', source: data.addon }
-    ];
-    configs.forEach(config => {
-      let categoryEl = replaceWithClone(document.querySelector(`#${config.categoryId}`));
-      const oldSelect = document.querySelector(`#${config.selectId}`);
-      document.querySelectorAll(`#${config.type}-search, #${config.type}-options`).forEach(element => element.remove());
-      if (!categoryEl || !oldSelect) return;
-      categoryEl.innerHTML = `<option value="">เลือกหมวด</option>${config.source.map(group => `<option value="${escapeHtml(group.category)}">${escapeHtml(group.category)}</option>`).join('')}`;
+    if (addonCategorySelect && (!addonCategorySelect.options.length || addonCategorySelect.options.length <= 1)) {
+      addonCategorySelect.innerHTML = `
+        <option value="">เลือกหมวด</option>
+        <option value="Food & Beverage">Food & Beverage (อาหารและเครื่องดื่ม)</option>
+        <option value="BBQ">BBQ (บาร์บีคิว)</option>
+        <option value="Afternoon Tea">Afternoon Tea (ชุดน้ำชา)</option>
+        <option value="เครื่องดื่มและเบเกอรี่">เครื่องดื่มและเบเกอรี่</option>
+        <option value="Minibar">Minibar (มินิบาร์และของใช้)</option>
+        <option value="Souvenir">Souvenir (ของที่ระลึก)</option>
+        <option value="Activities">Activities (กิจกรรมและสปา)</option>
+        <option value="กิจกรรมชมสุนัขที่123ไร่">กิจกรรมชมสุนัขที่ 123 ไร่</option>
+        <option value="Miscellaneous">Miscellaneous (อื่น ๆ)</option>
+      `;
+    }
 
-      const itemInput = document.createElement('input');
-      itemInput.id = `${config.type}-item-input`;
-      itemInput.className = 'invoice-item-input';
-      itemInput.type = 'text';
-      itemInput.setAttribute('list', `${config.type}-source-options`);
-      itemInput.placeholder = 'เลือกหรือพิมพ์รายการใหม่';
-      itemInput.autocomplete = 'off';
-      oldSelect.replaceWith(itemInput);
-      const datalist = document.createElement('datalist');
-      datalist.id = `${config.type}-source-options`;
-      itemInput.insertAdjacentElement('afterend', datalist);
-      const rateEl = document.querySelector(`#${config.rateId}`);
-      const qtyEl = document.querySelector(`#${config.qtyId}`);
-      const button = replaceWithClone(document.querySelector(`#add-${config.type}`));
+    function setupGroup(categoryEl, selectEl, rateEl, qtyEl, items, type) {
+      if (!categoryEl || !selectEl) return;
+      selectEl.hidden = false;
+      selectEl.style.display = '';
 
-      const selectedGroup = () => config.source.find(group => group.category === categoryEl.value);
-      const refreshItems = () => {
-        const group = selectedGroup();
-        itemInput.value = '';
+      const onCategoryChange = () => {
+        const cat = categoryEl.value;
+        if (!cat) {
+          selectEl.innerHTML = '<option value="">เลือกหมวดก่อน</option>';
+          selectEl.disabled = true;
+          if (rateEl) rateEl.value = '';
+          return;
+        }
+        const matches = items.filter(it => isMatchingCategory(it.category, cat, it));
+        selectEl.innerHTML = `<option value="">-- เลือกรายการในหมวด (${matches.length} รายการ) --</option>` +
+          matches.map(it => `<option value="${it._idx}" data-rate="${it.rate || 0}" data-name="${escapeHtml(it.name)}" data-cat="${escapeHtml(it.category)}">${escapeHtml(it.name)}${it.rate ? ` (฿${Number(it.rate).toLocaleString('th-TH')})` : ''}</option>`).join('');
+        selectEl.disabled = matches.length === 0;
         if (rateEl) rateEl.value = '';
-        datalist.innerHTML = group ? optionList(group.items) : '';
-        itemInput.disabled = !group;
-        itemInput.placeholder = group ? 'เลือกหรือพิมพ์รายการใหม่' : 'เลือกหมวดก่อน';
       };
-      const fillKnownRate = () => {
-        const group = selectedGroup();
-        const item = group?.items.find(entry => entry.name.toLowerCase() === itemInput.value.trim().toLowerCase());
-        if (item && rateEl) {
-          rateEl.value = item.rate || '';
-        } else if (rateEl && !rateEl.value && /ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(itemInput.value) && /atv|100/i.test(itemInput.value)) {
-          rateEl.value = '100';
+
+      const onItemChange = () => {
+        const opt = selectEl.options[selectEl.selectedIndex];
+        if (opt && opt.value !== '') {
+          const rate = opt.dataset.rate || 0;
+          if (rateEl) rateEl.value = rate;
+        } else {
+          if (rateEl) rateEl.value = '';
         }
       };
-      categoryEl.addEventListener('change', refreshItems);
-      itemInput.addEventListener('input', fillKnownRate);
-      itemInput.addEventListener('change', fillKnownRate);
-      button?.addEventListener('click', event => {
-        event.preventDefault();
-        const group = selectedGroup();
-        const name = itemInput.value.trim();
-        if (!group) { showToast('กรุณาเลือกหมวดก่อนเพิ่มรายการ', 'error'); return; }
-        if (!name) { showToast('กรุณาเลือกรายการหรือพิมพ์รายการใหม่ก่อนเพิ่ม', 'error'); return; }
-        let item = group.items.find(entry => entry.name.toLowerCase() === name.toLowerCase());
-        if (!item) {
-          const defaultRate = (/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(name) && /atv|100/i.test(name)) ? 100 : numberFrom(rateEl?.value);
-          item = { name, rate: defaultRate, category: group.category, custom: true };
-          group.items.push(item);
-          const custom = readCustom().filter(entry => !(entry.type === config.type && entry.category === group.category && entry.name.toLowerCase() === name.toLowerCase()));
-          custom.push({ type: config.type, category: group.category, name, rate: item.rate });
-          saveCustom(custom);
-          datalist.innerHTML = optionList(group.items);
-        }
-        const amount = numberFrom(rateEl?.value || item.rate);
-        const lines = window.sceneryAppState?.invoiceLines;
-        if (!lines) return;
-        const qty = Math.max(1, numberFrom(qtyEl?.value || 1));
-        const isBasket100 = (/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(item.name)) && (amount === 100 || /100/.test(item.name) || /atv/i.test(item.name));
-        const initialDiscount = isBasket100 ? (amount * qty) : 0;
-        lines.push({ type: config.type, name: item.name, category: group.category, sourceIndex: null, rate: amount, deposit: 0, depositMethod: 'เงินสด', qty, discountRate: 0, discountAmount: initialDiscount, pendingCollection: 0, pendingNote: '' });
-        categoryEl.value = '';
-        itemInput.value = '';
-        if (rateEl) rateEl.value = '';
-        if (qtyEl) qtyEl.value = '1';
-        refreshItems();
-        if (typeof renderFormLines === 'function') renderFormLines();
-        if (typeof calculateInvoice === 'function') calculateInvoice();
-        showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`);
-      });
-      refreshItems();
-    });
-  }
 
-  async function load() {
-    try {
-      const response = await fetch(`invoice-source.txt?v=${Date.now()}`, { cache: 'no-store' });
-      if (response.ok) {
-        const text = await response.text();
-        const data = parseSource(text);
-        mergeCustom(data);
-        window.INVOICE_SOURCE_DATA = data;
-        applyForm(data);
-        return;
+      categoryEl.onchange = onCategoryChange;
+      selectEl.onchange = onItemChange;
+      if (categoryEl.value) {
+        onCategoryChange();
       }
-    } catch (e) {}
-
-    // Graceful fallback from window.DATA or custom items
-    try {
-      const custom = readCustom();
-      const fallbackData = { accommodation: [], addon: [] };
-      if (window.DATA?.villas) {
-        fallbackData.accommodation.push({
-          category: 'Villa / Room',
-          items: window.DATA.villas.map(v => ({ name: v.name, rate: v.rate || 0, category: 'Accommodation' }))
-        });
-      }
-      if (window.DATA?.items) {
-        fallbackData.addon.push({
-          category: 'สินค้าและบริการ',
-          items: window.DATA.items.map(i => ({ name: i.name, rate: i.rate || 0, category: i.category || 'General' }))
-        });
-      }
-      mergeCustom(fallbackData);
-      window.INVOICE_SOURCE_DATA = fallbackData;
-      applyForm(fallbackData);
-    } catch (err) {
-      console.warn('Invoice form initialized with default controls');
     }
+
+    setupGroup(accCategorySelect, accItemSelect, accRateInput, accQtyInput, accItems, 'accommodation');
+    setupGroup(addonCategorySelect, addonItemSelect, addonRateInput, addonQtyInput, addonItems, 'addon');
   }
 
-  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', load, { once: true });
-  else load();
+  window.installInvoiceCategoryFirstSelection = applyCategorySelection;
+  window.isMatchingCategory = isMatchingCategory;
+
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', applyCategorySelection);
+  } else {
+    applyCategorySelection();
+  }
 })();

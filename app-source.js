@@ -671,7 +671,9 @@ function openCloseRoundManualSplitModal() {
 }
 let settlementRows=[],pendingCollectionRows=[];
 function installDepositHeaders(){document.querySelectorAll('#view-invoice .invoice-line-group thead tr').forEach(row=>{if(row.querySelector('.deposit-column'))return;const header=document.createElement('th');header.className='deposit-column align-right';header.textContent='Deposit';row.insertBefore(header,row.children[4]||null)})}
-function installSearchableItemFields(){[{id:'accommodation-select',prefix:'accommodation',type:'accommodation'},{id:'addon-select',prefix:'addon',type:'addon'}].forEach(({id,prefix,type})=>{const select=$(`#${id}`);if(!select||$(`#${prefix}-search`))return;const input=document.createElement('input');input.type='text';input.id=`${prefix}-search`;input.className='invoice-search-input';input.setAttribute('list',`${prefix}-options`);input.setAttribute('inputmode','search');input.dataset.source=id;input.autocomplete='off';input.placeholder='';const list=document.createElement('datalist');list.id=`${prefix}-options`;[...select.options].slice(1).forEach(option=>{const item=document.createElement('option');item.value=option.textContent;list.appendChild(item)});select.options[0].textContent='';select.hidden=true;select.insertAdjacentElement('beforebegin',input);select.insertAdjacentElement('afterend',list);const choose=()=>{const value=input.value.trim().toLowerCase(),option=[...select.options].slice(1).find(o=>o.textContent.trim().toLowerCase()===value);select.value=option?option.value:'';if(option){fillRate(type);select.dispatchEvent(new Event('change',{bubbles:true}))}else{const rate=$(`#${prefix}-rate`);if(rate)rate.value=''}};input.addEventListener('input',choose);input.addEventListener('change',choose)});}
+function installSearchableItemFields(){
+  // Category-first workflow preserves standard select dropdowns for Accommodation and Add-ons
+}
 function installPreviewPaymentMeta(){
   const meta=$('#invoice-preview-sheet .preview-meta');
   if(!meta||$('#preview-payment-method'))return;
@@ -4846,7 +4848,8 @@ function buildInvoiceWorkspace(){
   const view=$('#view-invoice');
   if(!view)return;
   const villaMarkup=[...new Map(villaOptions.filter(v=>v?.name).map(v=>[v.name,v])).values()].map(v=>`<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
-  const categoryOptions=items=>[...new Set(items.map(item=>cleanEnglishText(item.category)).filter(Boolean))].map(category=>`<option value="${esc(category)}">${esc(category)}</option>`).join('');
+  const accCategoryMarkup=`<option value="">เลือกหมวด</option><option value="Accommodation">Accommodation (วิลล่า/ห้องพัก)</option><option value="Extra Bed">Extra Bed (เตียงเสริม)</option><option value="Complimentary">Complimentary (อภินันทนาการ)</option><option value="Package">Package (แพ็กเกจ)</option>`;
+  const addonCategoryMarkup=`<option value="">เลือกหมวด</option><option value="Food & Beverage">Food & Beverage (อาหารและเครื่องดื่ม)</option><option value="BBQ">BBQ (บาร์บีคิว)</option><option value="Afternoon Tea">Afternoon Tea (ชุดน้ำชา)</option><option value="เครื่องดื่มและเบเกอรี่">เครื่องดื่มและเบเกอรี่</option><option value="Minibar">Minibar (มินิบาร์และของใช้)</option><option value="Souvenir">Souvenir (ของที่ระลึก)</option><option value="Activities">Activities (กิจกรรมและสปา)</option><option value="กิจกรรมชมสุนัขที่123ไร่">กิจกรรมชมสุนัขที่ 123 ไร่</option><option value="Miscellaneous">Miscellaneous (อื่น ๆ)</option>`;
   const aOptions=accommodationItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
   const bOptions=addonItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
   view.innerHTML=`
@@ -4955,8 +4958,8 @@ function buildInvoiceWorkspace(){
           <article class="panel invoice-entry-card invoice-lines-card">
             <div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">list_alt</span></span><h3>รายการในใบแจ้งหนี้</h3></div><span class="required-note">เลือกลำดับ หมวด → รายการ</span></div>
             <div class="invoice-add-grid">
-              <div class="invoice-add-box"><h4>Accommodation &amp; Inclusive Package</h4><div class="invoice-add-fields category-first-fields"><select id="accommodation-category" class="invoice-category-select"><option value="">เลือกหมวด</option>${categoryOptions(accommodationItems)}</select><select id="accommodation-select" disabled><option value="">เลือกรายการในหมวด</option>${aOptions}</select><input id="accommodation-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="accommodation-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวน Accommodation"><button class="button button-primary" id="add-accommodation" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
-              <div class="invoice-add-box"><h4>Food and Beverages (add-on) and Other Expenses</h4><div class="invoice-add-fields category-first-fields"><select id="addon-category" class="invoice-category-select"><option value="">เลือกหมวด</option>${categoryOptions(addonItems)}</select><select id="addon-select" disabled><option value="">เลือกรายการในหมวด</option>${bOptions}</select><input id="addon-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="addon-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวนค่าใช้จ่ายทั่วไป"><button class="button button-primary" id="add-addon" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
+              <div class="invoice-add-box"><h4>Accommodation &amp; Inclusive Package</h4><div class="invoice-add-fields category-first-fields"><select id="accommodation-category" class="invoice-category-select">${accCategoryMarkup}</select><select id="accommodation-select" disabled><option value="">เลือกหมวดก่อน</option></select><input id="accommodation-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="accommodation-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวน Accommodation"><button class="button button-primary" id="add-accommodation" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
+              <div class="invoice-add-box"><h4>Food and Beverages (add-on) and Other Expenses</h4><div class="invoice-add-fields category-first-fields"><select id="addon-category" class="invoice-category-select">${addonCategoryMarkup}</select><select id="addon-select" disabled><option value="">เลือกหมวดก่อน</option></select><input id="addon-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="addon-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวนค่าใช้จ่ายทั่วไป"><button class="button button-primary" id="add-addon" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
             </div>
             <section class="invoice-line-group">
               <div class="line-group-heading" style="display:flex;align-items:center;justify-content:space-between;width:100%;">
@@ -5011,6 +5014,48 @@ function buildInvoiceWorkspace(){
   installHeaderEditableSync();
 }
 
+function normalizeCategoryKey(c) {
+  return String(c || '')
+    .toLowerCase()
+    .replace(/[_\s\-\/&]+/g, '')
+    .replace(/[^a-z0-9\u0E00-\u0E7F]/gi, '')
+    .trim();
+}
+
+function isInvoiceMatchingCategory(itemCat, selectedCat, item) {
+  const nItem = normalizeCategoryKey(itemCat);
+  const nSel = normalizeCategoryKey(selectedCat);
+  if (!nSel) return false;
+  if (nItem === nSel) return true;
+  
+  const isAccSel = /^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel) || /^(bathtub|jacuzzi)/i.test(nSel);
+  const isAccItem = item?.type === 'accommodation' || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem) || Boolean(item?.villa);
+  
+  if (isAccSel && isAccItem) {
+    if (/^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel)) {
+      if (item?.villa || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem)) return true;
+    }
+    if (nSel.includes('bathtubdeluxe') && (nItem.includes('bathtubdeluxe') || /01\s*ruzi|07\s*katahdin/i.test(item?.name || ''))) return true;
+    if (nSel.includes('jacuzzideluxe') && (nItem.includes('jacuzzideluxe') || /04\s*barbados|04ab/i.test(item?.name || ''))) return true;
+    if (nSel === 'bathtub' && (nItem === 'bathtub' || /05\s*merino|06\s*corriedale|06\s*corredale/i.test(item?.name || ''))) return true;
+    if (nSel === 'jacuzzi' && (nItem === 'jacuzzi' || /02\s*pangola|03\s*hamata|08\s*mulato|010\s*napier|011\s*setaria|012\s*alfalfa/i.test(item?.name || ''))) return true;
+  }
+  
+  if (nSel.includes('extrabed') && nItem.includes('extrabed')) return true;
+  if (nSel.includes('complimentary') && nItem.includes('complimentary')) return true;
+  if (nSel.includes('package') && nItem.includes('package')) return true;
+  if (nSel.includes('food') && (nItem.includes('food') || nItem.includes('fnb') || nItem.includes('beverage'))) return true;
+  if (nSel.includes('bbq') && nItem.includes('bbq')) return true;
+  if ((nSel.includes('afternoon') || nSel.includes('bakery') || nSel.includes('เบเกอรี่')) && (nItem.includes('afternoon') || nItem.includes('bakery') || nItem.includes('เบเกอรี่'))) return true;
+  if (nSel.includes('minibar') && nItem.includes('minibar')) return true;
+  if (nSel.includes('souvenir') && nItem.includes('souvenir')) return true;
+  if ((nSel.includes('activit') || nSel.includes('กิจกรรม') || nSel.includes('massage') || nSel.includes('นวด')) && !nSel.includes('สุนัข') && !nSel.includes('123') && (nItem.includes('activit') || nItem.includes('massage') || nItem.includes('นวด')) && !nItem.includes('สุนัข') && !nItem.includes('123')) return true;
+  if ((nSel.includes('สุนัข') || nSel.includes('123') || nSel.includes('dog')) && (nItem.includes('สุนัข') || nItem.includes('123') || nItem.includes('dog'))) return true;
+  if ((nSel.includes('misc') || nSel.includes('other') || nSel.includes('อื่น')) && (nItem.includes('misc') || nItem.includes('other') || nItem.includes('อื่น'))) return true;
+  
+  return false;
+}
+
 /* Invoice item flow: category first, then only the items in that category. */
 function installInvoiceCategoryFirstSelection(){
   const configs=[
@@ -5019,26 +5064,51 @@ function installInvoiceCategoryFirstSelection(){
   ];
   configs.forEach(config=>{
     const categoryEl=$(`#${config.categoryId}`),select=$(`#${config.selectId}`),rateEl=$(`#${config.rateId}`),qtyEl=$(`#${config.qtyId}`);
-    if(!categoryEl||!select||select.dataset.categoryFirstReady)return;
-    select.dataset.categoryFirstReady='true';
-    document.querySelectorAll(`#${config.type}-search, #${config.type}-options`).forEach(element=>element.remove());
+    if(!categoryEl||!select)return;
+    document.querySelectorAll(`#${config.type}-search, #${config.type}-options, #${config.type}-item-input, #${config.type}-source-options`).forEach(element=>element.remove());
     select.hidden=false;
+    select.style.display='';
     const renderItems=()=>{
       const category=categoryEl.value;
-      const matches=config.items.map((item,index)=>({item,index})).filter(({item})=>cleanEnglishText(item.category)===category);
-      select.innerHTML=`<option value="">${category?'เลือกรายการในหมวดนี้':'เลือกหมวดก่อน'}</option>${matches.map(({item,index})=>`<option value="${index}">${esc(item.name)}</option>`).join('')}`;
-      select.disabled=!category||!matches.length;
+      if(!category){
+        select.innerHTML='<option value="">เลือกหมวดก่อน</option>';
+        select.disabled=true;
+        if(rateEl)rateEl.value='';
+        return;
+      }
+      const matches=config.items.map((item,index)=>({item,index})).filter(({item})=>isInvoiceMatchingCategory(item.category,category,item));
+      select.innerHTML=`<option value="">-- เลือกรายการในหมวด (${matches.length} รายการ) --</option>${matches.map(({item,index})=>`<option value="${index}" data-rate="${item.rate||0}" data-name="${esc(item.name)}" data-cat="${esc(item.category)}">${esc(item.name)}${item.rate?` (฿${Number(item.rate).toLocaleString('th-TH')})`:''}</option>`).join('')}`;
+      select.disabled=!matches.length;
       if(rateEl)rateEl.value='';
     };
     categoryEl.addEventListener('change',renderItems);
-    select.addEventListener('change',()=>fillRate(config.type));
-    renderItems();
+    select.addEventListener('change',()=>{
+      const opt=select.options[select.selectedIndex];
+      if(opt&&opt.value!==''){
+        const item=config.items[Number(opt.value)];
+        if(rateEl)rateEl.value=(item&&item.rate!==undefined)?item.rate:(opt.dataset.rate||'');
+      }else{
+        if(rateEl)rateEl.value='';
+      }
+    });
+    if(categoryEl.value)renderItems();
   });
   addLine=function(type){
-    const config=configs.find(item=>item.type===type),categoryEl=$(`#${config.categoryId}`),select=$(`#${config.selectId}`),rateEl=$(`#${config.rateId}`),qtyEl=$(`#${config.qtyId}`),item=select?.value===''?null:config.items[Number(select?.value)];
+    const config=configs.find(item=>item.type===type);
+    if(!config)return;
+    const categoryEl=$(`#${config.categoryId}`),select=$(`#${config.selectId}`),rateEl=$(`#${config.rateId}`),qtyEl=$(`#${config.qtyId}`);
+    const opt=select?.options[select?.selectedIndex];
+    const itemIndex=Number(select?.value);
+    const item=Number.isInteger(itemIndex)&&config.items[itemIndex]?config.items[itemIndex]:null;
     if(!categoryEl?.value){showToast('กรุณาเลือกหมวดก่อนเลือกรายการ','error');return}
-    if(!item){showToast('กรุณาเลือกรายการในหมวดก่อนเพิ่ม','error');return}
-    state.invoiceLines.push({type,name:item.name,category:cleanEnglishText(item.category),sourceIndex:Number(select.value),rate:Math.max(0,Number(rateEl?.value||item.rate||0)),deposit:0,depositMethod:'เงินสด',qty:Math.max(1,Number(qtyEl?.value||1)),discountRate:0,discountAmount:0,pendingCollection:0,pendingNote:''});
+    if(!item&&(!opt||!opt.dataset.name)){showToast('กรุณาเลือกรายการในหมวดก่อนเพิ่ม','error');return}
+    const name=opt?.dataset.name||item?.name||'';
+    const category=opt?.dataset.cat||item?.category||categoryEl.value;
+    const rate=Math.max(0,Number(rateEl?.value??item?.rate??0));
+    const qty=Math.max(1,Number(qtyEl?.value||1));
+    const isBasket100=(/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(name))&&(rate===100||/100/.test(name)||/atv/i.test(name));
+    const initialDiscount=isBasket100?(rate*qty):0;
+    state.invoiceLines.push({type,name,category,sourceIndex:Number.isInteger(itemIndex)?itemIndex:null,rate,deposit:0,depositMethod:'เงินสด',qty,discountRate:0,discountAmount:initialDiscount,pendingCollection:0,pendingNote:''});
     categoryEl.value='';
     select.innerHTML='<option value="">เลือกหมวดก่อน</option>';
     select.value='';
@@ -5047,7 +5117,8 @@ function installInvoiceCategoryFirstSelection(){
     if(qtyEl)qtyEl.value='1';
     renderFormLines();
     if(typeof calculateInvoice==='function')calculateInvoice();
-    showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`);
+    if(typeof renderInvoicePreview==='function')renderInvoicePreview();
+    showToast(`เพิ่ม ${name} ลงในใบแจ้งหนี้แล้ว`);
   };
 }
 document.addEventListener('DOMContentLoaded',installInvoiceCategoryFirstSelection);
