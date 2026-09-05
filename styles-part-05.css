@@ -430,3 +430,264 @@
   }
 }
 
+/* Interactive Direct INFO BILL Sheet Editor */
+.sheet-input, .sheet-select {
+  font-family: inherit;
+  font-size: 11px;
+  color: #2c1a0e;
+  border: 1px solid transparent;
+  border-radius: 4px;
+  padding: 2px 4px;
+  background: transparent;
+  transition: all 0.15s ease;
+  width: 100%;
+  box-sizing: border-box;
+}
+.sheet-input:hover, .sheet-select:hover {
+  background: rgba(56, 141, 160, 0.08);
+  border-color: rgba(56, 141, 160, 0.35);
+}
+.sheet-input:focus, .sheet-select:focus {
+  background: #fff;
+  border-color: #388da0;
+  box-shadow: 0 0 0 2px rgba(56, 141, 160, 0.2);
+  outline: none;
+}
+.sheet-qty-wrap {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 2px;
+}
+.sheet-qty-btn {
+  width: 18px;
+  height: 18px;
+  line-height: 16px;
+  padding: 0;
+  border: 1px solid #d0c4b8;
+  background: #fdfbf9;
+  border-radius: 3px;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 700;
+  color: #5a331c;
+}
+.sheet-qty-btn:hover {
+  background: #ede6df;
+  border-color: #a47650;
+}
+.sheet-qty-input {
+  width: 32px;
+  text-align: center;
+  font-weight: 700;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 11px;
+}
+.sheet-desc-wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+.sheet-desc-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 11px;
+  font-weight: 600;
+  color: #2c1a0e;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.sheet-desc-input:hover {
+  border-color: rgba(56, 141, 160, 0.35);
+  background: rgba(56, 141, 160, 0.08);
+}
+.sheet-desc-input:focus {
+  border-color: #388da0;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(56, 141, 160, 0.2);
+  outline: none;
+}
+.sheet-cell-select {
+  font-family: inherit;
+  font-size: 11px;
+  padding: 2px 4px;
+  border-radius: 4px;
+  border: 1px solid transparent;
+  background: transparent;
+  width: 100%;
+  cursor: pointer;
+}
+.sheet-cell-select:hover {
+  border-color: rgba(56, 141, 160, 0.35);
+  background: rgba(56, 141, 160, 0.08);
+}
+.sheet-cell-select:focus {
+  border-color: #388da0;
+  background: #fff;
+  outline: none;
+}
+.sheet-villa-badge {
+  display: flex;
+  align-items: center;
+  gap: 3px;
+  font-size: 10px;
+  margin-top: 2px;
+}
+.sheet-villa-badge .material-symbols-outlined {
+  font-size: 13px;
+  color: #8a5433;
+}
+.sheet-line-villa-select {
+  font-size: 10.5px;
+  padding: 1px 4px;
+  border: 1px solid #e0d5cb;
+  border-radius: 3px;
+  background: #fdfbf9;
+  color: #6a4023;
+  max-width: 160px;
+  cursor: pointer;
+}
+.sheet-rate-input, .sheet-deposit-input, .sheet-discount-input {
+  width: 100%;
+  border: 1px solid transparent;
+  background: transparent;
+  font-size: 11px;
+  text-align: right;
+  padding: 2px 4px;
+  border-radius: 4px;
+}
+.sheet-rate-input:hover, .sheet-deposit-input:hover, .sheet-discount-input:hover {
+  border-color: rgba(56, 141, 160, 0.35);
+  background: rgba(56, 141, 160, 0.08);
+}
+.sheet-rate-input:focus, .sheet-deposit-input:focus, .sheet-discount-input:focus {
+  border-color: #388da0;
+  background: #fff;
+  box-shadow: 0 0 0 2px rgba(56, 141, 160, 0.2);
+  outline: none;
+}
+.sheet-total-wrap {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+}
+.sheet-delete-line-btn {
+  background: none;
+  border: none;
+  cursor: pointer;
+  color: #c62828;
+  padding: 2px;
+  opacity: 0.6;
+  transition: opacity 0.15s ease;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.sheet-delete-line-btn:hover {
+  opacity: 1;
+}
+.sheet-delete-line-btn .material-symbols-outlined {
+  font-size: 15px;
+}
+.sheet-action-row td {
+  padding: 8px 10px !important;
+  background: #fbf9f6 !important;
+  border-top: 1px dashed #d5c8bb !important;
+}
+.sheet-add-bar {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+.sheet-quick-pick {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: auto;
+}
+.sheet-quick-pick select {
+  font-size: 11.5px;
+  padding: 4px 8px;
+  border-radius: 6px;
+  border: 1px solid #388da0;
+  background: #fff;
+  color: #1a5666;
+  font-weight: 600;
+  cursor: pointer;
+}
+.preview-settlement-bar {
+  margin-top: 16px;
+  padding: 14px 18px;
+  background: #f8fafc;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+}
+.settlement-bar-heading {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: #1e4f7a;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+.settlement-bar-inputs {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+.sheet-bar-select, .sheet-bar-input {
+  padding: 6px 10px;
+  border-radius: 6px;
+  border: 1px solid #cbd5e1;
+  background: #fff;
+  font-size: 12px;
+}
+.settlement-cashier-wrap {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-left: auto;
+  font-size: 12px;
+  font-weight: 600;
+}
+.sheet-payment-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 10px;
+}
+.sheet-print-text {
+  display: none;
+}
+
+@media print {
+  .screen-only,
+  .sheet-qty-btn,
+  .sheet-delete-line-btn,
+  .sheet-add-bar,
+  .preview-settlement-bar,
+  .sheet-villa-badge,
+  .preview-toolbar,
+  .invoice-page-tabs,
+  .sheet-quick-pick {
+    display: none !important;
+  }
+  .sheet-print-text {
+    display: inline !important;
+  }
+  .sheet-input,
+  .sheet-select,
+  .sheet-cell-select,
+  .sheet-qty-input,
+  .sheet-desc-input,
+  .sheet-rate-input,
+  .sheet-deposit-input,
+  .sheet-discount-input {
+    display: none !important;
+  }
+}

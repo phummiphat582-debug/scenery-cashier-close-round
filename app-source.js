@@ -347,17 +347,17 @@ function renderInvoicePreview(){if(!$('#invoice-preview-sheet'))return;const s=i
 function fillRate(type){const select=type==='accommodation'?$('#accommodation-select'):$('#addon-select'),input=type==='accommodation'?$('#accommodation-rate'):$('#addon-rate'),items=type==='accommodation'?accommodationItems:addonItems,item=items[Number(select?.value)];if(input)input.value=item?.rate||0}
 function addLine(type){const select=type==='accommodation'?$('#accommodation-select'):$('#addon-select'),rateEl=type==='accommodation'?$('#accommodation-rate'):$('#addon-rate'),qtyEl=type==='accommodation'?$('#accommodation-qty'):$('#addon-qty'),items=type==='accommodation'?accommodationItems:addonItems,item=items[Number(select?.value)];if(!item){showToast('กรุณาเลือกรายการก่อนเพิ่ม','error');return}state.invoiceLines.push({type,name:type==='accommodation'&&item.villa?item.villa:item.name,category:item.category,sourceIndex:Number(select.value),rate:Math.max(0,Number(rateEl?.value||0)),deposit:0,depositMethod:'เงินสด',qty:Math.max(1,Number(qtyEl?.value||1)),discountRate:0});select.value='';rateEl.value='';qtyEl.value='1';const search=$(`#${type==='accommodation'?'accommodation':'addon'}-search`);if(search)search.value='';renderFormLines();showToast(`เพิ่ม ${item.name} ลงในใบแจ้งหนี้แล้ว`)}
 function closeInvoice(){
-  const customer=($('#customer')?.value||'').trim();
+  const customer=($('#preview-sheet-customer')?.value||$('#customer')?.value||'').trim();
   if(!customer){
-    setInvoicePage('form');
     showToast('กรุณากรอกชื่อลูกค้าก่อนปิดยอด','error');
-    $('#customer')?.focus();
+    if($('#preview-sheet-customer'))$('#preview-sheet-customer').focus();
+    else $('#customer')?.focus();
     return;
   }
   openSettlementModal();
 }
-function exportPdf(){setInvoicePage('preview');setTimeout(()=>window.print(),80)}
-function resetInvoice(){state.invoiceLines=[];state.payments=[];state.invoiceClosed=false;state.itemSearch={};const defaults={folio:'',customer:'','check-in':'','check-out':'','no-of-night':'',remark:'','doc-date':'','villa':'','villa-code':'','discount-scope':'line','discount-all-rate':'0','cashier':''};Object.entries(defaults).forEach(([id,v])=>{if($(`#${id}`))$(`#${id}`).value=v});['accommodation-rate','accommodation-qty','addon-rate','addon-qty','payment-amount'].forEach(id=>{if($(`#${id}`))$(`#${id}`).value=''});$$('.invoice-search-input').forEach(input=>input.value='');$$('.invoice-search-clear').forEach(button=>button.hidden=true);renderFormLines();renderPayments();setInvoicePage('form');showToast('เริ่มใบแจ้งหนี้ใหม่แล้ว')}
+function exportPdf(){setInvoicePage('preview');renderInvoicePreview(true);setTimeout(()=>window.print(),100)}
+function resetInvoice(){state.invoiceLines=[];state.payments=[];state.invoiceClosed=false;state.itemSearch={};const defaults={folio:'',customer:'','check-in':'','check-out':'','no-of-night':'',remark:'','doc-date':'','villa':'','villa-code':'','discount-scope':'line','discount-all-rate':'0','cashier':''};Object.entries(defaults).forEach(([id,v])=>{if($(`#${id}`))$(`#${id}`).value=v});['preview-sheet-reference','preview-sheet-reference-meta','preview-sheet-customer','preview-sheet-villa','preview-sheet-check-in','preview-sheet-check-out','preview-sheet-nights','preview-sheet-remark','preview-sheet-doc-date','sheet-payment-amount'].forEach(id=>{if($(`#${id}`))$(`#${id}`).value=''});['accommodation-rate','accommodation-qty','addon-rate','addon-qty','payment-amount'].forEach(id=>{if($(`#${id}`))$(`#${id}`).value=''});$$('.invoice-search-input').forEach(input=>input.value='');$$('.invoice-search-clear').forEach(button=>button.hidden=true);renderFormLines();renderPayments();calculateInvoice();renderInvoicePreview(true);setInvoicePage('preview');showToast('เริ่มใบแจ้งหนี้ใหม่แล้ว')}
 function openModal(title,body,actions='<button class="button button-primary" data-close-modal>ปิดหน้าต่าง</button>'){const root=$('#modal-root');if(!root)return;root.innerHTML=`<div class="modal-backdrop"><div class="modal" role="dialog" aria-modal="true" aria-label="${esc(title)}"><div class="modal-header"><h3>${esc(title)}</h3><button class="icon-button" data-close-modal aria-label="ปิด"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body">${body}</div><div class="modal-footer">${actions}</div></div></div>`}
 function wireEvents(){
   document.addEventListener('click',event=>{
@@ -1081,28 +1081,167 @@ function installFinalInvoiceRules(){
     return `<tr><td>${esc(line.category)}</td><td><strong>${esc(line.name)}</strong>${villaSelectHtml}</td><td class="align-center"><div class="qty-control"><button type="button" data-line-index="${index}" data-qty="-1">−</button><strong>${line.qty}</strong><button type="button" data-line-index="${index}" data-qty="1">+</button></div></td><td class="align-right"><input class="line-rate" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.rate||0)}" aria-label="Rate ${esc(line.name)}"></td><td class="align-right"><div class="line-deposit-fields"><input class="line-deposit" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.deposit||0)}" aria-label="Deposit ${esc(line.name)}"><select class="line-deposit-method" data-line-index="${index}" aria-label="ช่องทาง Deposit ${esc(line.name)}">${paymentMethodOptions(line.depositMethod)}</select></div></td><td><input class="line-discount" data-line-index="${index}" type="number" min="0" step="0.01" value="${Number(line.discountAmount||0)}" placeholder="ยอดเงิน" aria-label="ส่วนลดเป็นยอดเงิน ${esc(line.name)}"></td><td class="align-right strong-number"><span>${invoiceMoney(net)}</span>${(discount||deposit)?`<small class="line-gross">เต็ม ${invoiceMoney(gross)}${discount?` · ลด -${invoiceMoney(discount)}`:''}${deposit?` · Deposit -${invoiceMoney(deposit)}`:''}</small>`:''}</td><td class="align-right"><button class="icon-button remove-form-line" type="button" data-line-index="${index}" aria-label="ลบรายการ"><span class="material-symbols-outlined">close</span></button></td></tr>`;
   };
 
+  function categoryOptionsForLine(selectedCategory, type){
+    const current=cleanEnglishText(selectedCategory||(type==='accommodation'?'Accommodation':'Miscellaneous'));
+    const list=['Accommodation','Inclusive Package','Package','Extra Bed','Complimentary','Food & Beverage','BBQ','Minibar','Souvenir','Activities','Dog Activity','Massage','ATV','EV Charging','Miscellaneous','Other Expenses'];
+    if(current&&!list.some(c=>c.toLowerCase()===current.toLowerCase()))list.push(current);
+    return list.map(cat=>`<option value="${esc(cat)}" ${cat.toLowerCase()===current.toLowerCase()?'selected':''}>${esc(cat)}</option>`).join('');
+  }
+
+  function renderSheetPayments(){
+    const list=$('#sheet-payment-list');
+    if(!list)return;
+    list.innerHTML=state.payments.map((p,i)=>`
+      <div class="payment-pill" style="display:inline-flex;align-items:center;gap:6px;padding:4px 10px;background:#eef2f6;border-radius:20px;font-size:12px;">
+        <span class="material-symbols-outlined" style="font-size:16px;color:#2b6cb0;">${p.method==='เงินสด'?'payments':p.method==='บัตรเครดิต'?'credit_card':'qr_code_2'}</span>
+        <span>${esc(p.method)}</span>
+        <strong style="color:#1a202c;">${invoiceMoney(p.amount)}</strong>
+        <button type="button" data-sheet-payment-index="${i}" aria-label="ลบการชำระ" style="background:none;border:none;cursor:pointer;color:#718096;display:inline-flex;align-items:center;">
+          <span class="material-symbols-outlined" style="font-size:14px;">close</span>
+        </button>
+      </div>
+    `).join('');
+  }
+
   previewItemRows=function(snapshot){
     const groups=[{label:'Accommodation & Inclusive Package',type:'accommodation'},{label:'Food and Beverages (add-on) and Other Expenses',type:'addon'}],breakdowns=allocateLineAmounts(snapshot);
-    return groups.map(group=>{
-      const matches=breakdowns.filter(row=>row.line.type===group.type);
-      const lines=matches.map(row=>{
-        const depositLabel=row.deposit>0?invoiceMoney(row.deposit):'-';
-        const discountLabel=row.discount>0?invoiceMoney(row.discount):'-';
-        const totalLabel=invoiceMoney(row.total);
-        return `<tr><td>${esc(row.line.category)}</td><td class="align-center">${row.line.qty}</td><td>${esc(row.line.name)}</td><td class="align-right">${invoiceMoney(row.amount)}</td><td class="align-right">${depositLabel}</td><td class="align-right invoice-discount-cell">${discountLabel}</td><td class="align-right">${totalLabel}</td></tr>`;
+    const renderedGroups = groups.map(group=>{
+      const matches=breakdowns.map((row,index)=>({row,index})).filter(x=>x.row.line.type===group.type);
+      const lines=matches.map(({row,index})=>{
+        const gross=lineAmount(row.line);
+        const discount=row.discount||0;
+        const deposit=row.deposit||0;
+        const net=row.total||0;
+        const lineVilla=row.line.villa||'';
+        
+        return `
+          <tr data-sheet-row="${index}">
+            <td class="sheet-cell-cat">
+              <select class="sheet-cell-select sheet-line-cat" data-sheet-line="${index}" aria-label="หมวด">
+                ${categoryOptionsForLine(row.line.category, row.line.type)}
+              </select>
+              <span class="sheet-print-text">${esc(row.line.category)}</span>
+            </td>
+            <td class="align-center sheet-cell-qty">
+              <div class="sheet-qty-wrap">
+                <button type="button" class="sheet-qty-btn" data-sheet-line="${index}" data-qty="-1">−</button>
+                <input type="number" min="1" class="sheet-qty-input" data-sheet-line="${index}" value="${row.line.qty||1}" aria-label="จำนวน">
+                <button type="button" class="sheet-qty-btn" data-sheet-line="${index}" data-qty="1">+</button>
+              </div>
+              <span class="sheet-print-text">${row.line.qty}</span>
+            </td>
+            <td class="sheet-cell-desc">
+              <div class="sheet-desc-wrap">
+                <input type="text" class="sheet-desc-input" list="sheet-items-datalist" data-sheet-line="${index}" value="${esc(row.line.name||'')}" placeholder="พิมพ์หรือเลือกรายการ..." aria-label="ชื่อรายการ">
+                <div class="sheet-villa-badge">
+                  <span class="material-symbols-outlined">villa</span>
+                  <select class="sheet-line-villa-select" data-sheet-line="${index}" title="เลือกบ้านสำหรับรายการนี้ เพื่อแยกแถวในหน้าปิดรอบ">
+                    ${villaOptionsForLine(lineVilla)}
+                  </select>
+                </div>
+              </div>
+              <span class="sheet-print-text">
+                ${esc(row.line.name)}
+                ${lineVilla ? ` <small class="print-villa-tag">(${esc(lineVilla)})</small>` : ''}
+              </span>
+            </td>
+            <td class="align-right sheet-cell-rate">
+              <input type="number" min="0" step="0.01" class="sheet-rate-input" data-sheet-line="${index}" value="${Number(row.line.rate||0)}" placeholder="0.00" aria-label="Rate">
+              <span class="sheet-print-text">${invoiceMoney(gross)}</span>
+            </td>
+            <td class="align-right sheet-cell-deposit">
+              <input type="number" min="0" step="0.01" class="sheet-deposit-input" data-sheet-line="${index}" value="${Number(row.line.deposit||0)}" placeholder="0.00" aria-label="Deposit">
+              <span class="sheet-print-text">${deposit>0?invoiceMoney(deposit):'-'}</span>
+            </td>
+            <td class="align-right invoice-discount-cell sheet-cell-discount">
+              <input type="number" min="0" step="0.01" class="sheet-discount-input" data-sheet-line="${index}" value="${Number(row.line.discountAmount||0)}" placeholder="0.00" aria-label="ส่วนลด">
+              <span class="sheet-print-text">${discount>0?invoiceMoney(discount):'-'}</span>
+            </td>
+            <td class="align-right strong-number sheet-cell-total">
+              <div class="sheet-total-wrap">
+                <span>${invoiceMoney(net)}</span>
+                <button type="button" class="sheet-delete-line-btn" data-sheet-line="${index}" title="ลบแถวนี้">
+                  <span class="material-symbols-outlined">close</span>
+                </button>
+              </div>
+              <span class="sheet-print-text">${invoiceMoney(net)}</span>
+            </td>
+          </tr>
+        `;
       }).join('');
-      const count=Math.max(matches.length,group.type==='accommodation'?7:14),blanks=Array.from({length:count-matches.length},()=>'<tr class="blank-line"><td></td><td></td><td></td><td></td><td>-</td><td>-</td><td>-</td></tr>').join('');
+
+      const count=Math.max(matches.length,group.type==='accommodation'?4:7),blanks=Array.from({length:Math.max(1, count-matches.length)},()=>'<tr class="blank-line"><td></td><td></td><td></td><td></td><td>-</td><td>-</td><td>-</td></tr>').join('');
       return `<tr class="bill-section-row"><td colspan="7">${group.label}</td></tr>${lines}${blanks}`;
     }).join('');
+
+    const actionRow = `
+      <tr class="sheet-action-row screen-only">
+        <td colspan="7">
+          <div class="sheet-add-bar">
+            <button type="button" class="button button-soft action-small" id="sheet-btn-add-acc" data-add-type="accommodation" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 10px;">
+              <span class="material-symbols-outlined" style="font-size:16px;">hotel</span> + เพิ่มห้องพัก / แพ็กเกจ
+            </button>
+            <button type="button" class="button button-soft action-small" id="sheet-btn-add-addon" data-add-type="addon" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 10px;">
+              <span class="material-symbols-outlined" style="font-size:16px;">restaurant</span> + เพิ่มอาหาร / เครื่องดื่ม / กิจกรรม
+            </button>
+            <button type="button" class="button button-soft action-small" id="sheet-btn-split-stay" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 10px;">
+              <span class="material-symbols-outlined" style="font-size:16px;">night_shelter</span> + พักต่อคืนที่ 2 (คนละบ้าน)
+            </button>
+            <div class="sheet-quick-pick">
+              <span class="material-symbols-outlined" style="color:#d97706;font-size:16px;">bolt</span>
+              <select id="sheet-quick-item-select" class="action-small" style="cursor:pointer;">
+                <option value="">⚡ เลือกด่วนจาก Master Data...</option>
+                <optgroup label="🏠 Accommodation (วิลล่า/ห้องพัก)">
+                  ${accommodationItems.map((item, idx) => `<option value="acc:${idx}">${esc(item.name)} (฿${item.rate})</option>`).join('')}
+                </optgroup>
+                <optgroup label="🍽️ อาหาร & เครื่องดื่ม & กิจกรรม">
+                  ${addonItems.map((item, idx) => `<option value="addon:${idx}">${esc(item.name)} (฿${item.rate})</option>`).join('')}
+                </optgroup>
+              </select>
+            </div>
+          </div>
+        </td>
+      </tr>
+    `;
+
+    return renderedGroups + actionRow;
   };
 
   $$('#view-invoice .invoice-line-group th').forEach(th=>{if(th.textContent.includes('ส่วนลด'))th.textContent='ส่วนลด (Baht)'});
 
   const baseRenderPreview=renderInvoicePreview;
-  renderInvoicePreview=function(){
-    baseRenderPreview();
+  renderInvoicePreview=function(force=false){
+    const activeEl = document.activeElement;
+    const isEditingLines = activeEl && activeEl.closest && activeEl.closest('#preview-invoice-lines');
+    
+    if (!isEditingLines || force) {
+      baseRenderPreview();
+    }
     const previewSnapshot=typeof calculateLiveInvoiceSnapshot==='function'?calculateLiveInvoiceSnapshot():invoiceSnapshot();
-    [['preview-reference',previewSnapshot.reference],['preview-reference-meta',previewSnapshot.reference],['preview-customer',previewSnapshot.customer],['preview-check-in',previewSnapshot.checkIn?formatDate(previewSnapshot.checkIn):''],['preview-check-out',previewSnapshot.checkOut?formatDate(previewSnapshot.checkOut):''],['preview-nights',previewSnapshot.nights],['preview-remark',previewSnapshot.remark],['preview-invoice-date',previewSnapshot.docDate?formatDate(previewSnapshot.docDate):'']].forEach(([id,value])=>{if($(`#${id}`))$(`#${id}`).textContent=value||''});
+    
+    // Set Header Plain Text (for print / export)
+    [['preview-reference',previewSnapshot.reference],['preview-reference-meta',previewSnapshot.reference],['preview-customer',previewSnapshot.customer],['preview-check-in',previewSnapshot.checkIn?formatDate(previewSnapshot.checkIn):''],['preview-check-out',previewSnapshot.checkOut?formatDate(previewSnapshot.checkOut):''],['preview-nights',previewSnapshot.nights],['preview-remark',previewSnapshot.remark],['preview-invoice-date',previewSnapshot.docDate?formatDate(previewSnapshot.docDate):''],['preview-print-villa',previewSnapshot.villa||'']].forEach(([id,value])=>{if($(`#${id}`))$(`#${id}`).textContent=value||''});
+    
+    // Set Header Interactive Inputs (if not active element)
+    const setVal = (id, v) => {
+      const el = $(`#${id}`);
+      if (el && document.activeElement !== el && el.value !== String(v || '')) {
+        el.value = v || '';
+      }
+    };
+    setVal('preview-sheet-reference', previewSnapshot.reference);
+    setVal('preview-sheet-reference-meta', previewSnapshot.reference);
+    setVal('preview-sheet-customer', previewSnapshot.customer);
+    setVal('preview-sheet-villa', previewSnapshot.villa);
+    setVal('preview-sheet-check-in', previewSnapshot.checkIn ? previewSnapshot.checkIn.slice(0, 10) : '');
+    setVal('preview-sheet-check-out', previewSnapshot.checkOut ? previewSnapshot.checkOut.slice(0, 10) : '');
+    setVal('preview-sheet-nights', previewSnapshot.nights);
+    setVal('preview-sheet-remark', previewSnapshot.remark);
+    setVal('preview-sheet-doc-date', previewSnapshot.docDate ? previewSnapshot.docDate.slice(0, 10) : '');
+    if ($('#sheet-cashier-select') && document.activeElement !== $('#sheet-cashier-select')) {
+      $('#sheet-cashier-select').value = state.cashier || $('#cashier')?.value || '';
+    }
+
     if($('#preview-total'))$('#preview-total').textContent=invoiceMoney(previewSnapshot.subtotal);
     if($('#preview-deposit'))$('#preview-deposit').textContent=invoiceMoney(previewSnapshot.deposit);
     if($('#preview-discount'))$('#preview-discount').textContent=invoiceMoney(previewSnapshot.discount);
@@ -1111,17 +1250,21 @@ function installFinalInvoiceRules(){
     if($('#summary-deposit'))$('#summary-deposit').textContent=invoiceMoney(previewSnapshot.deposit);
     if($('#summary-discount'))$('#summary-discount').textContent=invoiceMoney(previewSnapshot.discount);
     if($('#summary-outstanding'))$('#summary-outstanding').textContent=invoiceMoney(previewSnapshot.outstanding);
+
     const noteBox=$('#preview-pending-notes');
-    if(!noteBox)return;
-    const methods=[...new Set([...state.invoiceLines.filter(line=>Number(line.deposit||0)>0).map(line=>line.depositMethod||'เงินสด'),...state.payments.filter(payment=>Number(payment.amount||0)>0).map(payment=>payment.method)])];
-    if($('#preview-payment-method')&&!methods.length)$('#preview-payment-method').textContent='';
-    const notes=[];
-    if(methods.length)notes.push(`<div><strong>ชำระแล้วจากช่องทาง</strong><span>${esc(methods.join(', '))}</span></div>`);
-    if(previewSnapshot.pendingTotal>0)notes.push(`<div><strong>รอเรียกเก็บทั้งบิล ${invoiceMoney(previewSnapshot.pendingTotal)}</strong><span>${esc(state.pendingCollectionNote||'รอเรียกเก็บจากจุดที่เกี่ยวข้อง')}</span></div>`);
-    noteBox.innerHTML=notes.join('');
-    noteBox.classList.toggle('long-note',String(state.pendingCollectionNote||'').length>90);
-    const footer=noteBox.closest('.preview-footer');
-    if(footer)footer.classList.toggle('has-pending-notes',notes.length>0);
+    if(noteBox){
+      const methods=[...new Set([...state.invoiceLines.filter(line=>Number(line.deposit||0)>0).map(line=>line.depositMethod||'เงินสด'),...state.payments.filter(payment=>Number(payment.amount||0)>0).map(payment=>payment.method)])];
+      if($('#preview-payment-method')&&!methods.length)$('#preview-payment-method').textContent='';
+      const notes=[];
+      if(methods.length)notes.push(`<div><strong>ชำระแล้วจากช่องทาง</strong><span>${esc(methods.join(', '))}</span></div>`);
+      if(previewSnapshot.pendingTotal>0)notes.push(`<div><strong>รอเรียกเก็บทั้งบิล ${invoiceMoney(previewSnapshot.pendingTotal)}</strong><span>${esc(state.pendingCollectionNote||'รอเรียกเก็บจากจุดที่เกี่ยวข้อง')}</span></div>`);
+      noteBox.innerHTML=notes.join('');
+      noteBox.classList.toggle('long-note',String(state.pendingCollectionNote||'').length>90);
+      const footer=noteBox.closest('.preview-footer');
+      if(footer)footer.classList.toggle('has-pending-notes',notes.length>0);
+    }
+
+    renderSheetPayments();
   };
 
   const baseRenderPendingFormRows=renderPendingFormRows;
@@ -1146,7 +1289,8 @@ function installFinalInvoiceRules(){
     pendingCollectionRows=[{amount:pendingTotal(),note:state.pendingCollectionNote||''}];
     const root=$('#modal-root');
     if(!root)return;
-    root.innerHTML=`<div class="modal-backdrop"><div class="modal settlement-modal" role="dialog" aria-modal="true"><div class="modal-header"><h3>ยืนยันการชำระเงินและปิดยอด (${esc(snapshot.customer)})</h3><button class="icon-button" data-close-modal aria-label="ปิด"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><p class="muted">บันทึกช่องทางชำระ และรวมยอดที่รอเรียกเก็บจากทุกจุดเป็นยอดเดียวของบิล</p><div id="settlement-rows"></div><button type="button" class="button button-soft full-width" data-settlement-add><span class="material-symbols-outlined">add</span>เพิ่มช่องทางชำระ</button><section class="pending-collection-section"><div class="pending-collection-heading"><strong>ยอดรอเรียกเก็บทั้งบิล</strong><small>ไม่แยกตามรายการ ให้ระบุยอดรวมและหมายเหตุครั้งเดียว</small></div><div id="pending-collection-rows"></div></section><label class="settlement-slip">หลักฐานการชำระเงิน<input id="settlement-slip" type="file" accept="image/*,.pdf"></label><label class="settlement-preparer">ผู้จัดทำ / ผู้ปิดงาน <b class="required-note" style="color:var(--danger,#d32f2f)">*</b><input id="settlement-preparer" value="" list="preparer-options" placeholder="เลือกหรือพิมพ์ชื่อผู้จัดทำ" autocomplete="off" required><datalist id="preparer-options"><option value="Now Narit"><option value="Mhew Kusu"><option value="Nattaya Phung"><option value="Nummim"><option value="Ple Theresa"></datalist></label><p id="settlement-total" class="settlement-total"></p></div><div class="modal-footer"><button class="button button-outline" type="button" data-close-modal>ยกเลิก</button><button class="button button-primary" type="button" data-settlement-confirm>ปิดยอดและบันทึกรอบ</button></div></div></div>`;
+    const defaultPreparer=state.cashier||$('#sheet-cashier-select')?.value||$('#cashier')?.value||'';
+    root.innerHTML=`<div class="modal-backdrop"><div class="modal settlement-modal" role="dialog" aria-modal="true"><div class="modal-header"><h3>ยืนยันการชำระเงินและปิดยอด (${esc(snapshot.customer)})</h3><button class="icon-button" data-close-modal aria-label="ปิด"><span class="material-symbols-outlined">close</span></button></div><div class="modal-body"><p class="muted">บันทึกช่องทางชำระ และรวมยอดที่รอเรียกเก็บจากทุกจุดเป็นยอดเดียวของบิล</p><div id="settlement-rows"></div><button type="button" class="button button-soft full-width" data-settlement-add><span class="material-symbols-outlined">add</span>เพิ่มช่องทางชำระ</button><section class="pending-collection-section"><div class="pending-collection-heading"><strong>ยอดรอเรียกเก็บทั้งบิล</strong><small>ไม่แยกตามรายการ ให้ระบุยอดรวมและหมายเหตุครั้งเดียว</small></div><div id="pending-collection-rows"></div></section><label class="settlement-slip">หลักฐานการชำระเงิน<input id="settlement-slip" type="file" accept="image/*,.pdf"></label><label class="settlement-preparer">ผู้จัดทำ / ผู้ปิดงาน <b class="required-note" style="color:var(--danger,#d32f2f)">*</b><input id="settlement-preparer" value="${esc(defaultPreparer)}" list="preparer-options" placeholder="เลือกหรือพิมพ์ชื่อผู้จัดทำ" autocomplete="off" required><datalist id="preparer-options"><option value="Now Narit"><option value="Mhew Kusu"><option value="Nattaya Phung"><option value="Nummim"><option value="Ple Theresa"></datalist></label><p id="settlement-total" class="settlement-total"></p></div><div class="modal-footer"><button class="button button-outline" type="button" data-close-modal>ยกเลิก</button><button class="button button-primary" type="button" data-settlement-confirm>ปิดยอดและบันทึกรอบ</button></div></div></div>`;
     renderSettlementRows();renderPendingCollectionRows();updateSettlementTotal();
   };
 
@@ -1341,6 +1485,359 @@ function installFinalInvoiceRules(){
     }
   });
 
+  function updateSheetLiveTotals(lineIndex) {
+    const line = state.invoiceLines[lineIndex];
+    if (!line) return;
+    const gross = lineAmount(line);
+    const discount = Math.max(0, Number(line.discountAmount || 0));
+    const deposit = Math.max(0, Number(line.deposit || 0));
+    const net = Math.max(0, gross - discount - deposit);
+    
+    const tr = document.querySelector(`tr[data-sheet-row="${lineIndex}"]`);
+    if (tr) {
+      const totalEl = tr.querySelector('.sheet-cell-total span');
+      if (totalEl) totalEl.textContent = invoiceMoney(net);
+      const printText = tr.querySelector('.sheet-cell-total .sheet-print-text');
+      if (printText) printText.textContent = invoiceMoney(net);
+    }
+    
+    const s = typeof calculateLiveInvoiceSnapshot === 'function' ? calculateLiveInvoiceSnapshot() : invoiceSnapshot();
+    const displayOutstanding = s.outstandingDisplay ?? s.outstanding;
+    [['summary-total', s.subtotal], ['summary-deposit', s.deposit], ['summary-discount', s.discount], ['summary-outstanding', displayOutstanding],
+     ['preview-total', s.subtotal], ['preview-deposit', s.deposit], ['preview-discount', s.discount], ['preview-outstanding', displayOutstanding]].forEach(([id, v]) => {
+      const el = $(`#${id}`);
+      if (el) el.textContent = invoiceMoney(v);
+    });
+  }
+
+  function installInteractiveSheetListeners() {
+    if (window._sheetListenersInstalled) return;
+    window._sheetListenersInstalled = true;
+
+    // 1. Sheet Header Input Event
+    document.addEventListener('input', event => {
+      const t = event.target;
+      if (t.id === 'preview-sheet-customer') {
+        state.customer = t.value;
+        if ($('#customer')) $('#customer').value = t.value;
+        if ($('#preview-customer')) $('#preview-customer').textContent = t.value;
+      } else if (t.id === 'preview-sheet-nights') {
+        state.nights = t.value;
+        if ($('#no-of-night')) $('#no-of-night').value = t.value;
+        if ($('#preview-nights')) $('#preview-nights').textContent = t.value;
+      } else if (t.id === 'preview-sheet-remark') {
+        state.remark = t.value;
+        if ($('#remark')) $('#remark').value = t.value;
+        if ($('#preview-remark')) $('#preview-remark').textContent = t.value || '-';
+      } else if (t.id === 'preview-sheet-reference' || t.id === 'preview-sheet-reference-meta') {
+        state.folio = t.value;
+        if ($('#folio')) $('#folio').value = t.value;
+        if ($('#preview-reference')) $('#preview-reference').textContent = t.value;
+        if ($('#preview-reference-meta')) $('#preview-reference-meta').textContent = t.value;
+        if ($('#preview-sheet-reference') && t.id !== 'preview-sheet-reference') $('#preview-sheet-reference').value = t.value;
+        if ($('#preview-sheet-reference-meta') && t.id !== 'preview-sheet-reference-meta') $('#preview-sheet-reference-meta').value = t.value;
+      }
+
+      // Sheet Line Inputs (Live Editing on Table Rows)
+      if (t.classList.contains('sheet-desc-input')) {
+        const idx = Number(t.dataset.sheetLine);
+        if (state.invoiceLines[idx]) {
+          const val = t.value;
+          state.invoiceLines[idx].name = val;
+          const matched = accommodationItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase()) ||
+                          addonItems.find(i => i.name.toLowerCase() === val.trim().toLowerCase());
+          if (matched) {
+            state.invoiceLines[idx].category = matched.category || state.invoiceLines[idx].category;
+            state.invoiceLines[idx].rate = Number(matched.rate || 0);
+            if (accommodationItems.some(i => i.name === matched.name)) state.invoiceLines[idx].type = 'accommodation';
+            else if (addonItems.some(i => i.name === matched.name)) state.invoiceLines[idx].type = 'addon';
+            
+            const tr = t.closest('tr');
+            if (tr) {
+              const catSel = tr.querySelector('.sheet-line-cat');
+              if (catSel) catSel.value = state.invoiceLines[idx].category;
+              const rateInp = tr.querySelector('.sheet-rate-input');
+              if (rateInp) rateInp.value = state.invoiceLines[idx].rate;
+            }
+          }
+          renderFormLines();
+          updateSheetLiveTotals(idx);
+        }
+      } else if (t.classList.contains('sheet-qty-input')) {
+        const idx = Number(t.dataset.sheetLine);
+        if (state.invoiceLines[idx]) {
+          state.invoiceLines[idx].qty = Math.max(1, Number(t.value) || 1);
+          renderFormLines();
+          updateSheetLiveTotals(idx);
+        }
+      } else if (t.classList.contains('sheet-rate-input')) {
+        const idx = Number(t.dataset.sheetLine);
+        if (state.invoiceLines[idx]) {
+          state.invoiceLines[idx].rate = Math.max(0, Number(t.value) || 0);
+          renderFormLines();
+          updateSheetLiveTotals(idx);
+        }
+      } else if (t.classList.contains('sheet-deposit-input')) {
+        const idx = Number(t.dataset.sheetLine);
+        if (state.invoiceLines[idx]) {
+          state.invoiceLines[idx].deposit = Math.max(0, Number(t.value) || 0);
+          renderFormLines();
+          updateSheetLiveTotals(idx);
+        }
+      } else if (t.classList.contains('sheet-discount-input')) {
+        const idx = Number(t.dataset.sheetLine);
+        if (state.invoiceLines[idx]) {
+          state.invoiceLines[idx].discountAmount = Math.max(0, Number(t.value) || 0);
+          renderFormLines();
+          updateSheetLiveTotals(idx);
+        }
+      }
+    });
+
+    // 2. Sheet Header & Line Change Events
+    document.addEventListener('change', event => {
+      const t = event.target;
+      if (t.id === 'preview-sheet-villa') {
+        state.villa = t.value;
+        if ($('#villa')) $('#villa').value = t.value;
+        if ($('#preview-print-villa')) $('#preview-print-villa').textContent = t.value;
+        calculateInvoice();
+        renderInvoicePreview();
+      } else if (t.id === 'preview-sheet-check-in') {
+        state.checkIn = t.value;
+        if ($('#check-in')) $('#check-in').value = t.value;
+        if ($('#preview-check-in')) $('#preview-check-in').textContent = formatDate(t.value);
+        if (state.checkIn && state.checkOut) {
+          const d = Math.round((new Date(state.checkOut) - new Date(state.checkIn)) / (1000 * 60 * 60 * 24));
+          if (d >= 0) {
+            state.nights = d;
+            if ($('#no-of-night')) $('#no-of-night').value = d;
+            if ($('#preview-sheet-nights')) $('#preview-sheet-nights').value = d;
+            if ($('#preview-nights')) $('#preview-nights').textContent = d;
+          }
+        }
+        calculateInvoice();
+      } else if (t.id === 'preview-sheet-check-out') {
+        state.checkOut = t.value;
+        if ($('#check-out')) $('#check-out').value = t.value;
+        if ($('#preview-check-out')) $('#preview-check-out').textContent = formatDate(t.value);
+        if (state.checkIn && state.checkOut) {
+          const d = Math.round((new Date(state.checkOut) - new Date(state.checkIn)) / (1000 * 60 * 60 * 24));
+          if (d >= 0) {
+            state.nights = d;
+            if ($('#no-of-night')) $('#no-of-night').value = d;
+            if ($('#preview-sheet-nights')) $('#preview-sheet-nights').value = d;
+            if ($('#preview-nights')) $('#preview-nights').textContent = d;
+          }
+        }
+        calculateInvoice();
+      } else if (t.id === 'preview-sheet-doc-date') {
+        state.docDate = t.value;
+        if ($('#doc-date')) $('#doc-date').value = t.value;
+        if ($('#preview-invoice-date')) $('#preview-invoice-date').textContent = formatDate(t.value);
+        calculateInvoice();
+      } else if (t.classList.contains('sheet-line-cat')) {
+        const idx = Number(t.dataset.sheetLine);
+        if (state.invoiceLines[idx]) {
+          state.invoiceLines[idx].category = t.value;
+          renderFormLines();
+          calculateInvoice();
+        }
+      } else if (t.classList.contains('sheet-line-villa-select')) {
+        const idx = Number(t.dataset.sheetLine);
+        if (state.invoiceLines[idx]) {
+          state.invoiceLines[idx].villa = t.value;
+          renderFormLines();
+          calculateInvoice();
+          const tr = t.closest('tr');
+          if (tr) {
+            const tag = tr.querySelector('.print-villa-tag');
+            if (tag) tag.textContent = t.value ? `(${t.value})` : '';
+          }
+        }
+      } else if (t.id === 'sheet-quick-item-select') {
+        const val = t.value;
+        if (!val) return;
+        const [typePrefix, idxStr] = val.split(':');
+        const itemIdx = Number(idxStr);
+        const isAcc = typePrefix === 'acc';
+        const item = isAcc ? accommodationItems[itemIdx] : addonItems[itemIdx];
+        if (item) {
+          state.invoiceLines.push({
+            type: isAcc ? 'accommodation' : 'addon',
+            category: item.category || (isAcc ? 'Accommodation' : 'Food & Beverage'),
+            name: isAcc && item.villa ? item.villa : item.name,
+            rate: Number(item.rate || 0),
+            qty: 1,
+            discountAmount: 0,
+            deposit: 0,
+            depositMethod: 'เงินสด',
+            villa: state.villa || ''
+          });
+          renderFormLines();
+          calculateInvoice();
+          renderInvoicePreview(true);
+          showToast(`เพิ่ม "${item.name}" ลงในใบแจ้งหนี้แล้ว`);
+        }
+        t.value = '';
+      } else if (t.id === 'sheet-cashier-select') {
+        state.cashier = t.value;
+        if ($('#cashier')) $('#cashier').value = t.value;
+      }
+    });
+
+    // 3. Sheet Click Events (Buttons)
+    document.addEventListener('click', event => {
+      // Qty +/- buttons
+      const qtyBtn = event.target.closest('.sheet-qty-btn');
+      if (qtyBtn) {
+        event.preventDefault();
+        const idx = Number(qtyBtn.dataset.sheetLine);
+        const delta = Number(qtyBtn.dataset.qty);
+        if (state.invoiceLines[idx]) {
+          state.invoiceLines[idx].qty = Math.max(1, (Number(state.invoiceLines[idx].qty) || 1) + delta);
+          renderFormLines();
+          calculateInvoice();
+          renderInvoicePreview(true);
+        }
+        return;
+      }
+
+      // Delete Line button
+      const delBtn = event.target.closest('.sheet-delete-line-btn');
+      if (delBtn) {
+        event.preventDefault();
+        const idx = Number(delBtn.dataset.sheetLine);
+        if (Number.isInteger(idx) && state.invoiceLines[idx]) {
+          state.invoiceLines.splice(idx, 1);
+          renderFormLines();
+          calculateInvoice();
+          renderInvoicePreview(true);
+          showToast('ลบรายการออกจากใบแจ้งหนี้แล้ว');
+        }
+        return;
+      }
+
+      // Add Accommodation Line button
+      const addAccBtn = event.target.closest('#sheet-btn-add-acc');
+      if (addAccBtn) {
+        event.preventDefault();
+        state.invoiceLines.push({
+          type: 'accommodation',
+          category: 'Accommodation',
+          name: '',
+          rate: 0,
+          qty: 1,
+          discountAmount: 0,
+          deposit: 0,
+          depositMethod: 'เงินสด',
+          villa: state.villa || ''
+        });
+        renderFormLines();
+        calculateInvoice();
+        renderInvoicePreview(true);
+        setTimeout(() => {
+          const rows = document.querySelectorAll('#preview-invoice-lines tr[data-sheet-row]');
+          if (rows.length) {
+            const lastDesc = rows[rows.length - 1].querySelector('.sheet-desc-input');
+            if (lastDesc) lastDesc.focus();
+          }
+        }, 50);
+        return;
+      }
+
+      // Add Addon Line button
+      const addAddonBtn = event.target.closest('#sheet-btn-add-addon');
+      if (addAddonBtn) {
+        event.preventDefault();
+        state.invoiceLines.push({
+          type: 'addon',
+          category: 'Food & Beverage',
+          name: '',
+          rate: 0,
+          qty: 1,
+          discountAmount: 0,
+          deposit: 0,
+          depositMethod: 'เงินสด',
+          villa: state.villa || ''
+        });
+        renderFormLines();
+        calculateInvoice();
+        renderInvoicePreview(true);
+        setTimeout(() => {
+          const rows = document.querySelectorAll('#preview-invoice-lines tr[data-sheet-row]');
+          if (rows.length) {
+            const lastDesc = rows[rows.length - 1].querySelector('.sheet-desc-input');
+            if (lastDesc) lastDesc.focus();
+          }
+        }, 50);
+        return;
+      }
+
+      // Split Stay button
+      const splitStayBtn = event.target.closest('#sheet-btn-split-stay');
+      if (splitStayBtn) {
+        event.preventDefault();
+        openSplitStayInvoiceModal();
+        return;
+      }
+
+      // Add Payment on Sheet
+      const addPayBtn = event.target.closest('#sheet-btn-add-payment');
+      if (addPayBtn) {
+        event.preventDefault();
+        const method = $('#sheet-payment-method')?.value || 'เงินสด';
+        const amount = Math.max(0, Number($('#sheet-payment-amount')?.value || 0));
+        if (amount <= 0) {
+          showToast('กรุณาระบุจำนวนเงินที่รับชำระ', 'error');
+          $('#sheet-payment-amount')?.focus();
+          return;
+        }
+        const snapshot = typeof calculateLiveInvoiceSnapshot === 'function' ? calculateLiveInvoiceSnapshot() : invoiceSnapshot();
+        const available = snapshot.outstanding;
+        if (amount > available + 0.005) {
+          showToast(`ยอดชำระเกินยอดคงเหลือของใบแจ้งหนี้ ${invoiceMoney(amount - available)}`, 'error');
+          return;
+        }
+        state.payments.push({ method, amount });
+        if ($('#sheet-payment-amount')) $('#sheet-payment-amount').value = '';
+        renderPayments();
+        calculateInvoice();
+        renderInvoicePreview(true);
+        showToast(`บันทึกชำระเงิน ${esc(method)} ${invoiceMoney(amount)} เรียบร้อย`);
+        return;
+      }
+
+      // Delete Payment on Sheet
+      const delPayBtn = event.target.closest('[data-sheet-payment-index]');
+      if (delPayBtn) {
+        event.preventDefault();
+        const idx = Number(delPayBtn.dataset.sheetPaymentIndex);
+        if (state.payments[idx]) {
+          state.payments.splice(idx, 1);
+          renderPayments();
+          calculateInvoice();
+          renderInvoicePreview(true);
+          showToast('ลบรายการชำระเงินแล้ว');
+        }
+        return;
+      }
+
+      // Header Actions
+      if (event.target.closest('#close-invoice')) {
+        event.preventDefault();
+        closeInvoice();
+      } else if (event.target.closest('#export-pdf')) {
+        event.preventDefault();
+        exportPdf();
+      } else if (event.target.closest('#reset-invoice')) {
+        event.preventDefault();
+        resetInvoice();
+      }
+    });
+  }
+
+  installInteractiveSheetListeners();
   renderPendingFormRows();renderPendingCollectionRows();renderFormLines();renderInvoicePreview();calculateInvoice();
 }
 document.addEventListener('DOMContentLoaded',()=>installFinalInvoiceRules());
@@ -4260,20 +4757,236 @@ function buildInvoiceWorkspace(){
   const aOptions=accommodationItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
   const bOptions=addonItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
   view.innerHTML=`
-    <div class="page-heading compact"><div><p class="eyebrow">TRANSACTION / INFORMATION BILL</p><h2>สร้างใบแจ้งหนี้</h2><p class="muted">กรอกข้อมูลในหน้าแรก แล้วตรวจใบแจ้งหนี้จากแบบฟอร์ม INFO BILL ในหน้าที่สอง</p></div><div class="heading-actions"><span class="save-state"><span class="material-symbols-outlined">sync</span>ข้อมูลเชื่อมกันอัตโนมัติ</span><button class="button button-outline" id="reset-invoice" type="button"><span class="material-symbols-outlined">refresh</span>เริ่มใหม่</button></div></div>
-    <div class="invoice-page-tabs" role="tablist"><button class="invoice-page-tab active" type="button" data-invoice-page="form"><span>01</span><strong>หน้ากรอกข้อมูล</strong><small>กรอกข้อมูลผู้เข้าพักและรายการ</small></button><button class="invoice-page-tab" type="button" data-invoice-page="preview"><span>02</span><strong>หน้าใบแจ้งหนี้</strong><small>พรีวิวตามแบบ INFO BILL</small></button></div>
-    <section class="invoice-page active" data-invoice-page="form"><div class="invoice-entry-layout"><form class="invoice-entry-main" id="invoice-entry-form">
-      <article class="panel invoice-entry-card"><div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">badge</span></span><h3>ข้อมูลบนหัวใบแจ้งหนี้</h3></div><span class="required-note">* จำเป็นเฉพาะชื่อลูกค้า</span></div><div class="form-grid three"><label>Reference No. <input id="folio" value="" placeholder="เลขอ้างอิง (สร้างให้อัตโนมัติ)"></label><label class="span-two">Guest Name <input id="customer" value="" placeholder="กรอกชื่อลูกค้า (จำเป็น)" required autofocus></label><label>Check-in Date <input id="check-in" type="date"></label><label>Check-out Date <input id="check-out" type="date"></label><label>No. Of Night <input id="no-of-night" type="number" min="0" value="" placeholder="จำนวนคืน"></label><label>Remark <input id="remark" value="" placeholder="หมายเหตุ"></label><label>วันที่ทำเอกสาร <input id="doc-date" type="date"></label><label class="span-two">Villa / Room <select id="villa"><option value="">เลือก Villa / Room (ไม่ระบุก็ได้)</option>${villaMarkup}</select></label></div></article>
-      <article class="panel invoice-entry-card invoice-lines-card"><div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">list_alt</span></span><h3>รายการในใบแจ้งหนี้</h3></div><span class="required-note">เลือกลำดับ หมวด → รายการ</span></div>
-        <div class="invoice-add-grid"><div class="invoice-add-box"><h4>Accommodation &amp; Inclusive Package</h4><div class="invoice-add-fields category-first-fields"><select id="accommodation-category" class="invoice-category-select"><option value="">เลือกหมวด</option>${categoryOptions(accommodationItems)}</select><select id="accommodation-select" disabled><option value="">เลือกรายการในหมวด</option>${aOptions}</select><input id="accommodation-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="accommodation-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวน Accommodation"><button class="button button-primary" id="add-accommodation" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
-        <div class="invoice-add-box"><h4>Food and Beverages (add-on) and Other Expenses</h4><div class="invoice-add-fields category-first-fields"><select id="addon-category" class="invoice-category-select"><option value="">เลือกหมวด</option>${categoryOptions(addonItems)}</select><select id="addon-select" disabled><option value="">เลือกรายการในหมวด</option>${bOptions}</select><input id="addon-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="addon-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวนค่าใช้จ่ายทั่วไป"><button class="button button-primary" id="add-addon" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div></div>
-        <section class="invoice-line-group"><div class="line-group-heading" style="display:flex;align-items:center;justify-content:space-between;width:100%;"><div><strong>Accommodation &amp; Inclusive Package</strong><small>รายการค่าบ้านและ Inclusive ทั้งหมด</small></div><button type="button" class="button button-soft action-small" id="btn-add-split-stay-invoice" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 10px;"><span class="material-symbols-outlined" style="font-size:16px;">night_shelter</span> + พักต่อคืนที่ 2 (คนละบ้าน)</button></div><div class="table-wrap"><table><thead><tr><th>หมวด</th><th>รายการ</th><th class="align-center">จำนวน</th><th class="align-right">Rate</th><th>ส่วนลด</th><th class="align-right">ยอดรวม</th><th></th></tr></thead><tbody id="form-accommodation-lines"></tbody></table><div id="accommodation-empty" class="empty-state"><p>ยังไม่มีรายการ</p></div></div></section>
-        <section class="invoice-line-group"><div class="line-group-heading"><strong>Food and Beverages (add-on) and Other Expenses</strong><small>รายการค่าใช้จ่ายทั่วไปทั้งหมด</small></div><div class="table-wrap"><table><thead><tr><th>หมวด</th><th>รายการ</th><th class="align-center">จำนวน</th><th class="align-right">Rate</th><th>ส่วนลด</th><th class="align-right">ยอดรวม</th><th></th></tr></thead><tbody id="form-addon-lines"></tbody></table><div id="addon-empty" class="empty-state"><p>ยังไม่มีรายการ</p></div></div></section>
-        <section class="invoice-adjustments"><div class="line-group-heading"><strong>ยอดปรับและการชำระเงิน</strong><small>Deposit จะรวมจากรายการชำระด้านล่าง</small></div><div class="form-grid three compact-grid"><label>รูปแบบส่วนลด <select id="discount-scope"><option value="line">ส่วนลดตามรายการ</option><option value="all">ส่วนลดทั้งบิล</option><option value="none">ไม่มีส่วนลด</option></select></label><label>ส่วนลดทั้งบิล <select id="discount-all-rate">${discountRateOptions(0)}</select></label><label>พนักงาน <select id="cashier"><option value="">เลือกพนักงาน</option><option>Now Narit</option><option>Mhew Kusu</option><option>Nattaya Phung</option><option>Nummim</option><option>Ple Theresa</option></select></label></div><div class="payment-entry"><select id="payment-method"><option value="เงินสด">เงินสด</option><option value="บัตรเครดิต">บัตรเครดิต</option><option value="QR Code">QR Code</option><option value="โอนเงิน SC">โอนเงิน SC</option></select><input id="payment-amount" type="number" min="0" placeholder="จำนวนเงินที่รับ"><button class="button button-outline" id="add-payment" type="button"><span class="material-symbols-outlined">add</span>บันทึกการชำระ</button></div><div id="payment-list" class="payment-list"></div></section>
-      </article>
-    </form><aside class="invoice-entry-side"><article class="panel live-summary"><span class="status-chip draft">DRAFT</span><h3>สรุปยอดใบแจ้งหนี้</h3><p>เลือกหมวดก่อน แล้วเลือกสินค้าที่อยู่ในหมวดนั้น</p><div class="live-summary-row"><span>Total</span><strong id="summary-total">0.00</strong></div><div class="live-summary-row"><span>Deposit</span><strong id="summary-deposit">0.00</strong></div><div class="live-summary-row"><span>Discount</span><strong id="summary-discount">0.00</strong></div><div class="live-summary-row outstanding"><span>Outstanding</span><strong id="summary-outstanding">0.00</strong></div><button class="button button-primary full-width" type="button" data-invoice-page="preview"><span class="material-symbols-outlined">visibility</span>ดูหน้าใบแจ้งหนี้</button></article></aside></div></section>
-    <section class="invoice-page" data-invoice-page="preview"><div class="preview-toolbar"><div><strong>หน้าใบแจ้งหนี้</strong><span>แบบฟอร์มอิงจาก INFO BILL.pdf</span></div><div><button class="button button-outline" type="button" data-invoice-page="form"><span class="material-symbols-outlined">edit</span>กลับไปแก้ไขข้อมูล</button><button class="button button-outline" type="button" id="export-pdf"><span class="material-symbols-outlined">picture_as_pdf</span>ส่งออก PDF</button><button class="button button-primary" type="button" id="close-invoice"><span class="material-symbols-outlined">task_alt</span>ปิดยอดและเก็บหลักฐาน</button></div></div><div class="invoice-preview-stage"><article class="invoice-preview-sheet" id="invoice-preview-sheet"><header class="preview-header"><div class="preview-company"><img src="346973899_1639269593246469_4301917493848559029_n.jpg" alt="The Scenery"><div><p>234 Moo 7, Suan Phueng</p><p>Ratchabuti 70180</p><p>Tel : +66 81 000 7070</p><p>Fax : +66 32 206 370</p><p>www.sceneryvintagefarm.com</p></div></div><div class="preview-title"><h1>INFORMATION<br>BILL</h1><div><span>Invoice No</span><strong id="preview-reference"></strong></div><div><span>Date</span><strong id="preview-invoice-date"></strong></div></div></header><div class="preview-meta"><div><span>Reference No.</span><strong id="preview-reference-meta"></strong></div><div class="guest-meta"><span>Guest Name</span><strong id="preview-customer"></strong></div><div><span>Check-in Date</span><strong id="preview-check-in"></strong></div><div><span>Check-out Date</span><strong id="preview-check-out"></strong></div><div><span>No. Of Night</span><strong id="preview-nights"></strong></div><div><span>Remark</span><strong id="preview-remark"></strong></div></div><div class="preview-table-wrap"><table class="invoice-preview-table"><thead><tr><th>Category</th><th>QTY</th><th>Description</th><th>Rate<br>(per total QTY)</th><th>Deposit</th><th>Discount</th><th>Total THB</th></tr></thead><tbody id="preview-invoice-lines"></tbody></table></div><footer class="preview-footer"><div class="preview-agreement">I agree that my liability for this bill is not waived and agree to be held personally liable in the event that the indicated person, company or association fails to pay for any part of the full amount of these charges.<div class="signature-row"><span>Guest Signature</span><span>Receptionist</span></div></div><div class="preview-totals"><div><span>Total</span><strong id="preview-total">0.00</strong></div><div><span>Deposit</span><strong id="preview-deposit">0.00</strong></div><div><span>Discount</span><strong id="preview-discount">0.00</strong></div><div class="total-outstanding"><span>Outstanding</span><strong id="preview-outstanding">0.00</strong></div><small>THAI BAHT</small></div></footer></article></div></section>`;
-  setInvoicePage('form');
+    <div class="page-heading compact">
+      <div>
+        <p class="eyebrow">TRANSACTION / INFORMATION BILL</p>
+        <h2>สร้างและแก้ไขใบแจ้งหนี้</h2>
+        <p class="muted">พิมพ์สร้างและแก้ไขรายการบนหน้ากระดาษ INFO BILL ได้โดยตรง ข้อมูลเชื่อมระบบปิดรอบและแดชบอร์ดอัตโนมัติ</p>
+      </div>
+      <div class="heading-actions">
+        <span class="save-state"><span class="material-symbols-outlined">sync</span>ข้อมูลเชื่อมกันอัตโนมัติ</span>
+        <button class="button button-outline" id="reset-invoice" type="button"><span class="material-symbols-outlined">refresh</span>เริ่มใหม่</button>
+      </div>
+    </div>
+    <div class="invoice-page-tabs" role="tablist">
+      <button class="invoice-page-tab active" type="button" data-invoice-page="preview"><span>01</span><strong>หน้าใบแจ้งหนี้ (สร้างบิลบนกระดาษโดยตรง)</strong><small>พิมพ์สร้างและแก้ไขบนแบบฟอร์ม INFO BILL</small></button>
+      <button class="invoice-page-tab" type="button" data-invoice-page="form"><span>02</span><strong>หน้ารายการฟอร์มย่อย (Form Mode)</strong><small>กรอกข้อมูลแบบแยกกล่อง</small></button>
+    </div>
+    <section class="invoice-page active" data-invoice-page="preview">
+      <div class="preview-toolbar">
+        <div><strong>หน้าใบแจ้งหนี้ (INFO BILL Editor)</strong><span>พิมพ์และแก้ไขข้อมูลลงบนแผ่นบิลได้ทันที</span></div>
+        <div class="toolbar-btn-group" style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;">
+          <button class="button button-outline" type="button" data-invoice-page="form"><span class="material-symbols-outlined">view_list</span>หน้ารายการฟอร์มย่อย</button>
+          <button class="button button-outline" type="button" id="export-pdf"><span class="material-symbols-outlined">picture_as_pdf</span>ส่งออก PDF / พิมพ์</button>
+          <button class="button button-primary" type="button" id="close-invoice" style="background:#2e7d32;border-color:#2e7d32;font-weight:700;"><span class="material-symbols-outlined">task_alt</span>ปิดยอดและบันทึกใบแจ้งหนี้</button>
+        </div>
+      </div>
+      <div class="invoice-preview-stage">
+        <article class="invoice-preview-sheet" id="invoice-preview-sheet">
+          <header class="preview-header">
+            <div class="preview-company">
+              <img src="346973899_1639269593246469_4301917493848559029_n.jpg" alt="The Scenery">
+              <div>
+                <p>234 Moo 7, Suan Phueng</p>
+                <p>Ratchabuti 70180</p>
+                <p>Tel : +66 81 000 7070</p>
+                <p>Fax : +66 32 206 370</p>
+                <p>www.sceneryvintagefarm.com</p>
+              </div>
+            </div>
+            <div class="preview-title">
+              <h1>INFORMATION<br>BILL</h1>
+              <div>
+                <span>Invoice No</span>
+                <input class="sheet-input sheet-ref" id="preview-sheet-reference" placeholder="Auto" style="font-weight:700;color:#2c1a0e;" />
+                <strong id="preview-reference" class="sheet-print-text"></strong>
+              </div>
+              <div>
+                <span>Date</span>
+                <input class="sheet-input sheet-date" type="date" id="preview-sheet-doc-date" style="font-weight:700;color:#2c1a0e;" />
+                <strong id="preview-invoice-date" class="sheet-print-text"></strong>
+              </div>
+            </div>
+          </header>
+          <div class="preview-meta">
+            <div>
+              <span>Reference No.</span>
+              <input class="sheet-input" id="preview-sheet-reference-meta" placeholder="เลขอ้างอิง" />
+              <strong id="preview-reference-meta" class="sheet-print-text"></strong>
+            </div>
+            <div class="guest-meta">
+              <span>Guest Name</span>
+              <input class="sheet-input" id="preview-sheet-customer" placeholder="คลิกเพื่อพิมพ์ชื่อลูกค้า *" required style="font-weight:700;" />
+              <strong id="preview-customer" class="sheet-print-text"></strong>
+            </div>
+            <div class="villa-meta">
+              <span>Villa / Room</span>
+              <select class="sheet-select" id="preview-sheet-villa">
+                <option value="">เลือก Villa / Room</option>
+                ${villaMarkup}
+              </select>
+              <strong id="preview-print-villa" class="sheet-print-text"></strong>
+            </div>
+            <div>
+              <span>Check-in Date</span>
+              <input class="sheet-input" type="date" id="preview-sheet-check-in" />
+              <strong id="preview-check-in" class="sheet-print-text"></strong>
+            </div>
+            <div>
+              <span>Check-out Date</span>
+              <input class="sheet-input" type="date" id="preview-sheet-check-out" />
+              <strong id="preview-check-out" class="sheet-print-text"></strong>
+            </div>
+            <div>
+              <span>No. Of Night</span>
+              <input class="sheet-input" type="number" min="0" id="preview-sheet-nights" placeholder="1" />
+              <strong id="preview-nights" class="sheet-print-text"></strong>
+            </div>
+            <div>
+              <span>Remark</span>
+              <input class="sheet-input" id="preview-sheet-remark" placeholder="หมายเหตุ / เลขที่ใบจอง" />
+              <strong id="preview-remark" class="sheet-print-text"></strong>
+            </div>
+          </div>
+          <div class="preview-table-wrap">
+            <table class="invoice-preview-table">
+              <thead>
+                <tr>
+                  <th style="width:16%;">Category</th>
+                  <th style="width:6%;" class="align-center">QTY</th>
+                  <th style="width:34%;">Description</th>
+                  <th style="width:13%;" class="align-right">Rate<br>(per total QTY)</th>
+                  <th style="width:10%;" class="align-right">Deposit</th>
+                  <th style="width:10%;" class="align-right">Discount</th>
+                  <th style="width:11%;" class="align-right">Total THB</th>
+                </tr>
+              </thead>
+              <tbody id="preview-invoice-lines"></tbody>
+            </table>
+          </div>
+          <datalist id="sheet-items-datalist">
+            ${[...accommodationItems, ...addonItems].map(item => `<option value="${esc(item.name)}">${esc(item.category)} (฿${item.rate})</option>`).join('')}
+          </datalist>
+          <footer class="preview-footer">
+            <div class="preview-agreement">
+              I agree that my liability for this bill is not waived and agree to be held personally liable in the event that the indicated person, company or association fails to pay for any part of the full amount of these charges.
+              <div class="signature-row"><span>Guest Signature</span><span>Receptionist</span></div>
+            </div>
+            <div class="preview-totals">
+              <div><span>Total</span><strong id="preview-total">0.00</strong></div>
+              <div><span>Deposit</span><strong id="preview-deposit">0.00</strong></div>
+              <div><span>Discount</span><strong id="preview-discount">0.00</strong></div>
+              <div class="total-outstanding"><span>Outstanding</span><strong id="preview-outstanding">0.00</strong></div>
+              <small>THAI BAHT</small>
+            </div>
+          </footer>
+          <div class="preview-settlement-bar screen-only">
+            <div class="settlement-bar-heading">
+              <span class="material-symbols-outlined">point_of_sale</span>
+              <strong>บันทึกการรับชำระเงิน &amp; พนักงานแคชเชียร์</strong>
+            </div>
+            <div class="settlement-bar-inputs">
+              <select id="sheet-payment-method" class="sheet-bar-select">
+                <option value="เงินสด">💵 เงินสด (Cash)</option>
+                <option value="บัตรเครดิต">💳 บัตรเครดิต (Credit Card)</option>
+                <option value="QR Code">📱 QR Code / พร้อมเพย์</option>
+                <option value="โอนเงิน SC">🏦 โอนเงิน SC (Bank Transfer)</option>
+              </select>
+              <input type="number" id="sheet-payment-amount" class="sheet-bar-input" min="0" step="0.01" placeholder="ยอดเงินที่รับ (บาท)" style="width:160px;" />
+              <button type="button" id="sheet-btn-add-payment" class="button button-outline action-small">
+                <span class="material-symbols-outlined">add_circle</span> บันทึกชำระ
+              </button>
+              <div class="settlement-cashier-wrap">
+                <label>พนักงาน:</label>
+                <select id="sheet-cashier-select" class="sheet-bar-select">
+                  <option value="">เลือกพนักงาน</option>
+                  <option>Now Narit</option>
+                  <option>Mhew Kusu</option>
+                  <option>Nattaya Phung</option>
+                  <option>Nummim</option>
+                  <option>Ple Theresa</option>
+                </select>
+              </div>
+            </div>
+            <div id="sheet-payment-list" class="sheet-payment-list"></div>
+          </div>
+        </article>
+      </div>
+    </section>
+    <section class="invoice-page" data-invoice-page="form">
+      <div class="invoice-entry-layout">
+        <form class="invoice-entry-main" id="invoice-entry-form">
+          <article class="panel invoice-entry-card">
+            <div class="panel-heading">
+              <div><span class="title-icon"><span class="material-symbols-outlined">badge</span></span><h3>ข้อมูลบนหัวใบแจ้งหนี้</h3></div>
+              <span class="required-note">* จำเป็นเฉพาะชื่อลูกค้า</span>
+            </div>
+            <div class="form-grid three">
+              <label>Reference No. <input id="folio" value="" placeholder="เลขอ้างอิง (สร้างให้อัตโนมัติ)"></label>
+              <label class="span-two">Guest Name <input id="customer" value="" placeholder="กรอกชื่อลูกค้า (จำเป็น)" required></label>
+              <label>Check-in Date <input id="check-in" type="date"></label>
+              <label>Check-out Date <input id="check-out" type="date"></label>
+              <label>No. Of Night <input id="no-of-night" type="number" min="0" value="" placeholder="จำนวนคืน"></label>
+              <label>Remark <input id="remark" value="" placeholder="หมายเหตุ"></label>
+              <label>วันที่ทำเอกสาร <input id="doc-date" type="date"></label>
+              <label class="span-two">Villa / Room <select id="villa"><option value="">เลือก Villa / Room (ไม่ระบุก็ได้)</option>${villaMarkup}</select></label>
+            </div>
+          </article>
+          <article class="panel invoice-entry-card invoice-lines-card">
+            <div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">list_alt</span></span><h3>รายการในใบแจ้งหนี้</h3></div><span class="required-note">เลือกลำดับ หมวด → รายการ</span></div>
+            <div class="invoice-add-grid">
+              <div class="invoice-add-box"><h4>Accommodation &amp; Inclusive Package</h4><div class="invoice-add-fields category-first-fields"><select id="accommodation-category" class="invoice-category-select"><option value="">เลือกหมวด</option>${categoryOptions(accommodationItems)}</select><select id="accommodation-select" disabled><option value="">เลือกรายการในหมวด</option>${aOptions}</select><input id="accommodation-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="accommodation-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวน Accommodation"><button class="button button-primary" id="add-accommodation" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
+              <div class="invoice-add-box"><h4>Food and Beverages (add-on) and Other Expenses</h4><div class="invoice-add-fields category-first-fields"><select id="addon-category" class="invoice-category-select"><option value="">เลือกหมวด</option>${categoryOptions(addonItems)}</select><select id="addon-select" disabled><option value="">เลือกรายการในหมวด</option>${bOptions}</select><input id="addon-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="addon-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวนค่าใช้จ่ายทั่วไป"><button class="button button-primary" id="add-addon" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
+            </div>
+            <section class="invoice-line-group">
+              <div class="line-group-heading" style="display:flex;align-items:center;justify-content:space-between;width:100%;">
+                <div><strong>Accommodation &amp; Inclusive Package</strong><small>รายการค่าบ้านและ Inclusive ทั้งหมด</small></div>
+                <button type="button" class="button button-soft action-small" id="btn-add-split-stay-invoice" style="display:inline-flex;align-items:center;gap:4px;font-size:12px;cursor:pointer;padding:4px 10px;"><span class="material-symbols-outlined" style="font-size:16px;">night_shelter</span> + พักต่อคืนที่ 2 (คนละบ้าน)</button>
+              </div>
+              <div class="table-wrap">
+                <table><thead><tr><th>หมวด</th><th>รายการ</th><th class="align-center">จำนวน</th><th class="align-right">Rate</th><th>ส่วนลด</th><th class="align-right">ยอดรวม</th><th></th></tr></thead><tbody id="form-accommodation-lines"></tbody></table>
+                <div id="accommodation-empty" class="empty-state"><p>ยังไม่มีรายการ</p></div>
+              </div>
+            </section>
+            <section class="invoice-line-group">
+              <div class="line-group-heading"><strong>Food and Beverages (add-on) and Other Expenses</strong><small>รายการค่าใช้จ่ายทั่วไปทั้งหมด</small></div>
+              <div class="table-wrap">
+                <table><thead><tr><th>หมวด</th><th>รายการ</th><th class="align-center">จำนวน</th><th class="align-right">Rate</th><th>ส่วนลด</th><th class="align-right">ยอดรวม</th><th></th></tr></thead><tbody id="form-addon-lines"></tbody></table>
+                <div id="addon-empty" class="empty-state"><p>ยังไม่มีรายการ</p></div>
+              </div>
+            </section>
+            <section class="invoice-adjustments">
+              <div class="line-group-heading"><strong>ยอดปรับและการชำระเงิน</strong><small>Deposit จะรวมจากรายการชำระด้านล่าง</small></div>
+              <div class="form-grid three compact-grid">
+                <label>รูปแบบส่วนลด <select id="discount-scope"><option value="line">ส่วนลดตามรายการ</option><option value="all">ส่วนลดทั้งบิล</option><option value="none">ไม่มีส่วนลด</option></select></label>
+                <label>ส่วนลดทั้งบิล <select id="discount-all-rate">${discountRateOptions(0)}</select></label>
+                <label>พนักงาน <select id="cashier"><option value="">เลือกพนักงาน</option><option>Now Narit</option><option>Mhew Kusu</option><option>Nattaya Phung</option><option>Nummim</option><option>Ple Theresa</option></select></label>
+              </div>
+              <div class="payment-entry">
+                <select id="payment-method"><option value="เงินสด">เงินสด</option><option value="บัตรเครดิต">บัตรเครดิต</option><option value="QR Code">QR Code</option><option value="โอนเงิน SC">โอนเงิน SC</option></select>
+                <input id="payment-amount" type="number" min="0" placeholder="จำนวนเงินที่รับ">
+                <button class="button button-outline" id="add-payment" type="button"><span class="material-symbols-outlined">add</span>บันทึกการชำระ</button>
+              </div>
+              <div id="payment-list" class="payment-list"></div>
+            </section>
+          </article>
+        </form>
+        <aside class="invoice-entry-side">
+          <article class="panel live-summary">
+            <span class="status-chip draft">DRAFT</span>
+            <h3>สรุปยอดใบแจ้งหนี้</h3>
+            <p>เลือกหมวดก่อน แล้วเลือกสินค้าที่อยู่ในหมวดนั้น</p>
+            <div class="live-summary-row"><span>Total</span><strong id="summary-total">0.00</strong></div>
+            <div class="live-summary-row"><span>Deposit</span><strong id="summary-deposit">0.00</strong></div>
+            <div class="live-summary-row"><span>Discount</span><strong id="summary-discount">0.00</strong></div>
+            <div class="live-summary-row outstanding"><span>Outstanding</span><strong id="summary-outstanding">0.00</strong></div>
+            <button class="button button-primary full-width" type="button" data-invoice-page="preview"><span class="material-symbols-outlined">visibility</span>ดูหน้าใบแจ้งหนี้</button>
+          </article>
+        </aside>
+      </div>
+    </section>
+  `;
+  setInvoicePage('preview');
 }
 
 /* Invoice item flow: category first, then only the items in that category. */
