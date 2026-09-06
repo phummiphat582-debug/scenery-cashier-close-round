@@ -10,6 +10,64 @@ function isAccommodationCategory(cat) {
   const c = String(cat || '').trim().toLowerCase();
   return /^(accommodation|villa|room|ที่พัก|วิลล่า|extra\s*bed|เตียงเสริม|complimentary|อภินันทนาการ|package|แพ็กเกจ|แพคเกจ|bathtub|jacuzzi)/i.test(c);
 }
+function normalizeForCompare(s) {
+  return String(s || '').toLowerCase()
+    .replace(/\s*\([^)]*\)/g, '')
+    .replace(/villa|jacuzzi|bathtub|deluxe/gi, '')
+    .replace(/[^a-z0-9\u0E00-\u0E7F]/gi, '')
+    .trim();
+}
+function isCurrent(itemName, currentName) {
+  if (!currentName || !itemName) return false;
+  const s1 = String(itemName).trim().toLowerCase();
+  const s2 = String(currentName).trim().toLowerCase();
+  if (s1 === s2) return true;
+  const n1 = normalizeForCompare(itemName);
+  const n2 = normalizeForCompare(currentName);
+  if (n1 && n1 === n2) return true;
+  if (n1.length >= 4 && n2.length >= 4 && (n1.startsWith(n2) || n2.startsWith(n1))) return true;
+  return false;
+}
+function normalizeCategoryKey(c) {
+  return String(c || '')
+    .toLowerCase()
+    .replace(/[_\s\-\/&]+/g, '')
+    .replace(/[^a-z0-9\u0E00-\u0E7F]/gi, '')
+    .trim();
+}
+function isInvoiceMatchingCategory(itemCat, selectedCat, item) {
+  const nItem = normalizeCategoryKey(itemCat);
+  const nSel = normalizeCategoryKey(selectedCat);
+  if (!nSel) return false;
+  if (nItem === nSel) return true;
+  
+  const isAccSel = /^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel) || /^(bathtub|jacuzzi)/i.test(nSel);
+  const isAccItem = item?.type === 'accommodation' || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem) || Boolean(item?.villa);
+  
+  if (isAccSel && isAccItem) {
+    if (/^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel)) {
+      if (item?.villa || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem)) return true;
+    }
+    if (nSel.includes('bathtubdeluxe') && (nItem.includes('bathtubdeluxe') || /01\s*ruzi|07\s*katahdin/i.test(item?.name || ''))) return true;
+    if (nSel.includes('jacuzzideluxe') && (nItem.includes('jacuzzideluxe') || /04\s*barbados|04ab/i.test(item?.name || ''))) return true;
+    if (nSel === 'bathtub' && (nItem === 'bathtub' || /05\s*merino|06\s*corriedale|06\s*corredale/i.test(item?.name || ''))) return true;
+    if (nSel === 'jacuzzi' && (nItem === 'jacuzzi' || /02\s*pangola|03\s*hamata|08\s*mulato|010\s*napier|011\s*setaria|012\s*alfalfa/i.test(item?.name || ''))) return true;
+  }
+  
+  if (nSel.includes('extrabed') && nItem.includes('extrabed')) return true;
+  if (nSel.includes('complimentary') && nItem.includes('complimentary')) return true;
+  if (nSel.includes('package') && nItem.includes('package')) return true;
+  if (nSel.includes('food') && (nItem.includes('food') || nItem.includes('fnb') || nItem.includes('beverage'))) return true;
+  if (nSel.includes('bbq') && nItem.includes('bbq')) return true;
+  if ((nSel.includes('afternoon') || nSel.includes('bakery') || nSel.includes('เบเกอรี่')) && (nItem.includes('afternoon') || nItem.includes('bakery') || nItem.includes('เบเกอรี่'))) return true;
+  if (nSel.includes('minibar') && nItem.includes('minibar')) return true;
+  if (nSel.includes('souvenir') && nItem.includes('souvenir')) return true;
+  if ((nSel.includes('activit') || nSel.includes('กิจกรรม') || nSel.includes('massage') || nSel.includes('นวด')) && !nSel.includes('สุนัข') && !nSel.includes('123') && (nItem.includes('activit') || nItem.includes('massage') || nItem.includes('นวด')) && !nItem.includes('สุนัข') && !nItem.includes('123')) return true;
+  if ((nSel.includes('สุนัข') || nSel.includes('123') || nSel.includes('dog')) && (nItem.includes('สุนัข') || nItem.includes('123') || nItem.includes('dog'))) return true;
+  if ((nSel.includes('misc') || nSel.includes('other') || nSel.includes('อื่น')) && (nItem.includes('misc') || nItem.includes('other') || nItem.includes('อื่น'))) return true;
+  
+  return false;
+}
 const VILLA_MASTER_ITEMS = [
   { name: '01 Ruzi Villa', category: 'Accommodation', villa: '01 Ruzi Villa', rate: 0 },
   { name: '02 Pangola Villa', category: 'Accommodation', villa: '02 Pangola Villa', rate: 0 },
@@ -1197,24 +1255,6 @@ function installFinalInvoiceRules(){
     if(current&&!list.some(c=>c.toLowerCase()===current.toLowerCase()))list.push(current);
     return list.map(cat=>`<option value="${esc(cat)}" ${cat.toLowerCase()===current.toLowerCase()?'selected':''}>${esc(cat)}</option>`).join('');
   }
-
-  const normalizeForCompare = s => String(s || '').toLowerCase()
-    .replace(/\s*\([^)]*\)/g, '')
-    .replace(/villa|jacuzzi|bathtub|deluxe/gi, '')
-    .replace(/[^a-z0-9\u0E00-\u0E7F]/gi, '')
-    .trim();
-
-  const isCurrent = (itemName, currentName) => {
-    if (!currentName || !itemName) return false;
-    const s1 = String(itemName).trim().toLowerCase();
-    const s2 = String(currentName).trim().toLowerCase();
-    if (s1 === s2) return true;
-    const n1 = normalizeForCompare(itemName);
-    const n2 = normalizeForCompare(currentName);
-    if (n1 && n1 === n2) return true;
-    if (n1.length >= 4 && n2.length >= 4 && (n1.startsWith(n2) || n2.startsWith(n1))) return true;
-    return false;
-  };
 
   function itemOptionsForLineCategory(selectedCategory, currentName, type){
     const formatRate = r => {
@@ -5151,48 +5191,6 @@ function buildInvoiceWorkspace(){
   installPreviewPaymentMeta();
   installHeaderEditableSync();
   installInvoiceCategoryFirstSelection();
-}
-
-function normalizeCategoryKey(c) {
-  return String(c || '')
-    .toLowerCase()
-    .replace(/[_\s\-\/&]+/g, '')
-    .replace(/[^a-z0-9\u0E00-\u0E7F]/gi, '')
-    .trim();
-}
-
-function isInvoiceMatchingCategory(itemCat, selectedCat, item) {
-  const nItem = normalizeCategoryKey(itemCat);
-  const nSel = normalizeCategoryKey(selectedCat);
-  if (!nSel) return false;
-  if (nItem === nSel) return true;
-  
-  const isAccSel = /^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel) || /^(bathtub|jacuzzi)/i.test(nSel);
-  const isAccItem = item?.type === 'accommodation' || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem) || Boolean(item?.villa);
-  
-  if (isAccSel && isAccItem) {
-    if (/^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel)) {
-      if (item?.villa || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem)) return true;
-    }
-    if (nSel.includes('bathtubdeluxe') && (nItem.includes('bathtubdeluxe') || /01\s*ruzi|07\s*katahdin/i.test(item?.name || ''))) return true;
-    if (nSel.includes('jacuzzideluxe') && (nItem.includes('jacuzzideluxe') || /04\s*barbados|04ab/i.test(item?.name || ''))) return true;
-    if (nSel === 'bathtub' && (nItem === 'bathtub' || /05\s*merino|06\s*corriedale|06\s*corredale/i.test(item?.name || ''))) return true;
-    if (nSel === 'jacuzzi' && (nItem === 'jacuzzi' || /02\s*pangola|03\s*hamata|08\s*mulato|010\s*napier|011\s*setaria|012\s*alfalfa/i.test(item?.name || ''))) return true;
-  }
-  
-  if (nSel.includes('extrabed') && nItem.includes('extrabed')) return true;
-  if (nSel.includes('complimentary') && nItem.includes('complimentary')) return true;
-  if (nSel.includes('package') && nItem.includes('package')) return true;
-  if (nSel.includes('food') && (nItem.includes('food') || nItem.includes('fnb') || nItem.includes('beverage'))) return true;
-  if (nSel.includes('bbq') && nItem.includes('bbq')) return true;
-  if ((nSel.includes('afternoon') || nSel.includes('bakery') || nSel.includes('เบเกอรี่')) && (nItem.includes('afternoon') || nItem.includes('bakery') || nItem.includes('เบเกอรี่'))) return true;
-  if (nSel.includes('minibar') && nItem.includes('minibar')) return true;
-  if (nSel.includes('souvenir') && nItem.includes('souvenir')) return true;
-  if ((nSel.includes('activit') || nSel.includes('กิจกรรม') || nSel.includes('massage') || nSel.includes('นวด')) && !nSel.includes('สุนัข') && !nSel.includes('123') && (nItem.includes('activit') || nItem.includes('massage') || nItem.includes('นวด')) && !nItem.includes('สุนัข') && !nItem.includes('123')) return true;
-  if ((nSel.includes('สุนัข') || nSel.includes('123') || nSel.includes('dog')) && (nItem.includes('สุนัข') || nItem.includes('123') || nItem.includes('dog'))) return true;
-  if ((nSel.includes('misc') || nSel.includes('other') || nSel.includes('อื่น')) && (nItem.includes('misc') || nItem.includes('other') || nItem.includes('อื่น'))) return true;
-  
-  return false;
 }
 
 /* Invoice item flow: choose item directly OR filter by category first */
