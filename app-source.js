@@ -6,23 +6,27 @@ const CLOSE_ROUND_SOURCE_VILLAS=[
 ];
 const villaBathTypes={'01 Ruzi':'BathTub_Deluxe','02 Pangola':'Jacuzzi','03 Hamata':'Jacuzzi','04 Barbados':'Jacuzzi_Deluxe','04AB Barbados':'Jacuzzi_Deluxe','04A Barbados':'Jacuzzi_Deluxe','04B Barbados':'Jacuzzi_Deluxe','05 Merino':'BathTub','06 Corriedale':'BathTub','06 Corredale':'BathTub','07 Katahdin':'BathTub_Deluxe','08 Mulato':'Jacuzzi','010 Napier':'Jacuzzi','011 Setaria':'Jacuzzi','012 Alfalfa':'Jacuzzi','013 Rapunzel':'Villa','Pre-Wedding':'Villa'};
 function cleanEnglishText(value){return String(value??'').replace(/\bBath\b/g,'Baht').replace(/\bFlaver\b/g,'Flavor').replace(/\bGrand ma\b/g,'Grandma').replace(/Food_Beverage/g,'Food & Beverage').replace(/Afternoon_Tea/g,'Afternoon Tea').replace(/Extra_Bed/g,'Extra Bed').replace(/BathTub_Deluxe/g,'Bathtub Deluxe').replace(/BathTub/g,'Bathtub').replace(/Jacuzzi_Deluxe/g,'Jacuzzi Deluxe').replace(/\s*(?:เด้งราคา|เพิ่มราคา|เด้ง)\b/g,'').replace(/\s*\?\s*/g,' - ').replace(/\s{2,}/g,' ').trim()}
+function isAccommodationCategory(cat) {
+  const c = String(cat || '').trim().toLowerCase();
+  return /^(accommodation|villa|room|ที่พัก|วิลล่า|extra\s*bed|เตียงเสริม|complimentary|อภินันทนาการ|package|แพ็กเกจ|แพคเกจ|bathtub|jacuzzi)/i.test(c);
+}
 const VILLA_MASTER_ITEMS = [
-  { name: '01 Ruzi Villa', category: 'Bathtub Deluxe', villa: '01 Ruzi Villa', rate: 0 },
-  { name: '02 Pangola Villa', category: 'Jacuzzi', villa: '02 Pangola Villa', rate: 0 },
-  { name: '03 Hamata Villa', category: 'Jacuzzi', villa: '03 Hamata Villa', rate: 0 },
-  { name: '04 Barbados Villa', category: 'Jacuzzi Deluxe', villa: '04 Barbados Villa', rate: 0 },
-  { name: '04AB Barbados Villa', category: 'Jacuzzi Deluxe', villa: '04AB Barbados Villa', rate: 0 },
-  { name: '04A Barbados Villa', category: 'Jacuzzi Deluxe', villa: '04A Barbados Villa', rate: 0 },
-  { name: '04B Barbados Villa', category: 'Jacuzzi Deluxe', villa: '04B Barbados Villa', rate: 0 },
-  { name: '05 Merino Villa', category: 'Bathtub', villa: '05 Merino Villa', rate: 0 },
-  { name: '06 Corredale Villa', category: 'Bathtub', villa: '06 Corredale Villa', rate: 0 },
-  { name: '07 Katahdin Villa', category: 'Bathtub Deluxe', villa: '07 Katahdin Villa', rate: 0 },
-  { name: '08 Mulato Villa', category: 'Jacuzzi', villa: '08 Mulato Villa', rate: 0 },
-  { name: '010 Napier Villa', category: 'Jacuzzi', villa: '010 Napier Villa', rate: 0 },
-  { name: '011 Setaria Villa', category: 'Jacuzzi', villa: '011 Setaria Villa', rate: 0 },
-  { name: '012 Alfalfa Villa', category: 'Jacuzzi', villa: '012 Alfalfa Villa', rate: 0 },
-  { name: '013 Rapunzel Villa', category: 'Villa', villa: '013 Rapunzel Villa', rate: 0 },
-  { name: 'Pre-Wedding Villa', category: 'Villa', villa: 'Pre-Wedding Villa', rate: 0 }
+  { name: '01 Ruzi Villa', category: 'Accommodation', villa: '01 Ruzi Villa', rate: 0 },
+  { name: '02 Pangola Villa', category: 'Accommodation', villa: '02 Pangola Villa', rate: 0 },
+  { name: '03 Hamata Villa', category: 'Accommodation', villa: '03 Hamata Villa', rate: 0 },
+  { name: '04 Barbados Villa', category: 'Accommodation', villa: '04 Barbados Villa', rate: 0 },
+  { name: '04AB Barbados Villa', category: 'Accommodation', villa: '04AB Barbados Villa', rate: 0 },
+  { name: '04A Barbados Villa', category: 'Accommodation', villa: '04A Barbados Villa', rate: 0 },
+  { name: '04B Barbados Villa', category: 'Accommodation', villa: '04B Barbados Villa', rate: 0 },
+  { name: '05 Merino Villa', category: 'Accommodation', villa: '05 Merino Villa', rate: 0 },
+  { name: '06 Corredale Villa', category: 'Accommodation', villa: '06 Corredale Villa', rate: 0 },
+  { name: '07 Katahdin Villa', category: 'Accommodation', villa: '07 Katahdin Villa', rate: 0 },
+  { name: '08 Mulato Villa', category: 'Accommodation', villa: '08 Mulato Villa', rate: 0 },
+  { name: '010 Napier Villa', category: 'Accommodation', villa: '010 Napier Villa', rate: 0 },
+  { name: '011 Setaria Villa', category: 'Accommodation', villa: '011 Setaria Villa', rate: 0 },
+  { name: '012 Alfalfa Villa', category: 'Accommodation', villa: '012 Alfalfa Villa', rate: 0 },
+  { name: '013 Rapunzel Villa', category: 'Accommodation', villa: '013 Rapunzel Villa', rate: 0 },
+  { name: 'Pre-Wedding Villa', category: 'Accommodation', villa: 'Pre-Wedding Villa', rate: 0 }
 ];
 const NON_VILLA_ACC = DATA.accommodationItems
   .filter(item => {
@@ -1865,6 +1869,7 @@ function installFinalInvoiceRules(){
         const idx = Number(t.dataset.sheetLine);
         if (state.invoiceLines[idx]) {
           const val = t.value;
+          if (!val) return;
           if (val === '__custom__') {
             const customName = prompt('พิมพ์ชื่อรายการที่ต้องการ:', state.invoiceLines[idx].name || '');
             if (customName && customName.trim()) {
@@ -1884,7 +1889,7 @@ function installFinalInvoiceRules(){
 
           if (isVilla) {
             state.invoiceLines[idx].name = matched ? matched.name : val;
-            state.invoiceLines[idx].category = matched ? matched.category : 'Accommodation';
+            state.invoiceLines[idx].category = 'Accommodation';
             state.invoiceLines[idx].type = 'accommodation';
             state.invoiceLines[idx].villa = matched && matched.villa ? matched.villa : val;
             // Room rate is entered manually by user (default 0)
@@ -1892,7 +1897,7 @@ function installFinalInvoiceRules(){
           } else if (matched) {
             state.invoiceLines[idx].name = matched.name;
             state.invoiceLines[idx].category = matched.category || state.invoiceLines[idx].category;
-            state.invoiceLines[idx].type = accommodationItems.some(i => i.name === matched.name) ? 'accommodation' : 'addon';
+            state.invoiceLines[idx].type = isAccommodationCategory(state.invoiceLines[idx].category) ? 'accommodation' : 'addon';
             state.invoiceLines[idx].rate = Number(matched.rate || 0);
           } else {
             state.invoiceLines[idx].name = val;
@@ -1943,14 +1948,14 @@ function installFinalInvoiceRules(){
 
           if (isVilla) {
             itemName = matched ? matched.name : val;
-            itemCat = matched ? matched.category : 'Accommodation';
+            itemCat = 'Accommodation';
             itemType = 'accommodation';
             itemRate = 0; // Cashier types rate manually
             itemVilla = matched && matched.villa ? matched.villa : itemName;
           } else if (matched) {
             itemName = matched.name;
             itemCat = matched.category || itemCat;
-            itemType = accommodationItems.some(i => i.name === matched.name) ? 'accommodation' : 'addon';
+            itemType = isAccommodationCategory(itemCat) ? 'accommodation' : 'addon';
             itemRate = Number(matched.rate || 0);
           } else if (opt) {
             if (opt.dataset.cat) itemCat = opt.dataset.cat;
@@ -1992,8 +1997,8 @@ function installFinalInvoiceRules(){
       } else if (t.classList.contains('sheet-new-line-cat')) {
         const val = t.value;
         if (!val) return;
-        const addType = t.dataset.addType || 'accommodation';
-        const isAcc = addType === 'accommodation' || ['Accommodation', 'Extra Bed', 'Complimentary', 'Package'].includes(val);
+        const isAcc = isAccommodationCategory(val);
+        const newLineIndex = state.invoiceLines.length;
         state.invoiceLines.push({
           type: isAcc ? 'accommodation' : 'addon',
           category: val,
@@ -2009,21 +2014,25 @@ function installFinalInvoiceRules(){
         calculateInvoice();
         renderInvoicePreview(true);
         setTimeout(() => {
-          const rows = document.querySelectorAll('#preview-invoice-lines tr[data-sheet-row]');
-          if (rows.length) {
-            const lastDesc = rows[rows.length - 1].querySelector('.sheet-desc-select');
-            if (lastDesc) lastDesc.focus();
+          const rowEl = document.querySelector(`#preview-invoice-lines tr[data-sheet-row="${newLineIndex}"]`);
+          if (rowEl) {
+            const descSel = rowEl.querySelector('.sheet-desc-select');
+            if (descSel) descSel.focus();
           }
         }, 50);
+        showToast(`เลือกหมวด "${val}" แล้ว - กรุณาเลือกรายการ`);
       } else if (t.classList.contains('sheet-line-cat')) {
         const idx = Number(t.dataset.sheetLine);
         if (state.invoiceLines[idx]) {
-          state.invoiceLines[idx].category = t.value;
+          const val = t.value;
+          state.invoiceLines[idx].category = val;
+          const isAcc = isAccommodationCategory(val);
+          state.invoiceLines[idx].type = isAcc ? 'accommodation' : 'addon';
           const tr = t.closest('tr');
           if (tr) {
             const descSel = tr.querySelector('.sheet-desc-select');
             if (descSel) {
-              descSel.innerHTML = itemOptionsForLineCategory(t.value, state.invoiceLines[idx].name, state.invoiceLines[idx].type);
+              descSel.innerHTML = itemOptionsForLineCategory(val, state.invoiceLines[idx].name, state.invoiceLines[idx].type);
             }
           }
           renderFormLines();
