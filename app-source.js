@@ -5194,7 +5194,7 @@ function isInvoiceMatchingCategory(itemCat, selectedCat, item) {
   return false;
 }
 
-/* Invoice item flow: category first, then only the items in that category. */
+/* Invoice item flow: choose item directly OR filter by category first */
 function installInvoiceCategoryFirstSelection(){
   const configs=[
     {type:'accommodation',categoryId:'accommodation-category',selectId:'accommodation-select',rateId:'accommodation-rate',qtyId:'accommodation-qty',items:accommodationItems},
@@ -5206,31 +5206,61 @@ function installInvoiceCategoryFirstSelection(){
     document.querySelectorAll(`#${config.type}-search, #${config.type}-options, #${config.type}-item-input, #${config.type}-source-options`).forEach(element=>element.remove());
     select.hidden=false;
     select.style.display='';
+    
     const renderItems=()=>{
       const category=categoryEl.value;
-      if(!category){
-        select.innerHTML='<option value="">เลือกหมวดก่อน</option>';
-        select.disabled=true;
-        if(rateEl)rateEl.value='';
-        return;
+      let matches = config.items;
+      if (category) {
+        matches = config.items.filter(item => isInvoiceMatchingCategory(item.category, category, item) || isInvoiceMatchingCategory(category, item.category, item));
       }
-      const matches=config.items.map((item,index)=>({item,index})).filter(({item})=>isInvoiceMatchingCategory(item.category,category,item));
-      select.innerHTML=`<option value="">-- เลือกรายการในหมวด (${matches.length} รายการ) --</option>${matches.map(({item,index})=>`<option value="${index}" data-rate="${item.rate||0}" data-name="${esc(item.name)}" data-cat="${esc(item.category)}">${esc(item.name)}${item.rate?` (฿${Number(item.rate).toLocaleString('th-TH')})`:''}</option>`).join('')}`;
-      select.disabled=!matches.length;
-      if(rateEl)rateEl.value='';
+      
+      const formatRate = r => {
+        const n = Number(r || 0);
+        return n.toLocaleString('th-TH');
+      };
+
+      const promptText = category
+        ? `-- เลือกรายการในหมวด ${category} (${matches.length} รายการ) --`
+        : `-- เลือกรายการ (${matches.length} รายการ) หรือเลือกหมวดด้านซ้าย --`;
+
+      select.innerHTML = `<option value="">${promptText}</option>` +
+        matches.map((item) => {
+          const originalIdx = config.items.findIndex(orig => orig.name === item.name);
+          const isVilla = VILLA_MASTER_ITEMS.some(v => isCurrent(v.name, item.name));
+          const rateLabel = isVilla ? ' (กรอกราคาเอง)' : (item.rate ? ` (฿${formatRate(item.rate)})` : '');
+          return `<option value="${originalIdx >= 0 ? originalIdx : ''}" data-rate="${item.rate || 0}" data-name="${esc(item.name)}" data-cat="${esc(item.category || category || '')}">${esc(item.name)}${rateLabel}</option>`;
+        }).join('');
+        
+      select.disabled = false;
+      if(rateEl && !category) rateEl.value = '';
     };
-    categoryEl.addEventListener('change',renderItems);
-    select.addEventListener('change',()=>{
-      const opt=select.options[select.selectedIndex];
-      if(opt&&opt.value!==''){
-        const item=config.items[Number(opt.value)];
-        if(rateEl)rateEl.value=(item&&item.rate!==undefined)?item.rate:(opt.dataset.rate||'');
-      }else{
-        if(rateEl)rateEl.value='';
+
+    categoryEl.addEventListener('change', renderItems);
+    select.addEventListener('change', () => {
+      const opt = select.options[select.selectedIndex];
+      if (opt && opt.value !== '') {
+        const item = config.items[Number(opt.value)];
+        const isVilla = VILLA_MASTER_ITEMS.some(v => isCurrent(v.name, opt.dataset.name || item?.name));
+        if (rateEl) {
+          if (isVilla) {
+            rateEl.value = '';
+            rateEl.placeholder = '0.00 (กรอกราคา)';
+            rateEl.focus();
+          } else {
+            rateEl.value = (item && item.rate !== undefined) ? item.rate : (opt.dataset.rate || 0);
+          }
+        }
+        if (!categoryEl.value && opt.dataset.cat) {
+          categoryEl.value = opt.dataset.cat;
+        }
+      } else {
+        if (rateEl) rateEl.value = '';
       }
     });
-    if(categoryEl.value)renderItems();
+
+    renderItems();
   });
+
   addLine=function(type){
     const config=configs.find(item=>item.type===type);
     if(!config)return;
@@ -5238,25 +5268,44 @@ function installInvoiceCategoryFirstSelection(){
     const opt=select?.options[select?.selectedIndex];
     const itemIndex=Number(select?.value);
     const item=Number.isInteger(itemIndex)&&config.items[itemIndex]?config.items[itemIndex]:null;
-    if(!categoryEl?.value){showToast('กรุณาเลือกหมวดก่อนเลือกรายการ','error');return}
-    if(!item&&(!opt||!opt.dataset.name)){showToast('กรุณาเลือกรายการในหมวดก่อนเพิ่ม','error');return}
+    
+    if(!item && (!opt || !opt.dataset.name)){
+      showToast('กรุณาเลือกรายการสินค้า/บริการก่อนเพิ่ม', 'error');
+      select?.focus();
+      return;
+    }
+    
     const name=opt?.dataset.name||item?.name||'';
-    const category=opt?.dataset.cat||item?.category||categoryEl.value;
-    const rate=Math.max(0,Number(rateEl?.value??item?.rate??0));
-    const qty=Math.max(1,Number(qtyEl?.value||1));
-    const isBasket100=(/ต[ระ]*กร้า|ปิ[คก]นิก|basket/i.test(name))&&(rate===100||/100/.test(name)||/atv/i.test(name));
-    const initialDiscount=isBasket100?(rate*qty):0;
-    state.invoiceLines.push({type,name,category,sourceIndex:Number.isInteger(itemIndex)?itemIndex:null,rate,deposit:0,depositMethod:'เงินสด',qty,discountRate:0,discountAmount:initialDiscount,pendingCollection:0,pendingNote:''});
-    categoryEl.value='';
-    select.innerHTML='<option value="">เลือกหมวดก่อน</option>';
-    select.value='';
-    select.disabled=true;
-    if(rateEl)rateEl.value='';
-    if(qtyEl)qtyEl.value='1';
+    const isVilla = VILLA_MASTER_ITEMS.some(v => isCurrent(v.name, name));
+    const category = opt?.dataset.cat || item?.category || categoryEl?.value || (type === 'accommodation' ? 'Accommodation' : 'Food & Beverage');
+    const enteredRate = Number(rateEl?.value || 0);
+    const rate = isVilla ? (enteredRate >= 0 ? enteredRate : 0) : Math.max(0, Number(rateEl?.value ?? item?.rate ?? 0));
+    const qty = Math.max(1, Number(qtyEl?.value || 1));
+    const villaName = isVilla ? (item?.villa || name) : (state.villa || '');
+    
+    state.invoiceLines.push({
+      type,
+      name,
+      category,
+      sourceIndex: Number.isInteger(itemIndex) ? itemIndex : null,
+      rate,
+      deposit: 0,
+      depositMethod: 'เงินสด',
+      qty,
+      discountRate: 0,
+      discountAmount: 0,
+      pendingCollection: 0,
+      pendingNote: '',
+      villa: villaName
+    });
+
+    select.value = '';
+    if(rateEl) rateEl.value = '';
+    if(qtyEl) qtyEl.value = '1';
     renderFormLines();
     if(typeof calculateInvoice==='function')calculateInvoice();
-    if(typeof renderInvoicePreview==='function')renderInvoicePreview();
-    showToast(`เพิ่ม ${name} ลงในใบแจ้งหนี้แล้ว`);
+    if(typeof renderInvoicePreview==='function')renderInvoicePreview(true);
+    showToast(`เพิ่ม "${name}" ลงในใบแจ้งหนี้แล้ว`);
   };
 }
 document.addEventListener('DOMContentLoaded',installInvoiceCategoryFirstSelection);
