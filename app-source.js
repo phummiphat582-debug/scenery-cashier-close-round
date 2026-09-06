@@ -5096,8 +5096,8 @@ function buildInvoiceWorkspace(){
           <article class="panel invoice-entry-card invoice-lines-card">
             <div class="panel-heading"><div><span class="title-icon"><span class="material-symbols-outlined">list_alt</span></span><h3>รายการในใบแจ้งหนี้</h3></div><span class="required-note">เลือกลำดับ หมวด → รายการ</span></div>
             <div class="invoice-add-grid">
-              <div class="invoice-add-box"><h4>Accommodation &amp; Inclusive Package</h4><div class="invoice-add-fields category-first-fields"><select id="accommodation-category" class="invoice-category-select">${accCategoryMarkup}</select><select id="accommodation-select" disabled><option value="">เลือกหมวดก่อน</option></select><input id="accommodation-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="accommodation-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวน Accommodation"><button class="button button-primary" id="add-accommodation" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
-              <div class="invoice-add-box"><h4>Food and Beverages (add-on) and Other Expenses</h4><div class="invoice-add-fields category-first-fields"><select id="addon-category" class="invoice-category-select">${addonCategoryMarkup}</select><select id="addon-select" disabled><option value="">เลือกหมวดก่อน</option></select><input id="addon-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="addon-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวนค่าใช้จ่ายทั่วไป"><button class="button button-primary" id="add-addon" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
+              <div class="invoice-add-box"><h4>Accommodation &amp; Inclusive Package</h4><div class="invoice-add-fields category-first-fields"><select id="accommodation-category" class="invoice-category-select">${accCategoryMarkup}</select><select id="accommodation-select"><option value="">-- เลือกรายการ หรือเลือกหมวดด้านซ้าย --</option></select><input id="accommodation-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="accommodation-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวน Accommodation"><button class="button button-primary" id="add-accommodation" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
+              <div class="invoice-add-box"><h4>Food and Beverages (add-on) and Other Expenses</h4><div class="invoice-add-fields category-first-fields"><select id="addon-category" class="invoice-category-select">${addonCategoryMarkup}</select><select id="addon-select"><option value="">-- เลือกรายการ หรือเลือกหมวดด้านซ้าย --</option></select><input id="addon-rate" type="number" min="0" step="0.01" placeholder="Rate"><input id="addon-qty" type="number" min="1" value="1" placeholder="จำนวน" aria-label="จำนวนค่าใช้จ่ายทั่วไป"><button class="button button-primary" id="add-addon" type="button"><span class="material-symbols-outlined">add</span>เพิ่มรายการ</button></div></div>
             </div>
             <section class="invoice-line-group">
               <div class="line-group-heading" style="display:flex;align-items:center;justify-content:space-between;width:100%;">
@@ -5136,7 +5136,7 @@ function buildInvoiceWorkspace(){
           <article class="panel live-summary">
             <span class="status-chip draft">DRAFT</span>
             <h3>สรุปยอดใบแจ้งหนี้</h3>
-            <p>เลือกหมวดก่อน แล้วเลือกสินค้าที่อยู่ในหมวดนั้น</p>
+            <p>เลือกหมวดก่อน หรือเลือกรายการสินค้าได้โดยตรง</p>
             <div class="live-summary-row"><span>Total</span><strong id="summary-total">0.00</strong></div>
             <div class="live-summary-row"><span>Deposit</span><strong id="summary-deposit">0.00</strong></div>
             <div class="live-summary-row"><span>Discount</span><strong id="summary-discount">0.00</strong></div>
@@ -5150,6 +5150,7 @@ function buildInvoiceWorkspace(){
   setInvoicePage('form');
   installPreviewPaymentMeta();
   installHeaderEditableSync();
+  installInvoiceCategoryFirstSelection();
 }
 
 function normalizeCategoryKey(c) {
@@ -5235,8 +5236,8 @@ function installInvoiceCategoryFirstSelection(){
       if(rateEl && !category) rateEl.value = '';
     };
 
-    categoryEl.addEventListener('change', renderItems);
-    select.addEventListener('change', () => {
+    categoryEl.onchange = renderItems;
+    select.onchange = () => {
       const opt = select.options[select.selectedIndex];
       if (opt && opt.value !== '') {
         const item = config.items[Number(opt.value)];
@@ -5256,7 +5257,7 @@ function installInvoiceCategoryFirstSelection(){
       } else {
         if (rateEl) rateEl.value = '';
       }
-    });
+    };
 
     renderItems();
   });
@@ -5308,6 +5309,7 @@ function installInvoiceCategoryFirstSelection(){
     showToast(`เพิ่ม "${name}" ลงในใบแจ้งหนี้แล้ว`);
   };
 }
+installInvoiceCategoryFirstSelection();
 document.addEventListener('DOMContentLoaded',installInvoiceCategoryFirstSelection);
 document.addEventListener('click',event=>{
   if(!event.target.closest?.('#reset-invoice'))return;
