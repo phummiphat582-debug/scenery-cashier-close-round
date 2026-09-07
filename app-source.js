@@ -4,7 +4,7 @@ const CLOSE_ROUND_SOURCE_VILLAS=[
   '02 Pangola','03 Hamata','04 Barbados','05 Merino','06 Corriedale','07 Katahdin',
   '08 Mulato','010 Napier','011 Setaria','012 Alfalfa','013 Rapunzel'
 ];
-const villaBathTypes={'01 Ruzi':'BathTub_Deluxe','02 Pangola':'Jacuzzi','03 Hamata':'Jacuzzi','04 Barbados':'Jacuzzi_Deluxe','04AB Barbados':'Jacuzzi_Deluxe','04A Barbados':'Jacuzzi_Deluxe','04B Barbados':'Jacuzzi_Deluxe','05 Merino':'BathTub','06 Corriedale':'BathTub','06 Corredale':'BathTub','07 Katahdin':'BathTub_Deluxe','08 Mulato':'Jacuzzi','010 Napier':'Jacuzzi','011 Setaria':'Jacuzzi','012 Alfalfa':'Jacuzzi','013 Rapunzel':'Villa','Pre-Wedding':'Villa'};
+const villaBathTypes={'01 Ruzi Villa':'Bathtub Deluxe','02 Pangola Villa':'Jacuzzi','03 Hamata Villa':'Jacuzzi','04 Barbados Villa':'Jacuzzi Deluxe','04AB Barbados Villa':'Jacuzzi Deluxe','04A Barbados Villa':'Jacuzzi Deluxe','04B Barbados Villa':'Jacuzzi Deluxe','05 Merino Villa':'Bathtub','06 Corredale Villa':'Bathtub','06 Corriedale Villa':'Bathtub','07 Katahdin Villa':'Bathtub Deluxe','08 Mulato Villa':'Jacuzzi','010 Napier Villa':'Jacuzzi','011 Setaria Villa':'Jacuzzi','012 Alfalfa Villa':'Jacuzzi','013 Rapunzel Villa':'Villa','Pre-Wedding Villa':'Villa','01 Ruzi':'Bathtub Deluxe','02 Pangola':'Jacuzzi','03 Hamata':'Jacuzzi','04 Barbados':'Jacuzzi Deluxe','04AB Barbados':'Jacuzzi Deluxe','04A Barbados':'Jacuzzi Deluxe','04B Barbados':'Jacuzzi Deluxe','05 Merino':'Bathtub','06 Corredale':'Bathtub','06 Corriedale':'Bathtub','07 Katahdin':'Bathtub Deluxe','08 Mulato':'Jacuzzi','010 Napier':'Jacuzzi','011 Setaria':'Jacuzzi','012 Alfalfa':'Jacuzzi','013 Rapunzel':'Villa','Pre-Wedding':'Villa'};
 function cleanEnglishText(value){return String(value??'').replace(/\bBath\b/g,'Baht').replace(/\bFlaver\b/g,'Flavor').replace(/\bGrand ma\b/g,'Grandma').replace(/Food_Beverage/g,'Food & Beverage').replace(/Afternoon_Tea/g,'Afternoon Tea').replace(/Extra_Bed/g,'Extra Bed').replace(/BathTub_Deluxe/g,'Bathtub Deluxe').replace(/BathTub/g,'Bathtub').replace(/Jacuzzi_Deluxe/g,'Jacuzzi Deluxe').replace(/\s*(?:เด้งราคา|เพิ่มราคา|เด้ง)\b/g,'').replace(/\s*\?\s*/g,' - ').replace(/\s{2,}/g,' ').trim()}
 function isAccommodationCategory(cat) {
   const c = String(cat || '').trim().toLowerCase();
@@ -42,16 +42,17 @@ function isInvoiceMatchingCategory(itemCat, selectedCat, item) {
   if (nItem === nSel) return true;
   
   const isAccSel = /^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel) || /^(bathtub|jacuzzi)/i.test(nSel);
-  const isAccItem = item?.type === 'accommodation' || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem) || Boolean(item?.villa);
+  const isAccItem = item?.type === 'accommodation' || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem) || Boolean(item?.villa) || Boolean(villaBathTypes[item?.name]);
   
   if (isAccSel && isAccItem) {
-    if (/^(accommodation|villa|room|ที่พัก|วิลล่า)/i.test(nSel)) {
-      if (item?.villa || /^(accommodation|villa|room|bathtub|jacuzzi)/i.test(nItem)) return true;
+    if (/^(accommodation|room|ที่พัก)$/i.test(nSel)) {
+      if (item?.villa || /^(bathtub|jacuzzi|villa)/i.test(nItem) || Boolean(villaBathTypes[item?.name])) return true;
     }
     if (nSel.includes('bathtubdeluxe') && (nItem.includes('bathtubdeluxe') || /01\s*ruzi|07\s*katahdin/i.test(item?.name || ''))) return true;
     if (nSel.includes('jacuzzideluxe') && (nItem.includes('jacuzzideluxe') || /04\s*barbados|04ab/i.test(item?.name || ''))) return true;
     if (nSel === 'bathtub' && (nItem === 'bathtub' || /05\s*merino|06\s*corriedale|06\s*corredale/i.test(item?.name || ''))) return true;
     if (nSel === 'jacuzzi' && (nItem === 'jacuzzi' || /02\s*pangola|03\s*hamata|08\s*mulato|010\s*napier|011\s*setaria|012\s*alfalfa/i.test(item?.name || ''))) return true;
+    if (nSel === 'villa' && (nItem === 'villa' || /013\s*rapunzel|pre-wedding/i.test(item?.name || ''))) return true;
   }
   
   if (nSel.includes('extrabed') && nItem.includes('extrabed')) return true;
@@ -69,22 +70,22 @@ function isInvoiceMatchingCategory(itemCat, selectedCat, item) {
   return false;
 }
 const VILLA_MASTER_ITEMS = [
-  { name: '01 Ruzi Villa', category: 'Accommodation', villa: '01 Ruzi Villa', rate: 0 },
-  { name: '02 Pangola Villa', category: 'Accommodation', villa: '02 Pangola Villa', rate: 0 },
-  { name: '03 Hamata Villa', category: 'Accommodation', villa: '03 Hamata Villa', rate: 0 },
-  { name: '04 Barbados Villa', category: 'Accommodation', villa: '04 Barbados Villa', rate: 0 },
-  { name: '04AB Barbados Villa', category: 'Accommodation', villa: '04AB Barbados Villa', rate: 0 },
-  { name: '04A Barbados Villa', category: 'Accommodation', villa: '04A Barbados Villa', rate: 0 },
-  { name: '04B Barbados Villa', category: 'Accommodation', villa: '04B Barbados Villa', rate: 0 },
-  { name: '05 Merino Villa', category: 'Accommodation', villa: '05 Merino Villa', rate: 0 },
-  { name: '06 Corredale Villa', category: 'Accommodation', villa: '06 Corredale Villa', rate: 0 },
-  { name: '07 Katahdin Villa', category: 'Accommodation', villa: '07 Katahdin Villa', rate: 0 },
-  { name: '08 Mulato Villa', category: 'Accommodation', villa: '08 Mulato Villa', rate: 0 },
-  { name: '010 Napier Villa', category: 'Accommodation', villa: '010 Napier Villa', rate: 0 },
-  { name: '011 Setaria Villa', category: 'Accommodation', villa: '011 Setaria Villa', rate: 0 },
-  { name: '012 Alfalfa Villa', category: 'Accommodation', villa: '012 Alfalfa Villa', rate: 0 },
-  { name: '013 Rapunzel Villa', category: 'Accommodation', villa: '013 Rapunzel Villa', rate: 0 },
-  { name: 'Pre-Wedding Villa', category: 'Accommodation', villa: 'Pre-Wedding Villa', rate: 0 }
+  { name: '01 Ruzi Villa', category: 'Bathtub Deluxe', villa: '01 Ruzi Villa', rate: 0 },
+  { name: '02 Pangola Villa', category: 'Jacuzzi', villa: '02 Pangola Villa', rate: 0 },
+  { name: '03 Hamata Villa', category: 'Jacuzzi', villa: '03 Hamata Villa', rate: 0 },
+  { name: '04 Barbados Villa', category: 'Jacuzzi Deluxe', villa: '04 Barbados Villa', rate: 0 },
+  { name: '04AB Barbados Villa', category: 'Jacuzzi Deluxe', villa: '04AB Barbados Villa', rate: 0 },
+  { name: '04A Barbados Villa', category: 'Jacuzzi Deluxe', villa: '04A Barbados Villa', rate: 0 },
+  { name: '04B Barbados Villa', category: 'Jacuzzi Deluxe', villa: '04B Barbados Villa', rate: 0 },
+  { name: '05 Merino Villa', category: 'Bathtub', villa: '05 Merino Villa', rate: 0 },
+  { name: '06 Corredale Villa', category: 'Bathtub', villa: '06 Corredale Villa', rate: 0 },
+  { name: '07 Katahdin Villa', category: 'Bathtub Deluxe', villa: '07 Katahdin Villa', rate: 0 },
+  { name: '08 Mulato Villa', category: 'Jacuzzi', villa: '08 Mulato Villa', rate: 0 },
+  { name: '010 Napier Villa', category: 'Jacuzzi', villa: '010 Napier Villa', rate: 0 },
+  { name: '011 Setaria Villa', category: 'Jacuzzi', villa: '011 Setaria Villa', rate: 0 },
+  { name: '012 Alfalfa Villa', category: 'Jacuzzi', villa: '012 Alfalfa Villa', rate: 0 },
+  { name: '013 Rapunzel Villa', category: 'Villa', villa: '013 Rapunzel Villa', rate: 0 },
+  { name: 'Pre-Wedding Villa', category: 'Villa', villa: 'Pre-Wedding Villa', rate: 0 }
 ];
 const NON_VILLA_ACC = DATA.accommodationItems
   .filter(item => {
@@ -99,11 +100,16 @@ const NON_VILLA_ACC = DATA.accommodationItems
   }));
 const accommodationItems = [
   ...VILLA_MASTER_ITEMS,
-  ...NON_VILLA_ACC,
-  { name: 'E-Voucher Dinner 800 Baht (22)', category: 'Package', rate: 800 },
-  { name: 'E-Voucher Dinner 1200 Baht (22)', category: 'Package', rate: 1200 }
+  ...NON_VILLA_ACC
 ].filter((item, index, items) => items.findIndex(other => other.name.toLowerCase() === item.name.toLowerCase()) === index);
-const addonItems=[...DATA.addonItems.map(item=>({...item,name:cleanEnglishText(item.name),category:cleanEnglishText(item.category),rate:Number(item.rate||0)})),{name:'E-Voucher Dinner 800 Baht (22)',category:'Food & Beverage',rate:800},{name:'E-Voucher Dinner 1200 Baht (22)',category:'Food & Beverage',rate:1200}].filter((item,index,items)=>items.findIndex(other=>other.name===item.name)===index);
+const addonItems = DATA.addonItems
+  .map(item => ({
+    ...item,
+    name: cleanEnglishText(item.name),
+    category: cleanEnglishText(item.category),
+    rate: Number(item.rate || 0)
+  }))
+  .filter((item, index, items) => items.findIndex(other => other.name.toLowerCase() === item.name.toLowerCase()) === index);
 const paymentMethods=['เงินสด','โอน','บัตรเครดิต','คิวอาโค้ต','2C2P'];
 const state={invoiceLines:[],payments:[],currentView:'dashboard',invoicePage:'form',invoiceNumber:85,invoices:[],drafts:[{id:'DF-260717-A',label:'บัตรกิจกรรมแกะ + หญ้า 4 ชุด',total:1200,time:'5 นาทีที่แล้ว'},{id:'DF-260717-B',label:'ของที่ระลึก: กระเป๋าสาน 2 ใบ',total:640,time:'12 นาทีที่แล้ว'},{id:'DF-260716-Z',label:'เหมาจ่าย: คณะทัศนศึกษา 45 ท่าน',total:12500,time:'เมื่อวาน'}],closedBookings:loadClosedBookings()};
 window.sceneryAppState=state;
@@ -1237,7 +1243,7 @@ function installFinalInvoiceRules(){
     const current=selectedVilla?matchVillaFromText(selectedVilla):'';
     const mainV=matchVillaFromText($('#villa')?.value)||'บ้านหลัก';
     return `
-      <option value="">(อิงตาม ${esc(mainV)})</option>
+      <option value="">อิงตาม ${esc(mainV)}</option>
       ${CLOSE_ROUND_SOURCE_VILLAS.map(v=>`<option value="${esc(v)}" ${v===current?'selected':''}>${esc(v)}</option>`).join('')}
     `;
   }
@@ -1251,7 +1257,9 @@ function installFinalInvoiceRules(){
 
   function categoryOptionsForLine(selectedCategory, type){
     const current=cleanEnglishText(selectedCategory||(type==='accommodation'?'Accommodation':'Miscellaneous'));
-    const list=['Accommodation','Inclusive Package','Package','Extra Bed','Complimentary','Food & Beverage','BBQ','Minibar','Souvenir','Activities','Dog Activity','Massage','ATV','EV Charging','Miscellaneous','Other Expenses'];
+    const list=type==='accommodation'
+      ? ['Accommodation','Bathtub Deluxe','Jacuzzi Deluxe','Bathtub','Jacuzzi','Villa','Extra Bed','Complimentary','Package']
+      : ['Food & Beverage','BBQ','Afternoon Tea','เครื่องดื่มและเบเกอรี่','Minibar','Souvenir','Activities','กิจกรรมชมสุนัขที่ 123 ไร่','Miscellaneous','Other Expenses'];
     if(current&&!list.some(c=>c.toLowerCase()===current.toLowerCase()))list.push(current);
     return list.map(cat=>`<option value="${esc(cat)}" ${cat.toLowerCase()===current.toLowerCase()?'selected':''}>${esc(cat)}</option>`).join('');
   }
@@ -1264,18 +1272,23 @@ function installFinalInvoiceRules(){
     };
 
     const groupsDef = [
-      { key: 'Accommodation', label: '🏠 Accommodation (วิลล่า/บ้านพัก)', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Accommodation', i)) },
-      { key: 'Extra Bed', label: '🛏️ Extra Bed (เตียงเสริม)', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Extra Bed', i)) },
-      { key: 'Complimentary', label: '🎁 Complimentary (อภินันทนาการ)', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Complimentary', i)) },
-      { key: 'Package', label: '📦 Package (แพ็กเกจ)', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Package', i)) },
-      { key: 'Food & Beverage', label: '🍽️ Food & Beverage (อาหารและเครื่องดื่ม)', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Food & Beverage', i)) },
-      { key: 'BBQ', label: '🥩 BBQ (บาร์บีคิว)', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'BBQ', i)) },
-      { key: 'Afternoon Tea', label: '☕ Afternoon Tea & Bakery', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Afternoon Tea', i) || isInvoiceMatchingCategory(i.category, 'เครื่องดื่มและเบเกอรี่', i)) },
-      { key: 'Minibar', label: '🍷 Minibar (มินิบาร์และของใช้)', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Minibar', i)) },
-      { key: 'Souvenir', label: '🛍️ Souvenir (ของที่ระลึก)', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Souvenir', i)) },
-      { key: 'Activities', label: '🎯 Activities & Spa (กิจกรรมและสปา)', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Activities', i)) },
-      { key: 'กิจกรรมชมสุนัขที่123ไร่', label: '🐕 กิจกรรมชมสุนัขที่ 123 ไร่', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'กิจกรรมชมสุนัขที่123ไร่', i)) },
-      { key: 'Miscellaneous', label: '✨ Miscellaneous (อื่น ๆ)', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Miscellaneous', i)) }
+      { key: 'Bathtub Deluxe', label: '🏠 Bathtub Deluxe', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Bathtub Deluxe', i)) },
+      { key: 'Jacuzzi Deluxe', label: '🏠 Jacuzzi Deluxe', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Jacuzzi Deluxe', i)) },
+      { key: 'Bathtub', label: '🏠 Bathtub', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Bathtub', i)) },
+      { key: 'Jacuzzi', label: '🏠 Jacuzzi', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Jacuzzi', i)) },
+      { key: 'Villa', label: '🏠 Villa', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Villa', i)) },
+      { key: 'Accommodation', label: '🏠 Accommodation', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Accommodation', i)) },
+      { key: 'Extra Bed', label: '🛏️ Extra Bed', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Extra Bed', i)) },
+      { key: 'Complimentary', label: '🎁 Complimentary', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Complimentary', i)) },
+      { key: 'Package', label: '📦 Package', type: 'accommodation', items: accommodationItems.filter(i => isInvoiceMatchingCategory(i.category, 'Package', i)) },
+      { key: 'Food & Beverage', label: '🍽️ Food & Beverage', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Food & Beverage', i)) },
+      { key: 'BBQ', label: '🥩 BBQ', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'BBQ', i)) },
+      { key: 'Afternoon Tea', label: '☕ Afternoon Tea', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Afternoon Tea', i) || isInvoiceMatchingCategory(i.category, 'เครื่องดื่มและเบเกอรี่', i)) },
+      { key: 'Minibar', label: '🍷 Minibar', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Minibar', i)) },
+      { key: 'Souvenir', label: '🛍️ Souvenir', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Souvenir', i)) },
+      { key: 'Activities', label: '🎯 Activities', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Activities', i)) },
+      { key: 'กิจกรรมชมสุนัขที่ 123 ไร่', label: '🐕 กิจกรรมชมสุนัขที่ 123 ไร่', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'กิจกรรมชมสุนัขที่ 123 ไร่', i)) },
+      { key: 'Miscellaneous', label: '✨ Miscellaneous', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Miscellaneous', i)) }
     ];
 
     let html = `<option value="">-- คลิกเลือกหมวด / รายการสินค้าหรือบริการ --</option>`;
@@ -1284,8 +1297,12 @@ function installFinalInvoiceRules(){
     if (selectedCategory) {
       const activeGroup = groupsDef.find(g => isInvoiceMatchingCategory(g.key, selectedCategory, { category: g.key }));
       if (activeGroup && activeGroup.items.length) {
-        html += `<optgroup label="⭐ รายการในหมวด ${esc(activeGroup.key)} (${activeGroup.items.length} รายการ)">`;
-        html += activeGroup.items.map(it => `<option value="${esc(it.name)}" data-rate="${it.rate || 0}" data-cat="${esc(it.category || activeGroup.key)}" data-item-type="${activeGroup.type}" ${isCurrent(it.name, currentName) ? 'selected' : ''}>${esc(it.name)}${it.rate ? ` (฿${formatRate(it.rate)})` : ''}</option>`).join('');
+        html += `<optgroup label="⭐ ${esc(activeGroup.label || activeGroup.key)}">`;
+        html += activeGroup.items.map(it => {
+          const isV = VILLA_MASTER_ITEMS.some(v => isCurrent(v.name, it.name));
+          const rateText = isV ? '' : (it.rate ? ` ฿${formatRate(it.rate)}` : '');
+          return `<option value="${esc(it.name)}" data-rate="${it.rate || 0}" data-cat="${esc(it.category || activeGroup.key)}" data-item-type="${activeGroup.type}" ${isCurrent(it.name, currentName) ? 'selected' : ''}>${esc(it.name)}${rateText}</option>`;
+        }).join('');
         html += `</optgroup>`;
       }
     }
@@ -1295,14 +1312,18 @@ function installFinalInvoiceRules(){
       if (selectedCategory && isInvoiceMatchingCategory(g.key, selectedCategory, { category: g.key })) return;
       if (!g.items.length) return;
       html += `<optgroup label="${g.label}">`;
-      html += g.items.map(it => `<option value="${esc(it.name)}" data-rate="${it.rate || 0}" data-cat="${esc(it.category || g.key)}" data-item-type="${g.type}" ${isCurrent(it.name, currentName) ? 'selected' : ''}>${esc(it.name)}${it.rate ? ` (฿${formatRate(it.rate)})` : ''}</option>`).join('');
+      html += g.items.map(it => {
+        const isV = VILLA_MASTER_ITEMS.some(v => isCurrent(v.name, it.name));
+        const rateText = isV ? '' : (it.rate ? ` ฿${formatRate(it.rate)}` : '');
+        return `<option value="${esc(it.name)}" data-rate="${it.rate || 0}" data-cat="${esc(it.category || g.key)}" data-item-type="${g.type}" ${isCurrent(it.name, currentName) ? 'selected' : ''}>${esc(it.name)}${rateText}</option>`;
+      }).join('');
       html += `</optgroup>`;
     });
 
     const allItems = [...accommodationItems, ...addonItems];
     const existsInMaster = currentName && allItems.some(i => isCurrent(i.name, currentName));
     if (currentName && !existsInMaster) {
-      html += `<optgroup label="✏️ รายการที่พิมพ์เอง"><option value="${esc(currentName)}" selected>${esc(currentName)} (กำหนดเอง)</option></optgroup>`;
+      html += `<optgroup label="✏️ รายการที่พิมพ์เอง"><option value="${esc(currentName)}" selected>${esc(currentName)}</option></optgroup>`;
     }
     html += `<option value="__custom__">✏️ พิมพ์ชื่อรายการเอง...</option>`;
     return html;
@@ -5026,8 +5047,8 @@ function buildInvoiceWorkspace(){
   const view=$('#view-invoice');
   if(!view)return;
   const villaMarkup=[...new Map(villaOptions.filter(v=>v?.name).map(v=>[v.name,v])).values()].map(v=>`<option value="${esc(v.name)}">${esc(v.name)}</option>`).join('');
-  const accCategoryMarkup=`<option value="">เลือกหมวด</option><option value="Accommodation">Accommodation (วิลล่า/ห้องพัก)</option><option value="Extra Bed">Extra Bed (เตียงเสริม)</option><option value="Complimentary">Complimentary (อภินันทนาการ)</option><option value="Package">Package (แพ็กเกจ)</option>`;
-  const addonCategoryMarkup=`<option value="">เลือกหมวด</option><option value="Food & Beverage">Food & Beverage (อาหารและเครื่องดื่ม)</option><option value="BBQ">BBQ (บาร์บีคิว)</option><option value="Afternoon Tea">Afternoon Tea (ชุดน้ำชา)</option><option value="เครื่องดื่มและเบเกอรี่">เครื่องดื่มและเบเกอรี่</option><option value="Minibar">Minibar (มินิบาร์และของใช้)</option><option value="Souvenir">Souvenir (ของที่ระลึก)</option><option value="Activities">Activities (กิจกรรมและสปา)</option><option value="กิจกรรมชมสุนัขที่123ไร่">กิจกรรมชมสุนัขที่ 123 ไร่</option><option value="Miscellaneous">Miscellaneous (อื่น ๆ)</option>`;
+  const accCategoryMarkup=`<option value="">เลือกหมวด</option><option value="Accommodation">Accommodation</option><option value="Bathtub Deluxe">Bathtub Deluxe</option><option value="Jacuzzi Deluxe">Jacuzzi Deluxe</option><option value="Bathtub">Bathtub</option><option value="Jacuzzi">Jacuzzi</option><option value="Villa">Villa</option><option value="Extra Bed">Extra Bed</option><option value="Complimentary">Complimentary</option><option value="Package">Package</option>`;
+  const addonCategoryMarkup=`<option value="">เลือกหมวด</option><option value="Food & Beverage">Food & Beverage</option><option value="BBQ">BBQ</option><option value="Afternoon Tea">Afternoon Tea</option><option value="เครื่องดื่มและเบเกอรี่">เครื่องดื่มและเบเกอรี่</option><option value="Minibar">Minibar</option><option value="Souvenir">Souvenir</option><option value="Activities">Activities</option><option value="กิจกรรมชมสุนัขที่ 123 ไร่">กิจกรรมชมสุนัขที่ 123 ไร่</option><option value="Miscellaneous">Miscellaneous</option>`;
   const aOptions=accommodationItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
   const bOptions=addonItems.map((item,index)=>`<option value="${index}">${esc(item.name)}</option>`).join('');
   view.innerHTML=`
@@ -5130,7 +5151,7 @@ function buildInvoiceWorkspace(){
               <label>No. Of Night <input id="no-of-night" type="number" min="0" value="" placeholder="จำนวนคืน"></label>
               <label>Remark <input id="remark" value="" placeholder="หมายเหตุ"></label>
               <label>วันที่ทำเอกสาร <input id="doc-date" type="date"></label>
-              <label class="span-two">Villa / Room <select id="villa"><option value="">เลือก Villa / Room (ไม่ระบุก็ได้)</option>${villaMarkup}</select></label>
+              <label class="span-two">Villa / Room <select id="villa"><option value="">เลือก Villa / Room ไม่ระบุก็ได้</option>${villaMarkup}</select></label>
             </div>
           </article>
           <article class="panel invoice-entry-card invoice-lines-card">
@@ -5210,7 +5231,7 @@ function installInvoiceCategoryFirstSelection(){
       const category=categoryEl.value;
       let matches = config.items;
       if (category) {
-        matches = config.items.filter(item => isInvoiceMatchingCategory(item.category, category, item) || isInvoiceMatchingCategory(category, item.category, item));
+        matches = config.items.filter(item => isInvoiceMatchingCategory(item.category, category, item));
       }
       
       const formatRate = r => {
@@ -5219,14 +5240,14 @@ function installInvoiceCategoryFirstSelection(){
       };
 
       const promptText = category
-        ? `-- เลือกรายการในหมวด ${category} (${matches.length} รายการ) --`
-        : `-- เลือกรายการ (${matches.length} รายการ) หรือเลือกหมวดด้านซ้าย --`;
+        ? `-- เลือกรายการในหมวด ${category} --`
+        : `-- เลือกรายการ หรือเลือกหมวดด้านซ้าย --`;
 
       select.innerHTML = `<option value="">${promptText}</option>` +
         matches.map((item) => {
           const originalIdx = config.items.findIndex(orig => orig.name === item.name);
           const isVilla = VILLA_MASTER_ITEMS.some(v => isCurrent(v.name, item.name));
-          const rateLabel = isVilla ? ' (กรอกราคาเอง)' : (item.rate ? ` (฿${formatRate(item.rate)})` : '');
+          const rateLabel = isVilla ? '' : (item.rate ? ` ฿${formatRate(item.rate)}` : '');
           return `<option value="${originalIdx >= 0 ? originalIdx : ''}" data-rate="${item.rate || 0}" data-name="${esc(item.name)}" data-cat="${esc(item.category || category || '')}">${esc(item.name)}${rateLabel}</option>`;
         }).join('');
         
@@ -5243,7 +5264,7 @@ function installInvoiceCategoryFirstSelection(){
         if (rateEl) {
           if (isVilla) {
             rateEl.value = '';
-            rateEl.placeholder = '0.00 (กรอกราคา)';
+            rateEl.placeholder = '0.00';
             rateEl.focus();
           } else {
             rateEl.value = (item && item.rate !== undefined) ? item.rate : (opt.dataset.rate || 0);
