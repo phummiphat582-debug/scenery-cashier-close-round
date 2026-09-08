@@ -1256,12 +1256,13 @@ function installFinalInvoiceRules(){
   };
 
   function categoryOptionsForLine(selectedCategory, type){
-    const current=cleanEnglishText(selectedCategory||(type==='accommodation'?'Accommodation':'Miscellaneous'));
-    const list=type==='accommodation'
+    const current = selectedCategory ? cleanEnglishText(selectedCategory) : '';
+    const list = type === 'accommodation'
       ? ['Accommodation','Bathtub Deluxe','Jacuzzi Deluxe','Bathtub','Jacuzzi','Villa','Extra Bed','Complimentary','Package']
       : ['Food & Beverage','BBQ','Afternoon Tea','เครื่องดื่มและเบเกอรี่','Minibar','Souvenir','Activities','กิจกรรมชมสุนัขที่ 123 ไร่','Miscellaneous','Other Expenses'];
-    if(current&&!list.some(c=>c.toLowerCase()===current.toLowerCase()))list.push(current);
-    return list.map(cat=>`<option value="${esc(cat)}" ${cat.toLowerCase()===current.toLowerCase()?'selected':''}>${esc(cat)}</option>`).join('');
+    if (current && !list.some(c => c.toLowerCase() === current.toLowerCase())) list.push(current);
+    const opts = list.map(cat => `<option value="${esc(cat)}" ${current && cat.toLowerCase() === current.toLowerCase() ? 'selected' : ''}>${esc(cat)}</option>`).join('');
+    return (current ? '' : `<option value="" selected></option>`) + opts;
   }
 
   function itemOptionsForLineCategory(selectedCategory, currentName, type){
@@ -1291,7 +1292,7 @@ function installFinalInvoiceRules(){
       { key: 'Miscellaneous', label: '✨ Miscellaneous', type: 'addon', items: addonItems.filter(i => isInvoiceMatchingCategory(i.category, 'Miscellaneous', i)) }
     ];
 
-    let html = `<option value="">-- คลิกเลือกหมวด / รายการสินค้าหรือบริการ --</option>`;
+    let html = `<option value="" ${!currentName ? 'selected' : ''}></option>`;
 
     // If a category is selected, show its matching group at the top
     if (selectedCategory) {
@@ -1417,46 +1418,41 @@ function installFinalInvoiceRules(){
       const remainingCount = Math.max(1, count - matches.length);
       const blanks = Array.from({ length: remainingCount }, () => {
         const isAcc = group.type === 'accommodation';
-        const promptLabel = isAcc
-          ? '+ คลิกเลือกบ้านพัก / แพ็กเกจ / เตียงเสริม...'
-          : '+ คลิกเลือกอาหาร / เครื่องดื่ม / กิจกรรม...';
         return `
           <tr class="blank-line sheet-blank-interactive-row" data-add-type="${group.type}">
             <td class="sheet-cell-cat">
               <select class="sheet-cell-select sheet-new-line-cat" data-add-type="${group.type}" aria-label="เพิ่มหมวด">
-                <option value="">+ หมวด</option>
                 ${categoryOptionsForLine('', group.type)}
               </select>
               <span class="sheet-print-text"></span>
             </td>
             <td class="align-center sheet-cell-qty">
-              <span class="sheet-blank-ph">-</span>
+              <span class="sheet-blank-ph"></span>
               <span class="sheet-print-text"></span>
             </td>
             <td class="sheet-cell-desc">
               <div class="sheet-desc-wrap">
                 <select class="sheet-desc-select sheet-cell-select sheet-new-line-desc" data-add-type="${group.type}" aria-label="เลือกรายการเพิ่ม">
-                  <option value="">${promptLabel}</option>
                   ${itemOptionsForLineCategory(isAcc ? 'Accommodation' : 'Food & Beverage', '', group.type)}
                 </select>
               </div>
               <span class="sheet-print-text"></span>
             </td>
             <td class="align-right sheet-cell-rate">
-              <span class="sheet-blank-ph">-</span>
+              <span class="sheet-blank-ph"></span>
               <span class="sheet-print-text"></span>
             </td>
             <td class="align-right sheet-cell-deposit">
-              <span class="sheet-blank-ph">-</span>
-              <span class="sheet-print-text">-</span>
+              <span class="sheet-blank-ph"></span>
+              <span class="sheet-print-text"></span>
             </td>
             <td class="align-right invoice-discount-cell sheet-cell-discount">
-              <span class="sheet-blank-ph">-</span>
-              <span class="sheet-print-text">-</span>
+              <span class="sheet-blank-ph"></span>
+              <span class="sheet-print-text"></span>
             </td>
             <td class="align-right strong-number sheet-cell-total">
-              <span class="sheet-blank-ph">-</span>
-              <span class="sheet-print-text">-</span>
+              <span class="sheet-blank-ph"></span>
+              <span class="sheet-print-text"></span>
             </td>
           </tr>
         `;
@@ -1926,7 +1922,7 @@ function installFinalInvoiceRules(){
         if ($('#doc-date')) $('#doc-date').value = t.value;
         if ($('#preview-invoice-date')) $('#preview-invoice-date').textContent = formatDate(t.value);
         calculateInvoice();
-      } else if (t.classList.contains('sheet-desc-select')) {
+      } else if (t.classList.contains('sheet-desc-select') && !t.classList.contains('sheet-new-line-desc')) {
         const idx = Number(t.dataset.sheetLine);
         if (state.invoiceLines[idx]) {
           const val = t.value;
