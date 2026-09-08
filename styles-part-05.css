@@ -1,70 +1,4 @@
 @media print{
-  html body.close-round-detail-printing{width:297mm!important;min-width:297mm!important;max-width:297mm!important;height:auto!important;min-height:0!important;max-height:none!important;overflow:visible!important;page:close-round-detail!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table{font-size:6px!important;table-layout:fixed!important;break-inside:auto!important;page-break-inside:auto!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th,
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td{padding:1.8px 1.4px!important;line-height:1.15!important;white-space:normal!important;overflow-wrap:anywhere!important;word-break:break-word!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table thead{display:table-header-group!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table tbody tr{break-inside:avoid!important;page-break-inside:avoid!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(1),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(1){width:8%!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(2),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(2){width:7%!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(3),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(3){width:13%!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(4),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(4),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(5),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(5){width:4%!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(n+6):nth-child(-n+16),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(n+6):nth-child(-n+16){width:3%!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(n+17):nth-child(-n+19),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(n+17):nth-child(-n+19){width:5%!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(20),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(20){width:9%!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(21),body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(21){width:13%!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-density-compact{font-size:5.5px!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-density-compact th,
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-density-compact td{padding:1.3px 1px!important;line-height:1.08!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-density-dense{font-size:5px!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-density-dense th,
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-density-dense td{padding:1px .8px!important;line-height:1.05!important}
-}
-
-/* Final accounting print lock: visible borders and a complete totals block. */
-@media print{
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table{
-    border:1px solid #29231e!important;
-    border-collapse:collapse!important;
-  }
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th,
-  body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td{
-    border:1px solid #29231e!important;
-  }
-  body.close-round-detail-printing #view-close-round .close-round-print-summary{
-    display:grid!important;
-    grid-template-columns:repeat(6,minmax(0,1fr))!important;
-    gap:1.5mm!important;
-    margin-top:2.5mm!important;
-    padding-top:1.5mm!important;
-    border-top:1.5px solid #6e442d!important;
-    break-inside:avoid!important;
-    page-break-inside:avoid!important;
-  }
-  body.close-round-detail-printing #view-close-round .close-round-print-summary>div{
-    min-width:0!important;
-    border:1px solid #c1afa1!important;
-    padding:1.2mm!important;
-    text-align:center!important;
-  }
-  body.close-round-detail-printing #view-close-round .close-round-print-summary .close-round-print-summary-heading{
-    grid-column:1 / -1!important;
-    border:0!important;
-    padding:0 0 .5mm!important;
-    text-align:left!important;
-    font-size:7px!important;
-    font-weight:800!important;
-    color:#68452f!important;
-  }
-  body.close-round-detail-printing #view-close-round .close-round-print-summary span,
-  body.close-round-detail-printing #view-close-round .close-round-print-summary strong{display:block!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-summary span{font-size:6.5px!important;color:#66584e!important;line-height:1.1!important}
-  body.close-round-detail-printing #view-close-round .close-round-print-summary strong{font-size:8px!important;margin-top:.5mm!important;line-height:1.1!important}
-}
-
-/* Keep the accounting table inside the printable width. These values total
-   exactly 100%, including the customer-sized note column. */
-@media print{
   body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(1),
   body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table td:nth-child(1){width:7%!important}
   body.close-round-detail-printing #view-close-round .close-round-print-layout>.close-round-print-compact-table th:nth-child(2),
@@ -786,6 +720,432 @@ tr:hover .sheet-delete-line-btn {
   td.sheet-cell-discount .sheet-print-text,
   td.sheet-cell-total .sheet-print-text {
     display: block !important;
+  }
+}
+
+/* =========================================================================
+   PORTRAIT & MOBILE / TABLET ORIENTATION OPTIMIZATIONS (การใช้งานแนวตั้ง)
+   ========================================================================= */
+
+/* 1. Backdrop for mobile sidebar */
+.sidebar-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(44, 39, 36, 0.5);
+  backdrop-filter: blur(2px);
+  -webkit-backdrop-filter: blur(2px);
+  z-index: 110;
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.25s ease, visibility 0.25s ease;
+}
+.sidebar-backdrop.open,
+body.sidebar-open .sidebar-backdrop {
+  opacity: 1;
+  visibility: visible;
+}
+
+@media screen and (max-width: 1024px), screen and (orientation: portrait) {
+  /* Shell & Layout in Portrait */
+  .app-screen {
+    display: flex;
+    flex-direction: column;
+    width: 100%;
+    min-height: 100vh;
+  }
+  
+  .sidebar {
+    position: fixed !important;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 280px !important;
+    max-width: 85vw;
+    height: 100vh;
+    height: 100dvh;
+    z-index: 120 !important;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+    box-shadow: 10px 0 30px rgba(44, 39, 36, 0.25);
+  }
+  .sidebar.open {
+    transform: translateX(0) !important;
+  }
+  
+  .mobile-menu {
+    display: inline-flex !important;
+    align-items: center;
+    justify-content: center;
+  }
+  .mobile-close {
+    display: inline-flex !important;
+  }
+
+  .main-shell {
+    width: 100%;
+    min-width: 0;
+    flex: 1;
+  }
+
+  .topbar {
+    height: 60px;
+    flex: 0 0 60px;
+    padding: 0 14px;
+    gap: 8px;
+    position: sticky;
+    top: 0;
+    z-index: 90;
+    justify-content: space-between;
+  }
+  .topbar-context {
+    font-size: 14px;
+    gap: 8px;
+  }
+  .topbar-context strong {
+    font-size: 13px;
+  }
+  .global-search {
+    width: auto;
+    max-width: 180px;
+  }
+  .profile-text {
+    display: none;
+  }
+  .topbar-divider {
+    display: none;
+  }
+
+  .content {
+    padding: 16px 12px !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    box-sizing: border-box;
+  }
+
+  .page-heading,
+  .page-heading.compact {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+  .page-heading h2 {
+    font-size: 24px;
+    line-height: 1.25;
+  }
+  .heading-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    justify-content: space-between;
+    width: 100%;
+  }
+  .heading-actions .button {
+    flex: 1;
+    min-width: 120px;
+  }
+
+  /* Invoice Tabs & Entry in Portrait */
+  .invoice-page-tabs {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+    margin-bottom: 14px;
+  }
+  .invoice-page-tab {
+    padding: 10px 12px;
+  }
+  .invoice-entry-layout {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    width: 100%;
+  }
+  .invoice-entry-card .form-grid.three {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .invoice-add-grid {
+    grid-template-columns: 1fr !important;
+    gap: 12px;
+    padding: 12px;
+  }
+  .invoice-add-fields {
+    display: grid;
+    grid-template-columns: minmax(0, 1.2fr) minmax(90px, 0.8fr) minmax(60px, 0.5fr);
+    gap: 8px;
+  }
+  .invoice-add-fields .button,
+  .category-first-fields .button {
+    grid-column: 1 / -1 !important;
+    width: 100% !important;
+    min-height: 40px;
+  }
+
+  /* Invoice Line Groups (Table stays clean with horizontal scroll) */
+  #view-invoice .invoice-line-group .table-wrap {
+    width: 100%;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    border-radius: 6px;
+  }
+  #view-invoice .invoice-line-group table {
+    min-width: 760px !important;
+    display: table !important;
+    width: 100% !important;
+    table-layout: fixed !important;
+  }
+  #view-invoice .invoice-line-group thead {
+    display: table-header-group !important;
+  }
+  #view-invoice .invoice-line-group tbody {
+    display: table-row-group !important;
+  }
+  #view-invoice .invoice-line-group tbody tr {
+    display: table-row !important;
+    padding: 0 !important;
+  }
+  #view-invoice .invoice-line-group tbody td {
+    display: table-cell !important;
+    padding: 8px 6px !important;
+    border-bottom: 1px solid #eee3dc !important;
+  }
+  #view-invoice .invoice-line-group tbody td::before {
+    display: none !important;
+  }
+
+  /* Live Summary in Portrait */
+  #view-invoice .invoice-entry-side .live-summary {
+    position: static;
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+    padding: 14px;
+    border-radius: 8px;
+  }
+  #view-invoice .invoice-entry-side .live-summary .live-summary-row {
+    border-left: 0;
+    border-top: 1px solid #eee3dc;
+    padding: 8px 0;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+  #view-invoice .invoice-entry-side .live-summary .button {
+    grid-column: 1 / -1;
+    width: 100%;
+    min-height: 42px;
+  }
+
+  /* Invoice Preview Stage & Sheet in Portrait */
+  .invoice-preview-stage {
+    padding: 12px 6px !important;
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+    display: flex;
+    justify-content: flex-start;
+    align-items: flex-start;
+    background: #e9e2dc;
+    border-radius: 8px;
+  }
+  .invoice-preview-sheet,
+  #view-invoice .invoice-preview-sheet {
+    min-width: 760px !important;
+    max-width: 860px !important;
+    width: 100% !important;
+    margin: 0 auto;
+    padding: 22px 18px !important;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.1);
+    height: auto !important;
+    min-height: auto !important;
+    max-height: none !important;
+    overflow: visible !important;
+  }
+  .preview-toolbar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .preview-toolbar > div:last-child {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    width: 100%;
+  }
+  .preview-toolbar button {
+    flex: 1 1 calc(50% - 6px);
+    min-width: 120px;
+    min-height: 38px;
+  }
+  .sheet-add-bar {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .sheet-add-bar .button {
+    flex: 1 1 auto;
+    min-height: 34px;
+  }
+  .preview-settlement-bar {
+    padding: 12px 14px;
+    margin-top: 14px;
+    border-radius: 8px;
+  }
+  .settlement-bar-inputs {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+  .settlement-cashier-wrap {
+    width: 100%;
+    margin-left: 0;
+    margin-top: 6px;
+  }
+
+  /* Close Round View in Portrait */
+  .round-toolbar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 10px;
+    padding: 14px;
+  }
+  .round-toolbar label {
+    width: 100% !important;
+  }
+  .round-metrics {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .round-metrics article {
+    padding: 12px 14px;
+  }
+  .close-round-grid {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+  .payment-bar-row {
+    padding: 10px 14px;
+  }
+
+  /* Drawer & Shift View in Portrait */
+  .drawer-grid {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+  .drawer-stat-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 10px;
+  }
+  .cash-denomination-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 8px;
+    padding: 12px;
+  }
+  .drawer-opening-fields,
+  .drawer-return-fields,
+  .drawer-use-fields {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 8px;
+  }
+  .drawer-opening-fields .button,
+  .drawer-return-fields .button,
+  .drawer-use-fields .button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+
+  /* Dashboard View in Portrait */
+  .metric-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px;
+    margin-bottom: 14px;
+  }
+  .dashboard-grid,
+  .bottom-grid {
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 14px;
+  }
+
+  /* Filter Bars & Tabs in Portrait */
+  .filter-bar {
+    display: flex;
+    flex-direction: column;
+    align-items: stretch;
+    gap: 8px;
+    padding: 12px;
+  }
+  .filter-bar .search-field {
+    min-width: 100%;
+    width: 100%;
+  }
+  .master-tabs {
+    overflow-x: auto;
+    -webkit-overflow-scrolling: touch;
+    flex-wrap: nowrap;
+    white-space: nowrap;
+  }
+
+  /* Modals in Portrait */
+  .modal-backdrop {
+    padding: 10px;
+    z-index: 2000;
+  }
+  .modal {
+    width: 100% !important;
+    max-width: 520px;
+    max-height: calc(100dvh - 20px) !important;
+    border-radius: 10px;
+    display: flex;
+    flex-direction: column;
+  }
+  .modal-body {
+    overflow-y: auto;
+    -webkit-overflow-scrolling: touch;
+    padding: 16px 14px;
+  }
+  .modal-footer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px;
+    padding: 0 14px 14px;
+  }
+  .modal-footer .button {
+    flex: 1;
+    min-width: 120px;
+  }
+}
+
+/* Extra small mobile screens (< 480px) */
+@media screen and (max-width: 480px) {
+  .invoice-entry-card .form-grid.three {
+    grid-template-columns: 1fr !important;
+  }
+  .invoice-page-tabs {
+    grid-template-columns: 1fr !important;
+  }
+  .metric-grid {
+    grid-template-columns: 1fr !important;
+  }
+  .round-metrics {
+    grid-template-columns: 1fr !important;
+  }
+  .topbar-context span:first-child {
+    display: none;
   }
 }
 

@@ -1,68 +1,3 @@
-#view-invoice .invoice-category-input:focus{border-color:var(--brown-2);box-shadow:0 0 0 3px rgba(172,126,84,.14);outline:0}
-@media(min-width:1201px){
-  #view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) minmax(100px,110px) minmax(70px,80px) minmax(130px,1fr) minmax(110px,130px);gap:12px}
-}
-@media(max-width:1200px){
-  #view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) minmax(100px,110px) minmax(70px,80px) minmax(130px,1fr);gap:12px}
-  #view-invoice .invoice-add-fields .button{grid-column:1/-1}
-}
-@media(max-width:620px){
-  #view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) minmax(100px,1fr);gap:12px}
-  #view-invoice .invoice-category-input{grid-column:1/-1}
-  #view-invoice .invoice-add-fields .button{grid-column:1/-1}
-}
-
-/* Keep the add-item controls separated and balanced. */
-#view-invoice .invoice-add-box{box-sizing:border-box;padding-left:14px;padding-right:14px}
-#view-invoice .invoice-add-fields{
-  display:grid;
-  grid-template-columns:minmax(0,1.5fr) minmax(120px,1fr) minmax(90px,.7fr) minmax(0,1.5fr);
-  gap:14px;
-  align-items:stretch;
-  box-sizing:border-box;
-  width:100%;
-  padding:0 2px;
-}
-#view-invoice .invoice-add-fields>input,
-#view-invoice .invoice-add-fields>select,
-#view-invoice .invoice-add-fields>.button{
-  box-sizing:border-box;
-  min-width:0;
-  width:100%;
-  height:40px;
-  min-height:40px;
-  margin:0;
-}
-#view-invoice .invoice-add-fields>.button{
-  grid-column:1/-1;
-  justify-self:start;
-  width:auto;
-  min-width:148px;
-  margin-top:2px;
-}
-@media(max-width:900px){
-  #view-invoice .invoice-add-fields{
-    grid-template-columns:minmax(0,1.25fr) minmax(110px,1fr) minmax(82px,.75fr);
-    gap:14px;
-  }
-  #view-invoice .invoice-category-input{grid-column:1/-1}
-}
-@media(max-width:620px){
-  #view-invoice .invoice-add-box{padding-left:10px;padding-right:10px}
-  #view-invoice .invoice-add-fields{
-    grid-template-columns:minmax(0,1fr) minmax(100px,1fr);
-    gap:12px;
-    padding:0;
-  }
-  #view-invoice .invoice-add-fields>input,
-  #view-invoice .invoice-add-fields>select{width:100%}
-  #view-invoice .invoice-add-fields>.button{width:100%;min-width:0}
-  #view-invoice .invoice-category-input{grid-column:1/-1}
-}
-@media(max-width:767px){.pending-collection-row{grid-template-columns:minmax(0,1fr) minmax(110px,.75fr)}.pending-collection-row input:last-child{grid-column:1/-1}}
-.pending-form-section{margin-top:16px;padding:14px 18px;border:1px solid #e0d4cb;border-radius:6px;background:#fffaf7}.pending-form-section .line-group-heading{padding:0 0 8px}.pending-form-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(130px,.7fr) minmax(0,1fr);gap:8px;align-items:center;padding:8px 0;border-top:1px solid #eee3dc}.pending-form-row strong{overflow-wrap:anywhere}.pending-form-row input{width:100%;height:38px;border:1px solid #d8cbc1;border-radius:5px;background:#fff;padding:8px;color:var(--ink);min-width:0}.preview-pending-notes{display:grid;gap:5px;margin-top:10px;padding:10px 12px;border:1px solid #e0d4cb;border-left:4px solid var(--ochre);background:#fffaf0;font-size:11px}.preview-pending-notes:empty{display:none}.preview-pending-notes div{display:flex;gap:7px;flex-wrap:wrap}.preview-pending-notes strong{color:var(--brown)}
-@media(max-width:767px){.pending-form-row{grid-template-columns:minmax(0,1fr) minmax(120px,.8fr)}.pending-form-row input:last-child{grid-column:1/-1}}
-.invoice-add-fields.category-first-fields{grid-template-columns:minmax(0,1.05fr) minmax(0,1.55fr) minmax(90px,.7fr) minmax(62px,.45fr) minmax(120px,.9fr);gap:10px}
 #view-invoice .category-first-fields .invoice-category-select{border-color:#c9b2a1;background:#fffaf7;font-weight:700}
 #view-invoice .category-first-fields select:disabled{background:#f3eee9;color:#9a8b80;cursor:not-allowed}
 #view-invoice .category-first-fields .button{grid-column:auto;min-width:0;width:100%;margin:0}
@@ -250,23 +185,11 @@
 }
 @media screen and (max-width:620px){
   #view-invoice .invoice-search-wrap{grid-column:1/-1;grid-row:1}
-  #view-invoice .invoice-preview-stage{padding:10px}
+  #view-invoice .invoice-preview-stage{padding:10px 4px;-webkit-overflow-scrolling:touch}
   #view-invoice .invoice-preview-sheet{padding:22px 16px 22px;overflow:visible}
-  #view-invoice .preview-company{font-size:9px}
-  #view-invoice .preview-company img{width:68px;height:68px}
-  #view-invoice .preview-title{min-width:0}
   #view-invoice .preview-title h1{font-size:28px}
-  #view-invoice .preview-title div{font-size:9px}
-  #view-invoice .preview-title strong{font-size:9px}
-  #view-invoice .preview-meta span{font-size:8px}
-  #view-invoice .preview-meta strong{font-size:8px}
-  #view-invoice .preview-table-wrap{overflow-x:auto}
-  #view-invoice .invoice-preview-table{min-width:760px;font-size:9px}
-  #view-invoice .invoice-preview-table th{font-size:9px}
-  #view-invoice .invoice-preview-table td{font-size:9px}
+  #view-invoice .preview-table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
   #view-invoice .preview-footer{min-height:150px}
-  #view-invoice .preview-agreement{font-size:8px}
-  #view-invoice .preview-totals{font-size:9px}
 }
 
 @media print{
@@ -750,3 +673,89 @@
 /* Strict Proportional Widths & Content Alignment (Headers are ALWAYS Centered) */
 #view-close-round .close-round-detail-table th{text-align:center!important;vertical-align:middle!important}
 
+#view-close-round .close-round-detail-table th:nth-child(1),
+#view-close-round .close-round-detail-table td:nth-child(1){width:4.5%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(1){text-align:left;font-weight:700;padding-left:5px!important}
+
+#view-close-round .close-round-detail-table th:nth-child(2),
+#view-close-round .close-round-detail-table td:nth-child(2){width:8.0%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(2){text-align:left;padding:2px 3px!important}
+
+#view-close-round .close-round-detail-table th:nth-child(3),
+#view-close-round .close-round-detail-table td:nth-child(3){width:5.5%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(3){text-align:left;padding-left:4px!important}
+
+#view-close-round .close-round-detail-table th:nth-child(4),
+#view-close-round .close-round-detail-table td:nth-child(4),
+#view-close-round .close-round-detail-table th:nth-child(5),
+#view-close-round .close-round-detail-table td:nth-child(5){width:1.8%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(4),
+#view-close-round .close-round-detail-table td:nth-child(5){text-align:center}
+
+#view-close-round .close-round-detail-table th:nth-child(n+6):nth-child(-n+16),
+#view-close-round .close-round-detail-table td:nth-child(n+6):nth-child(-n+16){width:2.7%!important;min-width:0!important}
+#view-close-round .close-round-detail-table td:nth-child(n+6):nth-child(-n+16){text-align:right;padding-right:3px!important}
+
+#view-close-round .close-round-detail-table th:nth-child(17),
+#view-close-round .close-round-detail-table td:nth-child(17){
+  width:3.6%!important;
+  min-width:0!important;
+}
+#view-close-round .close-round-detail-table th:nth-child(17){
+  background:#e6d7c7;
+  font-weight:800;
+  color:#291304;
+}
+#view-close-round .close-round-detail-table td:nth-child(17){
+  text-align:right;
+  background:#f7f0e7;
+  font-weight:700;
+  color:#3e220e;
+  padding-right:3px!important;
+}
+
+#view-close-round .close-round-detail-table th:nth-child(18),
+#view-close-round .close-round-detail-table td:nth-child(18){
+  width:3.2%!important;
+  min-width:0!important;
+}
+#view-close-round .close-round-detail-table td:nth-child(18){
+  text-align:right;
+  padding-right:3px!important;
+}
+
+#view-close-round .close-round-detail-table th:nth-child(19),
+#view-close-round .close-round-detail-table td:nth-child(19){
+  width:3.4%!important;
+  min-width:0!important;
+}
+#view-close-round .close-round-detail-table th:nth-child(19){
+  background:#faebd7;
+  color:#5c2d0b;
+  font-weight:800;
+  border-right:1.5px solid #d8c3b0!important;
+}
+#view-close-round .close-round-detail-table td:nth-child(19){
+  text-align:right;
+  background:#fdf6ec;
+  font-weight:700;
+  color:#73461e;
+  border-right:1.5px solid #d8c3b0!important;
+  padding-right:3px!important;
+}
+
+#view-close-round .close-round-detail-table th:nth-child(20),
+#view-close-round .close-round-detail-table td:nth-child(20){width:2.6%!important;min-width:0!important}
+#view-close-round .close-round-detail-table th:nth-child(21),
+#view-close-round .close-round-detail-table td:nth-child(21){width:2.6%!important;min-width:0!important}
+#view-close-round .close-round-detail-table th:nth-child(22),
+#view-close-round .close-round-detail-table td:nth-child(22){width:2.4%!important;min-width:0!important}
+#view-close-round .close-round-detail-table th:nth-child(23),
+#view-close-round .close-round-detail-table td:nth-child(23){width:2.6%!important;min-width:0!important}
+#view-close-round .close-round-detail-table th:nth-child(24),
+#view-close-round .close-round-detail-table td:nth-child(24){width:2.6%!important;min-width:0!important}
+#view-close-round .close-round-detail-table th:nth-child(25),
+#view-close-round .close-round-detail-table td:nth-child(25){width:2.4%!important;min-width:0!important}
+#view-close-round .close-round-detail-table th:nth-child(26),
+#view-close-round .close-round-detail-table td:nth-child(26){width:2.8%!important;min-width:0!important}
+#view-close-round .close-round-detail-table th:nth-child(27),

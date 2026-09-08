@@ -51,8 +51,11 @@
 #view-invoice .booking-records-panel{margin-top:18px}
 #view-invoice .invoice-preview-table{font-size:clamp(7px,.75vw,9px)}
 #view-invoice .invoice-preview-table th,#view-invoice .invoice-preview-table td{white-space:normal;overflow-wrap:anywhere}
-@media(max-width:980px){#view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) 105px 65px}#view-invoice .invoice-add-fields .button{grid-column:1/-1}}
-@media(max-width:620px){#view-invoice .invoice-add-grid{grid-template-columns:1fr;padding:12px}.invoice-add-fields{grid-template-columns:minmax(0,1fr) 78px!important}.invoice-add-fields input:nth-child(3){grid-column:2}.invoice-add-fields .button{grid-column:1/-1!important}.invoice-preview-stage{padding:6px}.invoice-preview-sheet{padding:12px 9px 16px}.preview-header{gap:8px;min-height:105px}.preview-company{gap:5px;padding-top:2px;font-size:7px;line-height:1.35}.preview-company img{width:56px;height:56px}.preview-title{min-width:0}.preview-title h1{font-size:22px;margin-bottom:8px}.preview-title div{gap:4px;font-size:7px;margin-top:3px}.preview-title strong{font-size:7px;min-width:0}.preview-meta>div{min-height:38px}.preview-meta span{font-size:7px;padding:4px 2px;min-height:18px}.preview-meta strong{font-size:7px;padding:5px 2px;min-height:18px}.invoice-preview-table th{height:32px;font-size:7px;padding:3px 2px}.invoice-preview-table td{height:18px;padding:2px;font-size:7px}.preview-footer{grid-template-columns:minmax(0,1fr) 145px;gap:6px;min-height:125px;margin-top:9px}.preview-agreement{font-size:7px;padding:4px 2px}.preview-footer .signature-row{gap:6px;margin-top:30px}.preview-footer .signature-row span{min-width:62px;font-size:7px}.preview-totals{font-size:7px}.preview-totals>div{padding:5px 4px;min-height:20px}.preview-totals small{font-size:7px}}
+@media(max-width:620px){
+  #view-invoice .invoice-add-grid{grid-template-columns:1fr;padding:12px}
+  .invoice-add-fields{grid-template-columns:minmax(0,1fr) minmax(90px,1fr)!important;gap:8px}
+  .invoice-add-fields .button{grid-column:1/-1!important}
+}
 /* Match INFO BILL metadata row proportions: 60/40 on row one, 20/40/15/25 on row two. */
 .preview-meta{grid-template-columns:1fr 2.1fr .8fr 1.4fr}
 .preview-meta>div:nth-child(1),.preview-meta>div:nth-child(2){grid-column:span 2}
@@ -150,22 +153,9 @@
   #view-invoice .invoice-entry-card .form-grid.three{grid-template-columns:1fr}
   #view-invoice .invoice-entry-card label.span-two{grid-column:auto}
   #view-invoice .invoice-add-grid{padding:12px}
-  #view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) 78px}
-  #view-invoice .invoice-add-fields input:nth-child(3){grid-column:2}
+  #view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) minmax(90px,1fr);gap:8px}
   #view-invoice .invoice-add-fields .button{grid-column:1/-1}
-  #view-invoice .invoice-line-group .table-wrap{overflow:visible}
-  #view-invoice .invoice-line-group table,#view-invoice .invoice-line-group tbody{display:block;min-width:0}
-  #view-invoice .invoice-line-group thead{display:none}
-  #view-invoice .invoice-line-group tbody tr{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);gap:7px 12px;padding:12px 14px;border-bottom:1px solid #eee3dc}
-  #view-invoice .invoice-line-group tbody td{display:flex;align-items:center;justify-content:space-between;gap:8px;width:100%;min-width:0;padding:0;border:0;white-space:normal;overflow-wrap:anywhere}
-  #view-invoice .invoice-line-group tbody td:nth-child(1),#view-invoice .invoice-line-group tbody td:nth-child(2){grid-column:1/-1;justify-content:flex-start}
-  #view-invoice .invoice-line-group tbody td:nth-child(1)::before{content:'หมวด';flex:0 0 52px;color:var(--muted);font-size:10px;font-weight:700}
-  #view-invoice .invoice-line-group tbody td:nth-child(2)::before{content:'รายการ';flex:0 0 52px;color:var(--muted);font-size:10px;font-weight:700}
-  #view-invoice .invoice-line-group tbody td:nth-child(3)::before{content:'จำนวน';color:var(--muted);font-size:10px;font-weight:700}
-  #view-invoice .invoice-line-group tbody td:nth-child(4)::before{content:'Rate';color:var(--muted);font-size:10px;font-weight:700}
-  #view-invoice .invoice-line-group tbody td:nth-child(5)::before{content:'ส่วนลด';color:var(--muted);font-size:10px;font-weight:700}
-  #view-invoice .invoice-line-group tbody td:nth-child(6)::before{content:'ยอดสุทธิ';color:var(--muted);font-size:10px;font-weight:700}
-  #view-invoice .invoice-line-group tbody td:nth-child(7){justify-content:flex-end;grid-column:1/-1}
+  #view-invoice .invoice-line-group .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 }
 
 /* Root sizing audit: every parent after the fixed sidebar must consume the remaining viewport. */
@@ -213,13 +203,8 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
 #view-invoice .invoice-line-group th:nth-child(5){width:13%}
 #view-invoice .invoice-line-group th:nth-child(6){width:12%}
 #view-invoice .invoice-line-group th:nth-child(7){width:9%}
-#view-invoice .invoice-line-group th:nth-child(8){width:4%}
 @media(max-width:767px){
-  #view-invoice .invoice-line-group tbody td:nth-child(5)::before{content:'Deposit'}
-  #view-invoice .invoice-line-group tbody td:nth-child(6)::before{content:'ส่วนลด'}
-  #view-invoice .invoice-line-group tbody td:nth-child(7)::before{content:'ยอดสุทธิ'}
-  #view-invoice .invoice-line-group tbody td:nth-child(7){justify-content:space-between;grid-column:auto}
-  #view-invoice .invoice-line-group tbody td:nth-child(8){justify-content:flex-end;grid-column:1/-1}
+  #view-invoice .invoice-line-group .table-wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
 }
 
 /* Invoice entry reflow: customer details first, item section second, summary band last. */
@@ -476,3 +461,68 @@ html,body,#app-screen,.main-shell,#content{width:100%;min-width:0}
   padding:9px 10px;
   color:var(--ink);
 }
+#view-invoice .invoice-category-input:focus{border-color:var(--brown-2);box-shadow:0 0 0 3px rgba(172,126,84,.14);outline:0}
+@media(min-width:1201px){
+  #view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) minmax(100px,110px) minmax(70px,80px) minmax(130px,1fr) minmax(110px,130px);gap:12px}
+}
+@media(max-width:1200px){
+  #view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) minmax(100px,110px) minmax(70px,80px) minmax(130px,1fr);gap:12px}
+  #view-invoice .invoice-add-fields .button{grid-column:1/-1}
+}
+@media(max-width:620px){
+  #view-invoice .invoice-add-fields{grid-template-columns:minmax(0,1fr) minmax(100px,1fr);gap:12px}
+  #view-invoice .invoice-category-input{grid-column:1/-1}
+  #view-invoice .invoice-add-fields .button{grid-column:1/-1}
+}
+
+/* Keep the add-item controls separated and balanced. */
+#view-invoice .invoice-add-box{box-sizing:border-box;padding-left:14px;padding-right:14px}
+#view-invoice .invoice-add-fields{
+  display:grid;
+  grid-template-columns:minmax(0,1.5fr) minmax(120px,1fr) minmax(90px,.7fr) minmax(0,1.5fr);
+  gap:14px;
+  align-items:stretch;
+  box-sizing:border-box;
+  width:100%;
+  padding:0 2px;
+}
+#view-invoice .invoice-add-fields>input,
+#view-invoice .invoice-add-fields>select,
+#view-invoice .invoice-add-fields>.button{
+  box-sizing:border-box;
+  min-width:0;
+  width:100%;
+  height:40px;
+  min-height:40px;
+  margin:0;
+}
+#view-invoice .invoice-add-fields>.button{
+  grid-column:1/-1;
+  justify-self:start;
+  width:auto;
+  min-width:148px;
+  margin-top:2px;
+}
+@media(max-width:900px){
+  #view-invoice .invoice-add-fields{
+    grid-template-columns:minmax(0,1.25fr) minmax(110px,1fr) minmax(82px,.75fr);
+    gap:14px;
+  }
+  #view-invoice .invoice-category-input{grid-column:1/-1}
+}
+@media(max-width:620px){
+  #view-invoice .invoice-add-box{padding-left:10px;padding-right:10px}
+  #view-invoice .invoice-add-fields{
+    grid-template-columns:minmax(0,1fr) minmax(100px,1fr);
+    gap:12px;
+    padding:0;
+  }
+  #view-invoice .invoice-add-fields>input,
+  #view-invoice .invoice-add-fields>select{width:100%}
+  #view-invoice .invoice-add-fields>.button{width:100%;min-width:0}
+  #view-invoice .invoice-category-input{grid-column:1/-1}
+}
+@media(max-width:767px){.pending-collection-row{grid-template-columns:minmax(0,1fr) minmax(110px,.75fr)}.pending-collection-row input:last-child{grid-column:1/-1}}
+.pending-form-section{margin-top:16px;padding:14px 18px;border:1px solid #e0d4cb;border-radius:6px;background:#fffaf7}.pending-form-section .line-group-heading{padding:0 0 8px}.pending-form-row{display:grid;grid-template-columns:minmax(0,1.2fr) minmax(130px,.7fr) minmax(0,1fr);gap:8px;align-items:center;padding:8px 0;border-top:1px solid #eee3dc}.pending-form-row strong{overflow-wrap:anywhere}.pending-form-row input{width:100%;height:38px;border:1px solid #d8cbc1;border-radius:5px;background:#fff;padding:8px;color:var(--ink);min-width:0}.preview-pending-notes{display:grid;gap:5px;margin-top:10px;padding:10px 12px;border:1px solid #e0d4cb;border-left:4px solid var(--ochre);background:#fffaf0;font-size:11px}.preview-pending-notes:empty{display:none}.preview-pending-notes div{display:flex;gap:7px;flex-wrap:wrap}.preview-pending-notes strong{color:var(--brown)}
+@media(max-width:767px){.pending-form-row{grid-template-columns:minmax(0,1fr) minmax(120px,.8fr)}.pending-form-row input:last-child{grid-column:1/-1}}
+.invoice-add-fields.category-first-fields{grid-template-columns:minmax(0,1.05fr) minmax(0,1.55fr) minmax(90px,.7fr) minmax(62px,.45fr) minmax(120px,.9fr);gap:10px}
